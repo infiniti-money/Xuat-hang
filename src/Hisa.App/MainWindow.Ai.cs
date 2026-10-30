@@ -114,7 +114,7 @@ public partial class MainWindow
             catch (Exception ex)
             {
                 // Provider errors are normalized and never include API keys.
-                status.Text = ex.Message;
+                status.Text = ex.Message;\n                status.Foreground = Brush("#AA4D39");
                 throw;
             }
         }, true);
@@ -246,6 +246,18 @@ public partial class MainWindow
             })),
             saved
         ));
+        var kpis = Row(
+            Card(Stack(T("CONT DỰ KIẾN VỀ", 11, true, Muted),
+                T(doc.Arrivals.Count.ToString("N0") + " hợp đồng", 22, true),
+                T("Chưa tính là đã nhập kho", 11, false, Muted)), new Thickness(14)),
+            Card(Stack(T("KẾ HOẠCH XUẤT", 11, true, Muted),
+                T(doc.Dispatches.Count.ToString("N0") + " hợp đồng", 22, true),
+                T("Chờ phê duyệt trước khi lưu", 11, false, Muted)), new Thickness(14)),
+            Card(Stack(T("CẦN XÁC MINH", 11, true, Muted),
+                T(doc.Arrivals.Concat(doc.Dispatches).Count(x => x.NeedsReview).ToString("N0") + " dòng", 22, true),
+                T("Đối chiếu ảnh Zalo gốc", 11, false, Muted)), new Thickness(14))
+        );
+        panel.Children.Add(kpis);
         panel.Children.Add(tools);
         panel.Children.Add(T("Nguồn nhận dạng: " + doc.AnalyzedBy + " · Bản ghi cần xem thủ công: " +
             doc.Arrivals.Concat(doc.Dispatches).Count(x => x.NeedsReview), 12, true));
