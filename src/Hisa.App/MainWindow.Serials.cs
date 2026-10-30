@@ -1,3 +1,4 @@
+using System.Windows;
 using System.Windows.Controls;
 
 namespace Hisa.App;
@@ -11,6 +12,26 @@ public partial class MainWindow
         var dialog=new MotorSerialWindow(slip,_service.Slips,requireAll){Owner=this};
         if(dialog.ShowDialog()!=true)return false;
         slip.MotorSerials=dialog.ResultSerials;return true;
+    }
+    private bool ConfirmMotorSerialsForDelivery(Slip slip)
+    {
+        // Keep existing correctly matched serials; create blank entries for missing units.
+        // Only the explicit Yes action waives the missing-serial requirement.
+        slip.MotorSerials=MotorSerials.BuildRows(slip);
+        MotorSerials.Validate(slip,_service.Slips,requireAll:false);
+        var missing=slip.MotorSerials.Count(x=>string.IsNullOrWhiteSpace(x.SerialNumber));
+        if(missing==0)
+        {
+            slip.AllowMissingMotorSerials=false;
+            return true;
+        }
+        var confirmation=MessageBox.Show(this,
+            $"Phiếu {slip.SlipCode} có {missing:N0} máy kéo chưa nhập serial trong tổng số {slip.MotorSerials.Count:N0} máy.\n\nBạn có muốn xác nhận ĐÃ XUẤT dù thiếu serial?\n\nCác serial còn thiếu sẽ được lưu trống để bổ sung sau. Serial đã nhập vẫn được kiểm tra trùng.",
+            "Xác nhận xuất máy kéo thiếu serial",
+            MessageBoxButton.YesNo,MessageBoxImage.Warning,MessageBoxResult.No);
+        if(confirmation!=MessageBoxResult.Yes)return false;
+        slip.AllowMissingMotorSerials=true;
+        return true;
     }
     private void ShowMotorSerialHistory(Slip slip)
     {
