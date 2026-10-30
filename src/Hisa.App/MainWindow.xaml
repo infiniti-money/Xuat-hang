@@ -5,7 +5,7 @@
     <Border Background="#132D40">
       <DockPanel>
         <StackPanel DockPanel.Dock="Top" Margin="24,22,20,18"><Border Width="72" Height="72" Background="White" CornerRadius="12" Padding="4" HorizontalAlignment="Left" Margin="0,0,0,14"><Image Source="/Assets/hisa-logo.jpg" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" ToolTip="Hisa Elevator"/></Border><TextBlock Text="Quản lý kho" Foreground="White" FontSize="24" FontWeight="Bold"/><TextBlock Text="KIỆN HÀNG / HƯNG YÊN" Foreground="#62C1BD" FontSize="10" FontWeight="SemiBold" Margin="2,5,0,0"/></StackPanel>
-        <StackPanel DockPanel.Dock="Bottom" Margin="24,18"><Border Background="#203F52" CornerRadius="7" Padding="12"><StackPanel><TextBlock x:Name="VersionText" Text="Phiên bản 1.2.1" Foreground="#C4D9E5" FontSize="12"/><TextBlock Text="Dữ liệu lưu tại máy" Foreground="#7E9DB0" FontSize="11" Margin="0,4,0,0"/></StackPanel></Border></StackPanel>
+        <StackPanel DockPanel.Dock="Bottom" Margin="24,18"><Border Background="#203F52" CornerRadius="7" Padding="12"><StackPanel><TextBlock x:Name="VersionText" Text="Phiên bản 1.4.0" Foreground="#C4D9E5" FontSize="12"/><TextBlock Text="Dữ liệu lưu tại máy" Foreground="#7E9DB0" FontSize="11" Margin="0,4,0,0"/></StackPanel></Border></StackPanel>
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel x:Name="Navigation"/></ScrollViewer>
       </DockPanel>
     </Border>

@@ -1,4 +1,4 @@
-# Quản lý kho — C# / .NET 10 · phiên bản 1.3.0
+# Quản lý kho — C# / .NET 10 · phiên bản 1.4.0
 
 **Người tạo:** Trịnh Phương Tân  
 **SĐT:** 0867899987  
@@ -6,12 +6,25 @@
 
 ## Bộ cài đặt Windows tiếng Việt và cập nhật tự động · phiên bản 1.3.0
 
-- Vào [GitHub Releases](https://github.com/infiniti-money/Xuat-hang/releases/latest) và tải `HISA-Kho-Vat-Tu-1.3.0-Setup.exe`. Bộ cài sử dụng tiếng Việt và mặc định cài vào `C:\\Program Files\\HISA Kho Vat Tu`. Có biểu tượng trên Desktop và Start Menu, hỗ trợ gỡ cài.
+- Vào [GitHub Releases](https://github.com/infiniti-money/Xuat-hang/releases/latest) và tải `HISA-Kho-Vat-Tu-1.4.0-Setup.exe`. Bộ cài sử dụng tiếng Việt và mặc định cài vào `C:\\Program Files\\HISA Kho Vat Tu`. Có biểu tượng trên Desktop và Start Menu, hỗ trợ gỡ cài.
 - Giao diện chính hiển thị logo HISA. Phần mềm tự kiểm tra GitHub Releases khi mở, tải và xác minh bộ cài (SHA-256) trong nền; khi đóng ứng dụng sẽ nâng cấp yên lặng rồi mở lại.
 - Chế độ `/VERYSILENT` ẩn trình hướng dẫn cài đặt nhưng **không thể bỏ qua cửa sổ UAC của Windows** khi nâng cấp ứng dụng cài trong Program Files. Nếu không cấp quyền quản trị, phiên bản cũ và dữ liệu vẫn giữ nguyên.
 - Tài liệu ứng dụng: **Thư viện → Tài liệu → HISA Kho Vat Tu → APP KHO → data**.
 - Sao lưu ZIP: **Thư viện → Tài liệu → HISA Kho Vat Tu → Backups**; các bản sao Excel trước khi ghi nằm trong thư mục **Backups → Excel**.
 - Gỡ phần mềm hoặc nâng cấp không xóa dữ liệu và bản sao lưu trong Thư viện. Khi nâng cấp từ bản cũ, các file dữ liệu tìm thấy tại vị trí cũ sẽ được chuyển sang nếu file đích chưa tồn tại.
+
+
+## AI đọc ảnh bảng lịch kho (v1.4.0)
+
+1. Mở **AI lịch nhập – xuất kho** trên thanh điều hướng; tải ảnh chụp bảng Excel từ Zalo về máy rồi chọn JPG/PNG/WEBP.
+2. Nhập API Key OpenAI và Gemini (cung cấp bởi tài khoản dịch vụ API, không phải mật khẩu ChatGPT). Nhập cả hai để AI kiểm tra chéo; nếu một API lỗi, phần mềm có cảnh báo.
+3. Bấm **GPT + Gemini · Phân tích ảnh**; xem **PHẦN 1 · NHẬP KHO** theo từng container và **PHẦN 2 · XUẤT KHO** riêng. Kiểm tra ngày nhập kho, ngày xuất container, mã hợp đồng, công trình, ghi chú và đơn vị.
+4. Sửa bất kỳ hàng nào cần thiết, kiểm tra cảnh báo, chọn **Lưu kế hoạch đã duyệt**. Tệp JSON được lưu riêng tại Documents/HISA Kho Vat Tu/APP KHO/data/ai_schedules. Việc duyệt này **không cập nhật sổ xuất hoặc tồn kho**.
+5. Bấm **Nạp các hợp đồng xuất vào kế hoạch** để chuyển mã sang màn hình lập phiếu chờ cũ, đối chiếu vật tư và xác nhận riêng.
+
+Quy tắc nghiệp vụ: **Đã có LX = đã có lịch xuất**, không phải tên lái xe, không phải hàng đã xuất. Ô ghi chú trống = chưa xác nhận lịch xuất. Hợp đồng trùng nhưng khác công trình không được tự động gộp; khác nhau giữa hai AI được đưa vào danh sách kiểm tra. Không tự động ghi ngày về kho dựa trên lịch dự kiến. Ghi chú “Khách cần gấp” được giữ lại.
+
+Chế độ AI yêu cầu Internet, API Key riêng và có thể tính phí theo nhà cung cấp. API Key chỉ được giữ trong bộ nhớ trong phiên chạy; không lưu file, không đưa vào bản sao lưu và không được nhúng trong bản phát hành công khai. Ảnh chỉ được gửi khi người dùng chủ động bấm phân tích. HISA không tự đọc tin nhắn Zalo hoặc yêu cầu đăng nhập Zalo.
 
 ## Bản sửa lỗi 1.2.1
 

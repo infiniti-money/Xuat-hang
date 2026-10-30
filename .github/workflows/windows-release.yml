@@ -3,6 +3,8 @@ name: Windows build, regression tests and release
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -129,6 +131,7 @@ jobs:
           if-no-files-found: error
 
       - name: Publish first release if version is new
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}

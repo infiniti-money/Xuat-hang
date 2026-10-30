@@ -156,6 +156,7 @@ public static class SelfTests
             result.Checks.AddRange(await AuditExcelDiagnostics.RunAsync());
             result.Checks.AddRange(AuditPrintDiagnostics.Run());
             result.Checks.AddRange(await AuditStateDiagnostics.RunAsync());
+            result.Checks.AddRange(AiScheduleDiagnostics.Run());
             result.Success=true;
         }
         catch(Exception e){result.Error=e.ToString();}

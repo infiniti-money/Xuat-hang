@@ -1,0 +1,250 @@
+using System.IO;
+using System.Text.Json;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
+using Microsoft.Win32;
+
+namespace Hisa.App;
+
+public partial class MainWindow
+{
+    private AiScheduleDocument? _aiDocument;
+    private string _aiImagePath = "";
+    private string _aiOpenAiKey = "";
+    private string _aiGeminiKey = "";
+    private string? _aiDispatchDay;
+    private bool _aiApproved;
+
+    private static DataGrid ScheduleEditor(List<AiScheduleLine> rows, bool incoming)
+    {
+        var grid = new DataGrid
+        {
+            ItemsSource = rows,
+            AutoGenerateColumns = false,
+            CanUserAddRows = false,
+            CanUserDeleteRows = false,
+            SelectionMode = DataGridSelectionMode.Single,
+            Margin = new Thickness(0, 8, 0, 6),
+            MinHeight = 240
+        };
+        void TextColumn(string label, string path, double width, bool edit = true)
+        {
+            grid.Columns.Add(new DataGridTextColumn
+            {
+                Header = label,
+                Binding = new Binding(path)
+                {
+                    Mode = edit ? BindingMode.TwoWay : BindingMode.OneWay,
+                    UpdateSourceTrigger = UpdateSourceTrigger.LostFocus
+                },
+                IsReadOnly = !edit,
+                Width = width < 0 ? new DataGridLength(1, DataGridLengthUnitType.Star)
+                                  : new DataGridLength(width)
+            });
+        }
+        TextColumn("Số HĐ", "Contract", 110);
+        TextColumn("Công trình", "Project", -1);
+        TextColumn("Đơn vị", "Company", 135);
+        TextColumn("Ngày dự kiến", "PlannedDate", 118);
+        if (incoming)
+        {
+            TextColumn("Container", "Container", 125);
+            TextColumn("Ngày xuất cont", "ContainerExportDate", 125);
+        }
+        TextColumn("Ghi chú", "Note", 185);
+        grid.Columns.Add(new DataGridCheckBoxColumn
+        {
+            Header = "Khách gấp",
+            Binding = new Binding("Urgent") { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged },
+            Width = 80
+        });
+        TextColumn("Trạng thái lịch xuất", "ScheduleLabel", 158, false);
+        grid.Columns.Add(new DataGridCheckBoxColumn
+        {
+            Header = "Cần kiểm tra",
+            Binding = new Binding("NeedsReview") { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged },
+            Width = 95
+        });
+        TextColumn("Lý do kiểm tra", "ReviewNote", 230);
+        return grid;
+    }
+
+    private void ShowAiSchedules()
+    {
+        _page = "ai-schedule";
+        var upload = new TextBlock
+        {
+            Text = _aiImagePath.Length > 0 ? Path.GetFileName(_aiImagePath) : "Chưa chọn ảnh lịch từ Zalo",
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(8)
+        };
+        var gptKey = new PasswordBox { Width = 260, Margin = new Thickness(0, 4, 12, 10) };
+        var geminiKey = new PasswordBox { Width = 260, Margin = new Thickness(0, 4, 12, 10) };
+        // Session-only secrets: never stored in Excel, JSON, backups, source code or logs.
+        gptKey.Password = _aiOpenAiKey;
+        geminiKey.Password = _aiGeminiKey;
+        var status = T("Ảnh được gửi tới API của nhà cung cấp đã chọn khi bạn bấm Phân tích. API Key chỉ giữ trong phiên chạy, không được lưu.", 12, false, Muted);
+        var choose = B("Chọn ảnh từ Zalo", () =>
+        {
+            var file = new OpenFileDialog
+            {
+                Title = "Chọn ảnh chụp lịch nhập / xuất kho",
+                Filter = "Ảnh JPG, PNG, WEBP|*.jpg;*.jpeg;*.png;*.webp"
+            };
+            if (file.ShowDialog(this) == true)
+            {
+                _aiImagePath = file.FileName;
+                _aiDocument = null;
+                _aiApproved = false;
+                upload.Text = Path.GetFileName(file.FileName);
+            }
+        }, true);
+        var analyze = A("GPT + Gemini · Phân tích ảnh", async () =>
+        {
+            if (_aiImagePath.Length == 0) throw new InvalidOperationException("Chọn một ảnh lịch nhập/xuất trước.");
+            _aiOpenAiKey = gptKey.Password;
+            _aiGeminiKey = geminiKey.Password;
+            if (_aiOpenAiKey.Length == 0 && _aiGeminiKey.Length == 0)
+                throw new InvalidOperationException("Nhập ít nhất một API Key. Nên dùng cả GPT và Gemini để kiểm chứng chéo.");
+            status.Text = "Đang đọc ảnh và kiểm tra chéo kết quả...";
+            _aiDocument = await AiScheduleReader.AnalyzeAsync(_aiImagePath, _aiOpenAiKey, _aiGeminiKey);
+            _aiApproved = false;
+            ShowAiSchedules();
+        });
+        var top = Card(Stack(
+            T("Đọc ảnh lịch kho bằng AI", 18, true),
+            T("Nhập ảnh đã lưu từ Zalo. Hai phần nhập kho / xuất kho sẽ được tách riêng. Chưa tự ghi vào sổ Excel hay đánh dấu đã xuất hàng.", 12, false, Muted),
+            Row(choose, upload),
+            Row(Field("OpenAI API Key (GPT)", gptKey), Field("Gemini API Key", geminiKey)),
+            Row(analyze),
+            status
+        ));
+        var panel = Stack();
+        if (_aiDocument == null)
+        {
+            panel.Children.Add(Alert("Sau khi phân tích, xem và sửa từng dòng, kiểm tra cảnh báo, rồi bấm Lưu kế hoạch đã duyệt. Không có API Key nào được đóng gói trong EXE."));
+            SetPage("AI lịch nhập – xuất kho", "Đọc ảnh từ Zalo · GPT + Gemini · duyệt thủ công trước khi lưu", Layout(top,
+                new ScrollViewer { Content = panel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }));
+            return;
+        }
+
+        var doc = _aiDocument;
+        var dayArrival = Input(doc.ArrivalDate);
+        dayArrival.Width = 150;
+        var dayDispatch = Input(doc.DispatchDate);
+        dayDispatch.Width = 150;
+        var incoming = ScheduleEditor(doc.Arrivals, true);
+        var outgoing = ScheduleEditor(doc.Dispatches, false);
+        incoming.CellEditEnding += (_, _) => _aiApproved = false;
+        outgoing.CellEditEnding += (_, _) => _aiApproved = false;
+
+        var incomingCount = T(doc.Arrivals.Count + " công trình · hàng dự kiến nhập kho", 14, true);
+        var outgoingCount = T(doc.Dispatches.Count + " công trình · hàng dự kiến xuất kho", 14, true);
+        var incomingBody = Stack(incomingCount, incoming);
+        var outgoingBody = Stack(outgoingCount, outgoing);
+
+        // The tri-state "Đã có LX" is never interpreted as driver availability.
+        void CycleSchedule(DataGrid grid)
+        {
+            if (grid.SelectedItem is not AiScheduleLine selected)
+            {
+                Notify("Chọn một dòng trong bảng để điều chỉnh trạng thái lịch xuất."); return;
+            }
+            selected.HasExportSchedule = selected.HasExportSchedule switch
+            {
+                null => true,
+                true => false,
+                false => null
+            };
+            _aiApproved = false;
+            grid.Items.Refresh();
+        }
+        incomingBody.Children.Add(Row(B("Đổi trạng thái lịch xuất của dòng chọn", () => CycleSchedule(incoming))));
+        outgoingBody.Children.Add(Row(B("Đổi trạng thái lịch xuất của dòng chọn", () => CycleSchedule(outgoing))));
+
+        var warningsBlock = T("", 12, false, Muted);
+        void RefreshWarnings()
+        {
+            Commit(incoming);
+            Commit(outgoing);
+            doc.ArrivalDate = dayArrival.Text.Trim();
+            doc.DispatchDate = dayDispatch.Text.Trim();
+            doc.Warnings = doc.Warnings.Distinct().ToList();
+            var warnings = AiScheduleReader.ValidateWithWarehouse(doc, _service.Snapshot);
+            warningsBlock.Text = warnings.Count == 0
+                ? "Không có cảnh báo bổ sung. Vẫn cần xác nhận với ảnh nguồn."
+                : string.Join("\n", warnings.Take(60)) + (warnings.Count > 60 ? "\n... còn " + (warnings.Count - 60) + " cảnh báo." : "");
+        }
+        RefreshWarnings();
+        var saved = T(_aiApproved ? "Kế hoạch đã được duyệt trong phiên này." : "Chưa duyệt. Mọi dòng có thể chỉnh sửa trước khi lưu.", 12, true);
+        var save = B("Lưu kế hoạch đã duyệt", () =>
+        {
+            RefreshWarnings();
+            if (doc.Arrivals.Count + doc.Dispatches.Count == 0)
+                throw new InvalidOperationException("Danh sách trống, không thể duyệt.");
+            if (!DateTime.TryParseExact(doc.ArrivalDate, "yyyy-MM-dd",
+                System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out _) ||
+                !DateTime.TryParseExact(doc.DispatchDate, "yyyy-MM-dd",
+                System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out _))
+                throw new InvalidOperationException("Sửa cả hai ngày dự kiến theo yyyy-MM-dd trước khi lưu.");
+            var review = doc.Arrivals.Concat(doc.Dispatches).Count(r => r.NeedsReview);
+            if (!Ask("Duyệt và lưu " + doc.Arrivals.Count + " dòng nhập, " + doc.Dispatches.Count +
+                     " dòng xuất?\n" + review + " dòng đang đánh dấu cần kiểm tra.\n\n" +
+                     "Đây chỉ là LỊCH DỰ KIẾN; không cập nhật tồn kho, không tự lập phiếu đã xuất.")) return;
+            var folder = Path.Combine(_service.DataDirectory, "ai_schedules");
+            Directory.CreateDirectory(folder);
+            var path = Path.Combine(folder, "lich-kho-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") +
+                             "-" + Guid.NewGuid().ToString("N")[..8] + ".json");
+            doc.ApprovedAt = DateTimeOffset.Now.ToString("O");
+            var temp = path + ".tmp";
+            try
+            {
+                File.WriteAllText(temp, JsonSerializer.Serialize(doc,
+                    new JsonSerializerOptions(WarehouseService.Json) { WriteIndented = true }));
+                File.Move(temp, path);
+            }
+            finally { if (File.Exists(temp)) File.Delete(temp); }
+            _aiApproved = true;
+            saved.Text = "Đã lưu kế hoạch: " + Path.GetFileName(path);
+            Notify("Đã lưu kế hoạch dự kiến vào:\n" + path +
+                "\n\nKhông có phiếu Đã xuất hoặc ngày cont về nào được ghi tự động.");
+        }, true);
+        var toPlan = B("Nạp các hợp đồng xuất vào kế hoạch", () =>
+        {
+            if (!_aiApproved) { Notify("Hãy duyệt và lưu bảng trước khi nạp vào kế hoạch."); return; }
+            RefreshWarnings();
+            if (doc.DispatchDate.Length == 0) { Notify("Thiếu ngày dự kiến xuất."); return; }
+            var codes = doc.Dispatches.Select(x => x.Contract).Where(x => x.Length > 0)
+                .DistinctBy(Rules.Contract).ToArray();
+            if (codes.Length == 0) { Notify("Chưa có mã hợp đồng xuất kho."); return; }
+            if (!Ask("Nạp " + codes.Length + " hợp đồng vào màn hình kế hoạch?\n" +
+                "Bạn vẫn cần kiểm tra vật tư và bấm lưu phiếu chờ thủ công.")) return;
+            _draft = null;
+            _draftReport = _service.Search(new SearchFilter { ContractsText = string.Join("\n", codes) });
+            _aiDispatchDay = doc.DispatchDate;
+            _createPlanMode = true;
+            Navigate("plan");
+        });
+        var tools = Card(Stack(
+            T("Ngày và phê duyệt", 16, true),
+            Row(Field("Dự kiến nhập kho · yyyy-MM-dd", dayArrival),
+                Field("Dự kiến xuất kho · yyyy-MM-dd", dayDispatch),
+                B("Kiểm tra cảnh báo", RefreshWarnings)),
+            T("Lưu kế hoạch vào thư mục dữ liệu HISA. Bấm Nạp hợp đồng để chuyển sang màn hình kế hoạch cũ; mọi bước xuất kho vẫn cần xác nhận riêng.", 12, false, Muted),
+            Row(save, toPlan),
+            saved
+        ));
+        panel.Children.Add(tools);
+        panel.Children.Add(T("Nguồn nhận dạng: " + doc.AnalyzedBy + " · Bản ghi cần xem thủ công: " +
+            doc.Arrivals.Concat(doc.Dispatches).Count(x => x.NeedsReview), 12, true));
+        panel.Children.Add(T("CẢNH BÁO / ĐỐI CHIẾU", 13, true));
+        panel.Children.Add(Card(warningsBlock));
+        panel.Children.Add(T("PHẦN 1 · NHẬP KHO", 16, true));
+        panel.Children.Add(Card(incomingBody));
+        panel.Children.Add(T("PHẦN 2 · XUẤT KHO", 16, true));
+        panel.Children.Add(Card(outgoingBody));
+        SetPage("AI lịch nhập – xuất kho", "Kiểm tra chéo · sửa bảng · duyệt kế hoạch trước khi lưu", Layout(top,
+            new ScrollViewer { Content = panel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }));
+    }
+}

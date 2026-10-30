@@ -46,6 +46,7 @@ public partial class MainWindow : Window
         AddNav("slips", "▤", "Phiếu bàn giao");
         AddNav("daily", "▥", "Báo cáo theo ngày");
         NavCaption("NHẬP KHO & THIẾT LẬP");
+        AddNav("ai-schedule", "✦", "AI lịch nhập – xuất kho");
         AddNav("arrival", "↓", "Nhập cont về kho");
         AddNav("arrival-packages", "▣", "Quản lý kiện cont về");
         AddNav("templates", "▧", "Mẫu phiếu in");
@@ -97,6 +98,7 @@ public partial class MainWindow : Window
             case "plan":_createPlanMode=true;ShowCreate(true);break;
             case "slips":ShowSlips();break;
             case "daily":ShowDaily();break;
+            case "ai-schedule":ShowAiSchedules();break;
             case "arrival":ShowArrival();break;
             case "arrival-packages":ShowArrivalPackages();break;
             case "templates":ShowTemplates();break;
@@ -343,7 +345,7 @@ public partial class MainWindow : Window
         if(report==null)categories["Khác"].IsChecked=FindTemplate(template.SelectedValue?.ToString()??"internal_summary").IncludeOther;
         var otherManuallyChanged=false;categories["Khác"].Click+=(_,_)=>otherManuallyChanged=true;
         template.SelectionChanged+=(_,_)=>{if(!otherManuallyChanged)categories["Khác"].IsChecked=FindTemplate(template.SelectedValue?.ToString()??"internal_summary").IncludeOther;};
-        var day=DateInput(_draft?.HandoverDate??DateTime.Today.ToString("yyyy-MM-dd"));
+        var day=DateInput(_draft?.HandoverDate??_aiDispatchDay??DateTime.Today.ToString("yyyy-MM-dd"));
         var top=Stack();
         Expander? sourceControls=null;
         string signature()=>string.Join("|",Rules.Tokens(codes.Text).Select(Rules.Contract).Order())+"/"+string.Join("|",categories.Where(x=>x.Value.IsChecked==true).Select(x=>x.Key))+"/"+keys.Text+"/"+Day(arrival);
