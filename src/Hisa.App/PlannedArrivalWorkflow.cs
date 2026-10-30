@@ -74,8 +74,13 @@ public static class PlannedArrivalWorkflow
                  arrivals.Where(x=>Rules.Identity(x.Contract,x.Project,x.Company)==identity)
                      .Any(x=>x!=ai && Rules.Code(x.Container)!=Rules.Code(ai.Container) &&
                          (x.ContainerExportDate==ai.ContainerExportDate || x.ContainerExportDate.Length==0)));
-            var matched=competing ? (ambiguous ? new List<Package>() : candidatesForCont) :
-                (candidatesForCont.Count>0 ? candidatesForCont : candidates);
+            // CRITICAL: even if this contract appears only once in the Zalo screenshot,
+            // do not silently assign an unrelated Cont đi source package to that container.
+            // The source must identify this exact container, or at least the verified
+            // factory departure date when its physical container ID is not recorded.
+            var unmatchedSource = candidates.Count>0 && candidatesForCont.Count==0;
+            var matched = ambiguous || unmatchedSource
+                ? new List<Package>() : candidatesForCont;
             if(matched.Count==0) matched=[new Package {
                 Contract=ai.Contract,Project=ai.Project,Company=ai.Company}];
 
@@ -107,6 +112,11 @@ public static class PlannedArrivalWorkflow
                 {
                     row.Status="Cùng HĐ ở nhiều container";
                     row.Notes="Không xác định được kiện thuộc cont nào. Cần số cont nguồn hoặc ngày cont đi khác nhau.";
+                }
+                else if (unmatchedSource)
+                {
+                    row.Status="Chưa xác minh kiện theo cont đi";
+                    row.Notes="Hợp đồng có kiện nguồn nhưng không khớp số cont hoặc ngày cont đi. Không được nhập tất cả kiện theo số HĐ; hãy xác minh nguồn và cập nhật lịch.";
                 }
                 else if (package.Id.Length==0)
                 {
