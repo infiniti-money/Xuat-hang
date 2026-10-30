@@ -1,0 +1,24 @@
+# Build and publish output
+**/bin/
+**/obj/
+/publish/
+/publish_*/
+
+# Local app data, workbooks, backups, logs and generated reports
+/data/
+/APP KHO/
+*.mdb
+*.db
+*.bak
+*.log
+*.zip
+*.user
+
+# Local verification artifacts may contain machine paths or screenshots
+/verification/
+
+# IDE / OS
+.vs/
+.vscode/
+Thumbs.db
+Desktop.ini
