@@ -1,21 +1,132 @@
-<Window x:Class="Hisa.App.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Quản lý kho" Icon="/Assets/hisa.ico" Width="1480" Height="940" MinWidth="1050" MinHeight="700" WindowStartupLocation="CenterScreen" Background="#F3F6FA" FontFamily="Segoe UI">
-  <Window.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries><ResourceDictionary Source="Theme.xaml"/></ResourceDictionary.MergedDictionaries></ResourceDictionary></Window.Resources>
+<Window x:Class="Hisa.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="HISA | Quản lý kho Hưng Yên" Icon="/Assets/hisa.ico"
+        Width="1510" Height="940" MinWidth="1120" MinHeight="730"
+        WindowStartupLocation="CenterScreen" Background="#F4F7FB"
+        FontFamily="Segoe UI" FontSize="13"
+        UseLayoutRounding="True" SnapsToDevicePixels="True">
+  <Window.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="Theme.xaml"/>
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </Window.Resources>
+
   <Grid>
-    <Grid.ColumnDefinitions><ColumnDefinition Width="235"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-    <Border Background="#132D40">
-      <DockPanel>
-        <StackPanel DockPanel.Dock="Top" Margin="24,22,20,18"><Border Width="72" Height="72" Background="White" CornerRadius="12" Padding="4" HorizontalAlignment="Left" Margin="0,0,0,14"><Image Source="/Assets/hisa-logo.jpg" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" ToolTip="Hisa Elevator"/></Border><TextBlock Text="Quản lý kho" Foreground="White" FontSize="24" FontWeight="Bold"/><TextBlock Text="KIỆN HÀNG / HƯNG YÊN" Foreground="#62C1BD" FontSize="10" FontWeight="SemiBold" Margin="2,5,0,0"/></StackPanel>
-        <StackPanel DockPanel.Dock="Bottom" Margin="24,18"><Border Background="#203F52" CornerRadius="7" Padding="12"><StackPanel><TextBlock x:Name="VersionText" Text="Phiên bản 1.4.0" Foreground="#C4D9E5" FontSize="12"/><TextBlock Text="Dữ liệu lưu tại máy" Foreground="#7E9DB0" FontSize="11" Margin="0,4,0,0"/></StackPanel></Border></StackPanel>
-        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel x:Name="Navigation"/></ScrollViewer>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="258"/>
+      <ColumnDefinition Width="*"/>
+    </Grid.ColumnDefinitions>
+
+    <!-- Persistent command rail. Nothing in this surface modifies warehouse data. -->
+    <Border Grid.Column="0" Background="#102236">
+      <DockPanel LastChildFill="True">
+        <StackPanel DockPanel.Dock="Top" Margin="22,24,18,0">
+          <DockPanel LastChildFill="True" Margin="0,0,0,12">
+            <Border DockPanel.Dock="Left" Width="54" Height="54" Background="White"
+                    CornerRadius="14" Padding="5" Margin="0,0,13,0">
+              <Image Source="/Assets/hisa-logo.jpg" Stretch="Uniform"
+                     RenderOptions.BitmapScalingMode="HighQuality" ToolTip="HISA Elevator"/>
+            </Border>
+            <StackPanel VerticalAlignment="Center">
+              <TextBlock Text="HISA" FontSize="25" FontWeight="Bold"
+                         Foreground="#FFFFFF" LetterSpacing="1"/>
+              <TextBlock Text="WAREHOUSE OPERATIONS" Foreground="#71CFC6"
+                         FontWeight="SemiBold" FontSize="9" Margin="1,3,0,0"/>
+            </StackPanel>
+          </DockPanel>
+          <Border Background="#1C354B" CornerRadius="9" Padding="12,9" Margin="0,8,0,16">
+            <DockPanel LastChildFill="True">
+              <Ellipse Width="8" Height="8" Fill="#55D3B2" Margin="0,0,9,0"/>
+              <TextBlock Text="KHO HƯNG YÊN" Foreground="#DDEBF4"
+                         FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            </DockPanel>
+          </Border>
+        </StackPanel>
+
+        <StackPanel DockPanel.Dock="Bottom" Margin="17,9,17,19">
+          <Border Background="#1C354B" BorderBrush="#2C4B60" BorderThickness="1"
+                  Padding="13,12" CornerRadius="11">
+            <StackPanel>
+              <DockPanel>
+                <TextBlock Text="●" Foreground="#58D0B0" FontSize="11" Margin="0,0,8,0"/>
+                <TextBlock Text="DỮ LIỆU LƯU TẠI MÁY" Foreground="#D5E7EF"
+                           FontSize="10" FontWeight="SemiBold"/>
+              </DockPanel>
+              <TextBlock x:Name="VersionText" Text="Phiên bản 1.6.0"
+                         Foreground="#93B2C5" FontSize="11" Margin="0,6,0,0"/>
+              <TextBlock Text="Ctrl+1 Tổng quan  ·  Ctrl+2 Lịch xuất"
+                         Foreground="#789BAF" FontSize="10" Margin="0,5,0,0"
+                         TextWrapping="Wrap"/>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled"
+                      Focusable="False" Margin="0,0,3,0">
+          <StackPanel x:Name="Navigation" Margin="0,0,0,12"/>
+        </ScrollViewer>
       </DockPanel>
     </Border>
+
+    <!-- Main workspace: always has a stable header and a visible system status. -->
     <Grid Grid.Column="1">
-      <Grid.RowDefinitions><RowDefinition Height="78"/><RowDefinition Height="*"/><RowDefinition Height="34"/></Grid.RowDefinitions>
-      <Border Background="White" BorderBrush="#E1E8EE" BorderThickness="0,0,0,1" Padding="28,0">
-        <DockPanel VerticalAlignment="Center"><Button DockPanel.Dock="Right" x:Name="RefreshButton" Content="↻  Cập nhật dữ liệu" Margin="15,0,0,0" Click="RefreshClick"/><StackPanel><TextBlock x:Name="PageTitle" Text="Tổng quan kho" FontSize="23" FontWeight="Bold"/><TextBlock x:Name="PageSubtitle" Text="Hợp đồng, kiện hàng và tiến độ xuất kho" Foreground="#70869B" Margin="0,4,0,0" FontSize="12"/></StackPanel></DockPanel>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="112"/>
+        <RowDefinition Height="*"/>
+        <RowDefinition Height="40"/>
+      </Grid.RowDefinitions>
+      <Border Grid.Row="0" Background="White" BorderBrush="#DFE7EF"
+              BorderThickness="0,0,0,1" Padding="30,14,28,12">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+          </Grid.ColumnDefinitions>
+          <StackPanel VerticalAlignment="Center" Margin="0,0,20,0">
+            <TextBlock x:Name="BreadcrumbText" Text="HISA  /  TỔNG QUAN"
+                       Foreground="#248D96" FontSize="10" FontWeight="Bold"
+                       Margin="0,0,0,6"/>
+            <TextBlock x:Name="PageTitle" Text="Tổng quan kho" Foreground="#142E42"
+                       FontSize="26" FontWeight="Bold"
+                       TextTrimming="CharacterEllipsis"/>
+            <TextBlock x:Name="PageSubtitle" Text="Hợp đồng, kiện hàng và tiến độ xuất kho"
+                       Foreground="#71879B" FontSize="12" Margin="0,5,0,0"
+                       TextTrimming="CharacterEllipsis"/>
+          </StackPanel>
+          <StackPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center">
+            <TextBlock x:Name="TodayText" Text="Hôm nay" Foreground="#688095"
+                       FontSize="11" HorizontalAlignment="Right"
+                       Margin="0,0,0,7"/>
+            <WrapPanel HorizontalAlignment="Right">
+              <Button x:Name="TopAiButton" Content="✦  Đọc ảnh Zalo"
+                      Click="OpenAiClick"/>
+              <Button x:Name="TopReadinessButton" Content="▤  Lịch xuất"
+                      Click="OpenReadinessClick"/>
+              <Button x:Name="RefreshButton" Content="↻  Đồng bộ"
+                      Click="RefreshClick"/>
+            </WrapPanel>
+          </StackPanel>
+        </Grid>
       </Border>
-      <Grid Grid.Row="1" Margin="26,20" x:Name="PageHost"/>
-      <Border Grid.Row="2" Background="White" BorderBrush="#E1E8EE" BorderThickness="0,1,0,0" Padding="20,0"><DockPanel VerticalAlignment="Center"><TextBlock DockPanel.Dock="Right" x:Name="LoadTimeText" Foreground="#70869B" FontSize="11"/><TextBlock x:Name="StatusText" Text="Đang khởi tạo…" Foreground="#54758A" FontSize="11" TextTrimming="CharacterEllipsis"/></DockPanel></Border>
+
+      <Grid Grid.Row="1" x:Name="PageHost" Margin="28,22,28,22"/>
+
+      <Border Grid.Row="2" Background="White" BorderBrush="#DFE7EF"
+              BorderThickness="0,1,0,0" Padding="24,0">
+        <DockPanel VerticalAlignment="Center" LastChildFill="True">
+          <TextBlock DockPanel.Dock="Right" x:Name="LoadTimeText"
+                     Foreground="#758B9E" FontSize="11"
+                     VerticalAlignment="Center" Margin="20,0,0,0"/>
+          <Ellipse DockPanel.Dock="Left" Width="7" Height="7" Fill="#38B79C"
+                   Margin="0,0,10,0" VerticalAlignment="Center"/>
+          <TextBlock x:Name="StatusText" Text="Đang khởi tạo dữ liệu…"
+                     Foreground="#526D80" FontSize="11"
+                     TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+        </DockPanel>
+      </Border>
     </Grid>
   </Grid>
 </Window>
