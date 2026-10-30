@@ -103,7 +103,11 @@ public partial class MainWindow
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(8)
         };
-        var keySaved = new GeminiCredentialStore().HasKey();
+        // Manual scheduling must stay usable when Gemini is unconfigured or
+        // Windows Credential Manager is temporarily unavailable.
+        bool keySaved;
+        try { keySaved=new GeminiCredentialStore().HasKey(); }
+        catch { keySaved=false; }
         var status = T(keySaved
             ? "● ĐÃ CẤU HÌNH GEMINI · Khóa được lưu an toàn trong Windows và giữ lại sau khi cập nhật."
             : "○ CHƯA CÓ GEMINI API KEY · Vào Cấu hình & sao lưu → Gemini AI để nhập và lưu.",
