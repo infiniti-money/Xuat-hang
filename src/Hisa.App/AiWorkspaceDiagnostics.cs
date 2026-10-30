@@ -96,6 +96,22 @@ public static class AiWorkspaceDiagnostics
         Check(uncertain.Dispatches[0].NeedsReview &&
             uncertain.Dispatches[0].Project.Length==0,
             "Same contract across T1/T2 never silently picks a tower");
+        var later=doc.Dispatches.Last();
+        later.Project="Công trình phát sinh";
+        later.Company="HISA";
+        AiScheduleWorkspace.RefreshManualReview(doc);
+        Check(!later.NeedsReview && later.ReviewNote.Length==0,
+            "Correcting manually entered project and company clears resolved automatic warning");
+        var incompleteArrival=AiScheduleWorkspace.NewDraft(new DateTime(2026,10,31));
+        AiScheduleWorkspace.AddManual(incompleteArrival,snapshot,true,"13482026",
+            "","","","","",false);
+        Check(incompleteArrival.Arrivals[0].NeedsReview,
+            "Incoming manual code without source cont/departure needs review");
+        incompleteArrival.Arrivals[0].Container="CONT-3";
+        incompleteArrival.Arrivals[0].ContainerExportDate="2026-10-26";
+        AiScheduleWorkspace.RefreshManualReview(incompleteArrival);
+        Check(!incompleteArrival.Arrivals[0].NeedsReview,
+            "Providing confirmed departure date and container resolves manual metadata warning");
         AiScheduleWorkspace.AddManual(uncertain,ambiguousSnapshot,false,"12345678",
             "Thang 2","","","","",false);
         Check(uncertain.Dispatches.Count==2 &&
