@@ -49,6 +49,7 @@ public partial class MainWindow : Window
         AddNav("daily", "▥", "Báo cáo theo ngày");
         NavCaption("NHẬP KHO & THIẾT LẬP");
         AddNav("ai-schedule", "✦", "AI lịch nhập – xuất kho");
+        AddNav("planned-arrivals", "▣", "Cont đã về kho (AI)");
         AddNav("arrival", "↓", "Nhập cont về kho");
         AddNav("arrival-packages", "▣", "Quản lý kiện cont về");
         AddNav("templates", "▧", "Mẫu phiếu in");
@@ -102,6 +103,7 @@ public partial class MainWindow : Window
             case "daily":ShowDaily();break;
             case "ai-schedule":ShowAiSchedules();break;
             case "readiness":ShowDispatchReadiness();break;
+            case "planned-arrivals":ShowPlannedArrivals();break;
             case "arrival":ShowArrival();break;
             case "arrival-packages":ShowArrivalPackages();break;
             case "templates":ShowTemplates();break;
