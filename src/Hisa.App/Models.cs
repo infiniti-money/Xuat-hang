@@ -156,6 +156,8 @@ public class Slip
     public List<ContractRow> ContractOnly { get; set; } = [];
     public List<MaterialLine> Lines { get; set; } = [];
     public List<MotorSerialEntry> MotorSerials { get; set; } = [];
+    // Set only after the user explicitly confirms export with missing motor serials.
+    public bool AllowMissingMotorSerials { get; set; } = false;
     public List<Package> ContractPackages { get; set; } = [];
     public string CreatedAt { get; set; } = "";
     public string UpdatedAt { get; set; } = "";
