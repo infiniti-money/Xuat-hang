@@ -114,7 +114,8 @@ public partial class MainWindow
             catch (Exception ex)
             {
                 // Provider errors are normalized and never include API keys.
-                status.Text = ex.Message;\n                status.Foreground = Brush("#AA4D39");
+                status.Text = ex.Message;
+                status.Foreground = Brush("#AA4D39");
                 throw;
             }
         }, true);
