@@ -59,12 +59,19 @@ public sealed partial class WarehouseService : IDisposable
     public WarehouseService(string? workspace = null)
     {
         Workspace = workspace ?? FindWorkspace();
-        var appHome = Directory.GetParent(AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar));
         var nativeRoot = FindNativeRoot();
-        _data = System.IO.Path.Combine(Workspace, "APP KHO", "data");
-        if (workspace != null) _data = Path.Combine(workspace, "native_data");
+        // Store real data under the signed-in user's Documents library, not Program Files.
+        // An explicitly selected workspace is isolated (used by diagnostics/demo).
+        _data = workspace != null
+            ? Path.Combine(workspace, "native_data")
+            : Path.Combine(UserDocumentsHome(), "APP KHO", "data");
         Directory.CreateDirectory(_data);
-        if(workspace==null) MigrateNativeData(Path.Combine(nativeRoot,"data"),_data);
+        if(workspace==null)
+        {
+            MigrateNativeData(Path.Combine(Workspace,"APP KHO","data"),_data);
+            MigrateNativeData(Path.Combine(nativeRoot,"APP KHO","data"),_data);
+            MigrateNativeData(Path.Combine(nativeRoot,"data"),_data);
+        }
         ImportLegacyOnce();
         Settings = Load<AppSettings>("settings.json") ?? DefaultSettings();
         NormalizeSettings(Settings);
@@ -86,11 +93,20 @@ public sealed partial class WarehouseService : IDisposable
             if (dir.Name is "HISA APP" or "HISA CSharp") return dir.FullName;
         return AppContext.BaseDirectory;
     }
+    private static string UserDocumentsHome()
+    {
+        // Environment resolves OneDrive-redirected Documents / localized "Tài liệu" correctly.
+        var documents=Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+        if(string.IsNullOrWhiteSpace(documents))throw new InvalidOperationException("Không tìm thấy thư mục Tài liệu của Windows.");
+        return Path.Combine(documents,"HISA Kho Vat Tu");
+    }
     private static string FindWorkspace()
     {
+        // Keep existing Excel source folders discoverable for portable/legacy installations.
         for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir != null; dir = dir.Parent)
             if (File.Exists(Path.Combine(dir.FullName,"Tổng hợp.xlsx")) || Directory.Exists(Path.Combine(dir.FullName,"CONT ĐI"))) return dir.FullName;
-        return AppContext.BaseDirectory;
+        // Fresh Program Files installations must never write their state next to the EXE.
+        return UserDocumentsHome();
     }
     private void ImportLegacyOnce()
     {
