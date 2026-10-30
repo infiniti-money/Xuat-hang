@@ -195,6 +195,23 @@ public partial class MainWindow : Window
         _page="dashboard";
         var report=_service.Search(new SearchFilter());
         var p=Stack();
+        // Prominent home-screen brand icon; it also matches the installer/Desktop icon.
+        var brandImage=new Border {
+            Width=76,Height=76,Background=Brushes.White,CornerRadius=new CornerRadius(16),
+            BorderBrush=Brush("#C9E5E3"),BorderThickness=new Thickness(1),
+            Padding=new Thickness(8),Margin=new Thickness(0,0,20,0),
+            Child=new Image {Source=BrandingAssets.Logo,Stretch=Stretch.Uniform,
+                RenderOptions.BitmapScalingMode=BitmapScalingMode.HighQuality}
+        };
+        DockPanel.SetDock(brandImage,Dock.Left);
+        var branding=new DockPanel{LastChildFill=true};
+        branding.Children.Add(brandImage);
+        branding.Children.Add(Stack(
+            T("HISA  ·  QUẢN LÝ KHO",21,true,Ink),
+            T("Xuất hàng, kiểm soát kiện, hợp đồng và bàn giao vật tư",12,false,Muted),
+            T("Phiên bản "+SoftwareInfo.Version+"  ·  Cập nhật bảo mật từ GitHub Releases",11,false,Brush("#277C81"))
+        ));
+        p.Children.Add(Card(branding,new Thickness(18)));
         p.Children.Add(Row(B("+  Kế hoạch / tạo phiếu",()=>{_draft=null;_draftReport=null;_createPlanMode=false;Navigate("create");},true),B("↓  Nhập cont về kho",()=>Navigate("arrival")),B("▥  Báo cáo hôm nay",()=>Navigate("daily"))));
         var kpis=new UniformGrid{Columns=3,Margin=new Thickness(0,12,0,12)};
         Kpi(kpis,"KIỆN HƯNG YÊN",_service.Snapshot.Packages.Count,"Mở danh sách kiện, xem đầy đủ vật tư",()=>Navigate("packages"));
