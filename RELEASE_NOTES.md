@@ -1,3 +1,30 @@
+# HISA Quản lý kho — v1.6.0 · Giao diện chuyên nghiệp & AI nhập/xuất
+
+## Giao diện Windows mới
+- Trang chủ dạng trung tâm điều hành: tiêu đề rõ, thanh điều hướng tối màu, phím tắt, tác vụ Gemini và kế hoạch xuất luôn nằm đầu màn hình.
+- Bảng kế hoạch xuất theo ngày ưu tiên trạng thái **Sẵn sàng / Thiếu vật tư / Cần kiểm tra**, không tự xuất kho.
+- Bảng dữ liệu thoáng, có sọc xen kẽ, chọn dòng rõ ràng, cuộn ảo cho danh sách lớn, giao diện nhập liệu và màu trạng thái thống nhất.
+- Giữ nguyên mô hình Windows .NET 10 WPF, không cần cài thêm ngôn ngữ hay môi trường trên máy người dùng.
+
+## AI hàng dự kiến xuất → tích chọn làm phiếu bàn giao
+- Gemini đọc bảng lịch xuất từ ảnh Zalo; mỗi dòng có ô **Làm phiếu**. Tích một hoặc nhiều hợp đồng và bấm **Lập phiếu từ hợp đồng đã tích**.
+- HISA đối chiếu số hợp đồng + công trình + công ty trong Tổng hợp.xlsx, chặn nhầm công trình trùng số hợp đồng, lấy đúng kiện và vật tư.
+- Mở màn hình kế hoạch phiếu với các dòng được chọn, cho kiểm tra/chỉnh sửa rồi lưu **phiếu chờ xuất**. Không tự đánh dấu Đã xuất.
+- Lịch phải được người dùng kiểm tra và duyệt trước khi sinh phiếu.
+
+## AI hàng dự kiến về → cont thực tế đã về → Tổng hợp.xlsx
+- Màn **Cont đã về kho (AI)** chọn ngày thực tế và tích các container đã nhận.
+- Trước khi ghi, kiểm tra kiện Hưng Yên từ dữ liệu nguồn, hợp đồng/công trình/công ty, tình trạng đã nhập, mã container thiếu và nguồn trùng nhiều cont.
+- Sau khi xác nhận, chỉ ghi **các kiện đã chọn** vào trang chi tiết của Tổng hợp.xlsx bằng luồng sao lưu/ghi an toàn sẵn có; không ghi nhầm các công trình cùng mã hoặc suy luận cont dự kiến đã về.
+- Mỗi lần ghi đối chiếu lại dữ liệu hiện tại; không ghi nếu kiện đã nhập trong cùng ngày. Các container không chọn vẫn ở trạng thái dự kiến.
+
+## Bảo mật và tương thích
+- Gemini API Key lưu trong Windows Credential Manager, giữ khi nâng cấp cùng tài khoản Windows. Có nút lưu/thay/xóa trong Cấu hình.
+- Giữ cấu trúc dữ liệu, phiếu, file Excel, quy tắc serial máy kéo và thư mục ngày như 26.10 / 27.10.
+- Regression kiểm tra chọn đúng hợp đồng xuất, chặn ngày không đúng, chặn nguồn container thiếu/trùng và duyệt trước khi ghi.
+
+---
+
 # HISA Quản lý kho v1.5.2 – Gemini AI
 
 - Bỏ kết nối GPT. Chỉ dùng Gemini để phân tích ảnh Zalo và lập lịch dự kiến nhập/xuất kho.
