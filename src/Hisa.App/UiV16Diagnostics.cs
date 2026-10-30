@@ -176,6 +176,23 @@ public static class UiV16Diagnostics
               "Chưa xác minh kiện theo cont đi",
             "Missing departure date must not import every same-contract source package");
         doc.Arrivals[0].ContainerExportDate="2026-10-26";
+        pkgA.ContainerNumber="CONT-01";
+        otherDeparture.ContainerNumber="CONT-01";
+        doc.Arrivals[0].ContainerExportDate="";
+        var sameContNoDate=PlannedArrivalWorkflow.Preview(doc,snapshot,day);
+        Check(sameContNoDate[0].Status=="Chưa xác minh ngày cont đi",
+            "Same physical container reused on different departure days needs a confirmed day");
+        doc.Arrivals[0].ContainerExportDate="2026-10-28";
+        Check(PlannedArrivalWorkflow.Preview(doc,snapshot,day)[0].Status==
+              "Chưa xác minh kiện theo cont đi",
+            "Matching container number cannot override an incorrect departure date");
+        doc.Arrivals[0].ContainerExportDate="2026-10-26";
+        var precise=PlannedArrivalWorkflow.Preview(doc,snapshot,day);
+        Check(precise.Count(x=>x.Contract==pkgA.Contract)==1 &&
+              precise[0].SourcePackageId==pkgA.Id &&
+              precise[0].Status.StartsWith("Đủ nguồn"),
+            "Exact container number and 26.10 source date identify only the intended package");
+        pkgA.ContainerNumber="";
         snapshot.ContPackages=[pkgA,pkgB];
 
         // Handover is always based on Dispatches, never the Arrivals table.
