@@ -54,4 +54,4 @@ begin
   Result := WizardSilent;
 end;
 
-; No [UninstallDelete] for Documents: application data and backups survive upgrades/uninstall.
+// No [UninstallDelete] for Documents: application data and backups survive upgrades/uninstall.
