@@ -1,3 +1,20 @@
+# HISA Quản lý kho v1.7.0 – Trợ lý trò chuyện Gemini AI (Windows x64)
+
+## Trò chuyện trực tiếp trong HISA
+- Menu **Trợ lý Gemini AI** mở khung hội thoại tiếng Việt với bong bóng tin nhắn, câu hỏi gợi ý, gửi bằng Enter, Shift+Enter xuống dòng, xóa lịch sử trong phiên và đường dẫn tới Cấu hình.
+- Sử dụng **Gemini API Key hiện có** đã lưu tại Windows Credential Manager; không cần nhập lại, không dùng GPT hay OpenAI.
+- Hỗ trợ hội thoại nhiều lượt; lưu tối đa 24 tin gần đây trong bộ nhớ ứng dụng, không tạo file hội thoại hay đưa khóa API vào nhật ký.
+- Tùy chọn **Cho phép Gemini đọc tóm tắt dữ liệu kho liên quan**, **mặc định TẮT**. Khi bật, chỉ gửi thông tin rút gọn có giới hạn: lịch xuất hôm nay/ngày mai hoặc hợp đồng được hỏi, vật tư theo số HĐ đầy đủ, tình trạng phiếu. Không gửi file Excel gốc, đường dẫn nguồn hoặc serial máy kéo. Chuyển trạng thái quyền chia sẻ sẽ xóa hội thoại trong phiên để tránh dùng lại dữ liệu riêng.
+- AI có hướng dẫn nghiệp vụ Hưng Yên: dự kiến về ≠ nhập thực tế; chuẩn bị xong ≠ đã bàn giao; Đã có LX = đã có lịch xuất; cùng số HĐ nhưng khác công trình/cont/ngày cont đi vẫn có kiện riêng; thiếu dữ liệu phải báo Chưa xác nhận.
+- AI **chỉ tư vấn**, không thực hiện lệnh ghi Excel, thay đổi tồn kho, tạo phiếu, xác nhận xuất/nhập; mọi thao tác vẫn phải thực hiện và duyệt trong màn hình nghiệp vụ HISA.
+- Kết nối Gemini cần Internet và hạn mức API đang còn. Thông báo lỗi HTTP được giải thích mà không hiển thị khóa API.
+
+## Kiểm thử
+- Kiểm thử offline trích mã hợp đồng chính xác, rút gọn ngữ cảnh và lịch sử, loại bỏ thông tin đường dẫn và serial, xử lý JSON phản hồi, giới hạn câu hỏi và xử lý nội dung không đáng tin trong dữ liệu kho.
+- Windows CI biên dịch .NET 10, chạy regression, đóng gói installer tiếng Việt và ZIP trước khi phát hành.
+
+---
+
 # HISA Quản lý kho — v1.6.1 (Windows 64-bit)
 
 ## Kiện Hưng Yên theo ngày cont đi
