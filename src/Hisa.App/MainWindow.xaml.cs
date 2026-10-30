@@ -598,8 +598,8 @@ public partial class MainWindow : Window
             if(!int.TryParse(poll.Text,out var seconds)||seconds<5||seconds>3600)throw new InvalidOperationException("Chu kỳ kiểm tra từ 5 đến 3600 giây.");
             model=_service.ResolveSettingsFromSourceFolder(sources.Text.Trim());model.AutoRefresh=auto.IsChecked==true;model.AutoSyncCont=cont.IsChecked==true;model.AutoSyncKt=syncKt.IsChecked==true;model.PollSeconds=seconds;
             await _service.SaveSettingsAsync(model);await _service.RefreshAsync(true);Notify("Đã lưu cấu hình nguồn.");ShowSettings();
-        },true),A("Sao lưu cấu hình & lịch sử",async()=>{var path=SavePath(this,$"HISA-sao-luu-{DateTime.Now:yyyyMMdd-HHmm}.zip","zip");if(path!=null){await _service.BackupAsync(path);Notify("Đã sao lưu: "+path);}}),B("Mở thư mục dữ liệu",()=>System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(_service.DataDirectory){UseShellExecute=true}))));
-        p.Children.Add(Alert($"Dữ liệu ứng dụng: {_service.DataDirectory}\nMã nguồn ứng dụng nằm trong HISA APP\\src. Workbook được tự tìm theo thư mục nguồn."));
+        },true),A("Sao lưu vào Thư viện",async()=>{var path=System.IO.Path.Combine(_service.BackupDirectory,$"HISA-sao-luu-{DateTime.Now:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}.zip");await _service.BackupAsync(path);Notify("Đã sao lưu vào Thư viện → Tài liệu:\n"+path);}),B("Mở thư mục Backup",()=>System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(_service.BackupDirectory){UseShellExecute=true})),B("Mở thư mục dữ liệu",()=>System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(_service.DataDirectory){UseShellExecute=true}))));
+        p.Children.Add(Alert($"Dữ liệu ứng dụng: {_service.DataDirectory}\nSao lưu (ZIP và Excel): {_service.BackupDirectory}\nCác bản sao lưu cũ tại nguồn sẽ được giữ nguyên."));
         SetPage("Cấu hình & sao lưu","Kết nối nhiều nguồn · điều chỉnh đồng bộ · sao lưu lịch sử phiếu",new ScrollViewer{Content=p,VerticalScrollBarVisibility=ScrollBarVisibility.Auto});
     }
     private static FrameworkElement DockWithButton(FrameworkElement input,Button button)
