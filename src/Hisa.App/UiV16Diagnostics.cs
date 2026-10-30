@@ -61,9 +61,10 @@ public static class UiV16Diagnostics
         snapshot.DetailPackages =
         [
             new Package { Id = "detail-01", Contract = pkgA.Contract,
-                Project = pkgA.Project, Company = pkgA.Company, ArrivalDate = day }
+                Project = pkgA.Project, Company = pkgA.Company, ArrivalDate = day,
+                Items = pkgA.Items }
         ];
-        Check(PlannedArrivalWorkflow.Preview(doc, snapshot, day)[0].Status == "Đã có hàng nhập ngày này",
+        Check(PlannedArrivalWorkflow.Preview(doc, snapshot, day)[0].Status == "Cần kiểm tra kiện nhập cũ",
             "Already received contract/day is blocked against duplicates");
         var preventedDuplicate = false;
         try { PlannedArrivalWorkflow.SelectVerified([preview[0]], doc, snapshot, day); }
@@ -83,6 +84,62 @@ public static class UiV16Diagnostics
         Check(PlannedArrivalWorkflow.Preview(doc, snapshot, day)
             .All(x => x.Status == "Cùng HĐ ở nhiều container"),
             "Same source packages in multiple containers cannot be assigned by guess");
+
+        // Same contract, same project but different material quantities: two physical packages.
+        snapshot.DetailPackages=[];
+        var manyA=new Package {
+            Id="source-different-qty", Contract=pkgA.Contract, Project=pkgA.Project,
+            Company=pkgA.Company, SourceDate="2026-10-25",
+            Items=[new MaterialLine {Material="Đầu cửa tầng 700",Unit="Bộ",Quantity=3}]
+        };
+        snapshot.ContPackages=[pkgA,manyA,pkgB];
+        var both=PlannedArrivalWorkflow.Preview(doc,snapshot,day);
+        Check(both.Count==3 && both.Count(x=>x.Contract==pkgA.Contract)==2,
+            "Same contract/project with different material quantity retains both packages");
+        Check(PlannedArrivalWorkflow.MaterialFingerprint(pkgA)!=
+            PlannedArrivalWorkflow.MaterialFingerprint(manyA),
+            "Material quantity is part of physical package distinction");
+
+        // T1/T2 and parenthesized tower names must not be normalized into one project.
+        Check(Rules.ProjectCode("Công trình Hisa T1")!=Rules.ProjectCode("Công trình Hisa T2") &&
+              Rules.ProjectCode("Công trình Hisa (Thang 1)")!=
+              Rules.ProjectCode("Công trình Hisa (Thang 2)") &&
+              Rules.ProjectCode("Công trình Hisa (1)")!=
+              Rules.ProjectCode("Công trình Hisa (2)"),
+            "T1/T2, Thang 1/2 and (1)/(2) distinguish separate project packages");
+
+        // Two cont shipments with same contract/project/quantity require unique source
+        // identification, including departure day; never combine by contract.
+        manyA.Items=[new MaterialLine {Material="Đầu cửa tầng 700",Unit="Bộ",Quantity=1}];
+        pkgA.SourceDate="2026-10-26";
+        manyA.SourceDate="2026-10-27";
+        doc.Arrivals=[
+            new AiScheduleLine {Contract=pkgA.Contract,Project=pkgA.Project,Company=pkgA.Company,
+                Container="CONT-01",ContainerExportDate="2026-10-26",PlannedDate=day},
+            new AiScheduleLine {Contract=pkgA.Contract,Project=pkgA.Project,Company=pkgA.Company,
+                Container="CONT-02",ContainerExportDate="2026-10-27",PlannedDate=day}
+        ];
+        var twoContainers=PlannedArrivalWorkflow.Preview(doc,snapshot,day);
+        Check(twoContainers.Count==2 && twoContainers.All(x=>x.Status.StartsWith("Đủ nguồn")) &&
+              twoContainers.Select(x=>x.SourcePackageId).Distinct().Count()==2,
+            "Two departures with same contract and material quantity remain independent packages");
+        var bothSelected=PlannedArrivalWorkflow.SelectVerified(twoContainers,doc,snapshot,day);
+        Check(bothSelected.Count==2 && bothSelected[0].OriginPackageId!=bothSelected[1].OriginPackageId &&
+              bothSelected[0].ContainerNumber!=bothSelected[1].ContainerNumber,
+            "Selecting separate containers retains per-source identity even with same quantity");
+
+        // No known shipment identifiers: cannot silently guess which package belongs to which cont.
+        doc.Arrivals[1].ContainerExportDate=doc.Arrivals[0].ContainerExportDate;
+        Check(PlannedArrivalWorkflow.Preview(doc,snapshot,day)
+            .All(x=>x.Status=="Cùng HĐ ở nhiều container"),
+            "Ambiguous identical departure dates are blocked instead of guessing");
+        doc.Arrivals=[
+            new AiScheduleLine {Contract="123(1)",Project="Công trình A",
+                Company="HISA",Container="CONT-01",PlannedDate=day},
+            new AiScheduleLine {Contract="123(2)",Project="Công trình B",
+                Company="HISA",Container="CONT-02",PlannedDate=day}
+        ];
+        snapshot.ContPackages=[pkgA,pkgB];
 
         // Handover is always based on Dispatches, never the Arrivals table.
         var report = new ContractReport
