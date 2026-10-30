@@ -34,7 +34,7 @@ public static class GeminiChatDiagnostics
         var slips=new List<Slip>
         {
             new() {SlipCode="HISA-001",Contracts=[contract],HandoverDate="2026-10-31",
-                Status="planned", MotorSerials=[new MotorSerialEntry{Serial="PRIVATE-SERIAL-123"}]}
+                Status="planned"}
         };
         var scoped=GeminiChatService.BuildReadOnlyContext("Kiểm tra hợp đồng "+contract,
             snapshot,slips,state,new DateTime(2026,10,30));
