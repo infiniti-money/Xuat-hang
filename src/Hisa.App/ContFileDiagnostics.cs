@@ -20,7 +20,9 @@ public static class ContFileDiagnostics
         using(var book=new XLWorkbook())
         {
             var ws=book.AddWorksheet("Kho");
-            foreach(var (row,marker,material) in new[]{(1,"HƯNG YÊN","Máy kéo M1"),(2,"","Ray dẫn hướng")})
+            foreach(var (column,value) in new[]{(1,"Kiện"),(2,"Tên vật tư"),(3,"ĐVT"),(4,"Số lượng")})
+                ws.Cell(1,column).Value=value;
+            foreach(var (row,marker,material) in new[]{(2,"HƯNG YÊN","Máy kéo M1"),(3,"","Ray dẫn hướng")})
             {
                 ws.Cell(row,1).Value=marker;ws.Cell(row,2).Value=material;
                 ws.Cell(row,3).Value="Bộ";ws.Cell(row,4).Value=2;
@@ -29,7 +31,8 @@ public static class ContFileDiagnostics
         }
         using(var book=new XLWorkbook())
         {
-            var ws=book.AddWorksheet("Kho");ws.Cell(1,1).Value="HÀ NỘI";ws.Cell(1,2).Value="Tủ điện";ws.Cell(1,3).Value="Bộ";ws.Cell(1,4).Value=1;
+            var ws=book.AddWorksheet("Kho");ws.Cell(1,1).Value="Kiện";ws.Cell(1,2).Value="Tên vật tư";ws.Cell(1,3).Value="ĐVT";ws.Cell(1,4).Value="Số lượng";
+            ws.Cell(2,1).Value="HÀ NỘI";ws.Cell(2,2).Value="Tủ điện";ws.Cell(2,3).Value="Bộ";ws.Cell(2,4).Value=1;
             book.SaveAs(other);
         }
         File.WriteAllText(sent,"File hàng gửi nguyên bản - không đưa vào kho");
@@ -39,7 +42,7 @@ public static class ContFileDiagnostics
         var settings=new AppSettings{MasterPath=master,DataSources=[source]};
         var first=store.ScanSources(settings);
         Check(first.Packages.Count==1 && first.ImportedHungYenFiles.Count==1,
-            "Detect Hưng Yên workbook and keep non-Hưng Yên file unclassified");
+            $"Detect Hưng Yên workbook and keep non-Hưng Yên file unclassified (packages={first.Packages.Count}, importCandidates={first.ImportedHungYenFiles.Count}, warnings={string.Join(" | ",first.Warnings)})");
         Check(first.HangGuiFiles.Count==1 && first.HangGuiFiles[0].Source==sent,
             "Recognize hanggui file by filename without parsing it as stock");
         var priorId=first.Packages[0].Id;
