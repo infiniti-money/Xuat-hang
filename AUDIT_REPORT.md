@@ -11,6 +11,7 @@
 | Nghiêm trọng | Nhập cont từ AI | Một hợp đồng chỉ xuất hiện ở một container trên ảnh, nhưng các kiện cùng HĐ trong Excel có nhiều ngày cont đi. Khi không có nguồn khớp, mã cũ có thể gán toàn bộ kiện sang cont đó. | Chặn gán theo HĐ; bắt buộc khớp mã container hoặc ngày cont đi đã xác minh. |
 | Nghiêm trọng | Cont và ngày không khớp | Nếu nguồn đã có số cont, mã cũ chỉ đối chiếu cont, bỏ qua ngày cont đi khác với ảnh. | Cả hai thuộc tính phải khớp khi cả hai được cung cấp. |
 | Cao | Cùng cont nhiều đợt | Nguồn có một mã cont lặp qua nhiều ngày mà ảnh không có ngày cont đi. | Hiển thị trạng thái Chưa xác minh ngày cont đi, không cho ghi Excel. |
+| Cao | Kiện nguồn rỗng | Một kiện có mã HĐ nhưng không còn dòng vật tư Hưng Yên có thể được xem là đủ nguồn và ghi nhận một kiện đã nhập dù không có dòng Excel. | Chặn ở bước xem trước và kiểm tra ngay trước khi ghi Excel. |
 | Cao | Ngày duyệt AI | Sửa ngày dự kiến sau khi lưu duyệt không hủy duyệt phiên, có thể dùng lịch chưa được duyệt để tạo phiếu. | Chỉnh ngày hoặc nội dung bảng đều làm mất phê duyệt, phải duyệt lại. |
 | Trung bình | Tên công trình | Ghi lại một kiện sau khi sửa ngày có thể thêm nhiều hậu tố `(dd.MM)`. | Chuẩn hóa chỉ một hậu tố cuối và giữ dấu T1/T2 hoặc số thang. |
 | Trung bình | Gemini Chat | AI nhìn thấy kế hoạch nhưng thiếu trạng thái chuẩn bị từ bộ kiểm tra HISA, có thể suy luận không chính xác. | Gửi trạng thái đã đối chiếu, không đưa serial hoặc nguồn Excel gốc. |
