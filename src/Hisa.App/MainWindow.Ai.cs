@@ -108,13 +108,24 @@ public partial class MainWindow
             if (_aiOpenAiKey.Length == 0 && _aiGeminiKey.Length == 0)
                 throw new InvalidOperationException("Nhập ít nhất một API Key. Nên dùng cả GPT và Gemini để kiểm chứng chéo.");
             status.Text = "Đang đọc ảnh và kiểm tra chéo kết quả...";
-            _aiDocument = await AiScheduleReader.AnalyzeAsync(_aiImagePath, _aiOpenAiKey, _aiGeminiKey);
-            _aiApproved = false;
-            ShowAiSchedules();
+            try
+            {
+                _aiDocument = await AiScheduleReader.AnalyzeAsync(_aiImagePath, _aiOpenAiKey, _aiGeminiKey);
+                _aiApproved = false;
+                ShowAiSchedules();
+            }
+            catch (Exception ex)
+            {
+                // Preserve the provider-specific reason on screen after the dialog is closed.
+                // AnalyzeAsync returns only sanitized, non-secret API diagnostic messages.
+                status.Text = ex.Message;
+                throw;
+            }
         });
         var top = Card(Stack(
             T("Đọc ảnh lịch kho bằng AI", 18, true),
             T("Nhập ảnh đã lưu từ Zalo. Hai phần nhập kho / xuất kho sẽ được tách riêng. Chưa tự ghi vào sổ Excel hay đánh dấu đã xuất hàng.", 12, false, Muted),
+            T("API Key là khóa dịch vụ API (khác với tài khoản ChatGPT Plus). Có thể thử từng nhà cung cấp bằng cách chỉ nhập một khóa. Nếu lỗi, xem HTTP 401/403/404/429 và hướng dẫn hiển thị ngay bên dưới.", 11, false, Muted),
             Row(choose, upload),
             Row(Field("OpenAI API Key (GPT)", gptKey), Field("Gemini API Key", geminiKey)),
             Row(analyze),
