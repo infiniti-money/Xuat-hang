@@ -418,10 +418,10 @@ public partial class MainWindow : Window
             var previous=_service.Slips.FirstOrDefault(x=>x.Id==slip.Id);
             if(previous?.Status=="delivered"&&slip.Status!="delivered"&&!Ask("Phiếu đang đã xuất. Chuyển trạng thái sẽ gỡ các dòng xuất do phiếu này ghi trong sổ Excel. Tiếp tục?"))return;
             if(slip.Status=="delivered"&&!Ask($"Ghi nhận phiếu này ĐÃ XUẤT vào Thành phẩm xuất kho.xlsx?\n\n{slip.ContractLabel}"))return;
-            if(slip.Status=="delivered"&&!EditMotorSerials(slip,true))return;
+            if(slip.Status=="delivered"&&!ConfirmMotorSerialsForDelivery(slip))return;
             var saved=await _service.SaveSlipAsync(slip);Notify("Đã lưu phiếu "+saved.SlipCode);_draft=null;_draftReport=null;Navigate("slips");
         },true),B("Xem trước / in phiếu",()=>{if(scopeChanged?.Invoke()==true){Notify("Bạn đã đổi mã hợp đồng/bộ lọc. Tải lại vật tư để xem trước đúng phiếu.");return;}read();PrintService.PreviewSlip(this,slip,FindTemplate(slip.TemplateId));}),A("Sửa mẫu phiếu in",async()=>{var editor=new TemplateEditorWindow(FindTemplate(template.SelectedValue?.ToString()??slip.TemplateId)){Owner=this};if(editor.ShowDialog()==true){await _service.SaveTemplateAsync(editor.ResultTemplate);Notify("Đã lưu mẫu in. Bấm Xem trước để kiểm tra.");}}),B("+ Thêm vật tư",()=>{var item=EditLine(slip.Lines.FirstOrDefault());if(item!=null){slip.Lines.Add(item);lines.Items.Refresh();}}),B("Chọn in tất cả",()=>{foreach(var l in slip.Lines)l.Include=true;lines.Items.Refresh();}),B("Bỏ chọn dòng đang chọn",()=>{foreach(var l in lines.SelectedItems.OfType<MaterialLine>())l.Include=false;lines.Items.Refresh();})));
-        toolbar.Children.Add(Row(B("Serial máy kéo · nhập / sửa",()=>{if(scopeChanged?.Invoke()==true){Notify("Hợp đồng hoặc bộ lọc đã đổi; tải lại vật tư trước khi nhập serial.");return;}read();EditMotorSerials(slip,false);}),T("Khi xác nhận Đã xuất, mỗi máy kéo cần một serial riêng.",11,false,Muted)));
+        toolbar.Children.Add(Row(B("Serial máy kéo · nhập / sửa",()=>{if(scopeChanged?.Invoke()==true){Notify("Hợp đồng hoặc bộ lọc đã đổi; tải lại vật tư trước khi nhập serial.");return;}read();EditMotorSerials(slip,false);}),T("Thiếu serial máy kéo: phần mềm sẽ hỏi xác nhận trước khi xuất; bạn có thể bổ sung sau.",11,false,Muted)));
         var tabs=report==null?Tabs(("Vật tư trên phiếu",lines),("Toàn bộ kiện lưu kèm",PackageGrid(slip.ContractPackages))):Tabs(("Vật tư trên phiếu",lines),("Báo cáo kiểm tra HĐ",ReportBody(report,false)),("Toàn bộ kiện lưu kèm",PackageGrid(slip.ContractPackages)));
         return Layout(toolbar,tabs);
     }
@@ -464,7 +464,7 @@ public partial class MainWindow : Window
             if(target=="delivered")
             {
                 var outgoing=Copy(slip);outgoing.Status="delivered";
-                if(!EditMotorSerials(outgoing,true))return;
+                if(!ConfirmMotorSerialsForDelivery(outgoing))return;
                 await _service.SaveSlipAsync(outgoing);
             }
             else await _service.ChangeSlipStatusAsync(slip.Id,target,reason);
