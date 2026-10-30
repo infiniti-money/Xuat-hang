@@ -22,7 +22,8 @@ public partial class MainWindow
         heroText.Children.Add(T("Kiểm soát kế hoạch xuất, chuẩn bị vật tư và bàn giao đúng lịch.",
             13, false, Brush("#D5E7F0")));
         var actions = Row(
-            B("✦  Đọc lịch Zalo bằng Gemini", () => Navigate("ai-schedule")),
+            B("✧  Trò chuyện với Gemini", () => Navigate("gemini-chat")),
+            B("✦  Đọc lịch Zalo", () => Navigate("ai-schedule")),
             B("▤  Kiểm tra xuất hàng", () => Navigate("readiness")));
         actions.Margin = new Thickness(0, 17, 0, 0);
         heroText.Children.Add(actions);
