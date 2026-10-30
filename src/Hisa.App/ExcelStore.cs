@@ -175,7 +175,7 @@ public sealed class ExcelStore
     {
         if (!File.Exists(path)) throw new FileNotFoundException("Không tìm thấy Tổng hợp.xlsx.",path);
         var timer=System.Diagnostics.Stopwatch.StartNew();
-        var sheets = ReadSheets(path,[Rules.Code(ContSheet),"CHITIET"],28);
+        var sheets = ReadSheets(path,[Rules.Code(ContSheet),"CHITIET"],29);
         var xmlMs=timer.ElapsedMilliseconds;
         var cont = sheets.FirstOrDefault(x=>Rules.Code(x.Name)==Rules.Code(ContSheet));
         var detail = sheets.FirstOrDefault(x=>Rules.Code(x.Name)=="CHITIET");
@@ -210,6 +210,8 @@ public sealed class ExcelStore
             var material = sheet.Text(row,6+offset); var unit = sheet.Text(row,7+offset);
             if (contract.Length==0 || material.Length==0 || unit.Length==0) continue;
             var day = sheet.Day(row,1+offset);
+            var departureDay = detail && sheet.Day(row,29).Length>0
+                ? sheet.Day(row,29) : day;
             var project = sheet.Text(row,2+offset); var company = sheet.Text(row,3+offset);
             var identity = Rules.Identity(contract,project,company);
             var baseKey = identity+"|"+day;
@@ -217,7 +219,7 @@ public sealed class ExcelStore
             if (!output.TryGetValue(key,out var package))
             {
                 var ordinal=ordinals.GetValueOrDefault(baseKey)+1;ordinals[baseKey]=ordinal;
-                package = new Package { Id=sheet.Name+"|"+baseKey+"|"+ordinal, Contract=contract, Project=project, Company=company, SourceDate=day, ArrivalDate=detail?day:"", ContDate=detail?"":day, SourceFile=Path.GetFileName(path),SourcePath=path,SourceSheet=sheet.Name,PackageNo=ordinal,SourceRowStart=row,SourceRowEnd=row,
+                package = new Package { Id=sheet.Name+"|"+baseKey+"|"+ordinal, Contract=contract, Project=project, Company=company, SourceDate=departureDay, ArrivalDate=detail?day:"", ContDate=departureDay, SourceFile=Path.GetFileName(path),SourcePath=path,SourceSheet=sheet.Name,PackageNo=ordinal,SourceRowStart=row,SourceRowEnd=row,
                     ContainerNumber=detail?sheet.Text(row,27):"",OriginPackageId=detail?sheet.Text(row,28):"" };
                 output[key] = package;
             }
@@ -679,24 +681,30 @@ public sealed class ExcelStore
         foreach(var line in package.Items.Where(x=>x.IsHungYen))
         {
             if(first>3) sheet.Row(row).Style=sheet.Row(3).Style;
-            sheet.Cell(row,1).FormulaA1=$"E{row}";SetDate(sheet.Cell(row,2),day);sheet.Cell(row,3).Value=package.Project;sheet.Cell(row,4).Value=package.Company;SetContract(sheet.Cell(row,5),package.Contract);
+            sheet.Cell(row,1).FormulaA1=$"E{row}";SetDate(sheet.Cell(row,2),day);sheet.Cell(row,3).Value=Rules.ProjectWithContDate(package.Project,package.SourceDate);sheet.Cell(row,4).Value=package.Company;SetContract(sheet.Cell(row,5),package.Contract);
             sheet.Cell(row,6).Value=row==first?"HƯNG YÊN":"";sheet.Cell(row,7).Value=line.Material;sheet.Cell(row,8).Value=line.Unit;if(line.Quantity.HasValue)sheet.Cell(row,9).Value=(double)line.Quantity.Value;sheet.Cell(row,10).Value=line.Note;
             if (row==first && (package.ContainerNumber.Length>0 || package.OriginPackageId.Length>0))
             {
                 // Reserved, hidden metadata outside the user's visible template (A:J).
                 var reservedA=sheet.Cell(2,27).GetString();
                 var reservedB=sheet.Cell(2,28).GetString();
+                var reservedC=sheet.Cell(2,29).GetString();
                 if ((reservedA.Length>0 && reservedA!="HISA_CONTAINER") ||
                     (reservedB.Length>0 && reservedB!="HISA_SOURCE_PACKAGE") ||
+                    (reservedC.Length>0 && reservedC!="HISA_CONT_DEPARTURE") ||
                     (reservedA.Length==0 && sheet.Column(27).CellsUsed().Any()) ||
-                    (reservedB.Length==0 && sheet.Column(28).CellsUsed().Any()))
+                    (reservedB.Length==0 && sheet.Column(28).CellsUsed().Any()) ||
+                    (reservedC.Length==0 && sheet.Column(29).CellsUsed().Any()))
                     throw new InvalidOperationException("Cột AA/AB trong Tổng hợp.xlsx có dữ liệu khác; không ghi đè. Liên hệ quản trị để chọn vị trí lưu ID kiện.");
                 sheet.Cell(2,27).Value="HISA_CONTAINER";
                 sheet.Cell(2,28).Value="HISA_SOURCE_PACKAGE";
+                sheet.Cell(2,29).Value="HISA_CONT_DEPARTURE";
                 sheet.Cell(row,27).Value=package.ContainerNumber;
                 sheet.Cell(row,28).Value=package.OriginPackageId;
+                sheet.Cell(row,29).Value=package.SourceDate;
                 sheet.Column(27).Hide();
                 sheet.Column(28).Hide();
+                sheet.Column(29).Hide();
             }
             row++;
         }
@@ -756,6 +764,10 @@ public sealed class ExcelStore
                     throw new InvalidOperationException("Thiếu hoặc trùng ID kiện nguồn.");
                 if (incoming.ContainerNumber.Length==0)
                     throw new InvalidOperationException("Thiếu số container cho kiện " + incoming.Contract + ".");
+                if (!DateTime.TryParseExact(incoming.SourceDate,"yyyy-MM-dd",
+                    CultureInfo.InvariantCulture,DateTimeStyles.None,out _))
+                    throw new InvalidOperationException("Thiếu hoặc sai ngày cont đi cho kiện " +
+                        incoming.Contract + ". Phải đối chiếu ngày cont đi trước khi ghi Tổng hợp.xlsx.");
                 if (already.Contains(incoming.Id))
                     throw new InvalidOperationException("Kiện " + incoming.Contract + " (" + incoming.Id +
                         ") đã được nhập vào Tổng hợp.xlsx; không nhập lại.");
