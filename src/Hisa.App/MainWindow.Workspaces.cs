@@ -154,7 +154,10 @@ public partial class MainWindow
                 "Kiện nguồn",()=>Navigate("packages")),
             WorkflowTile("▤","Kiện cont về",
                 "Đối soát kiện thực nhận, chỉnh sửa khi có xác nhận.",
-                "Tổng hợp.xlsx",()=>Navigate("arrival-packages"))));
+                "Tổng hợp.xlsx",()=>Navigate("arrival-packages")),
+            WorkflowTile("⌕","Rà soát kiện cùng HĐ",
+                "Chỉ đối chiếu dữ liệu bị nhập sai; trùng số HĐ chưa phải trùng hàng.",
+                "Công cụ nâng cao",()=>Navigate("duplicate-review"))));
         SetPage("Cont & kiện Hưng Yên",
             "Lịch cont → xác nhận nhận thực tế → đối soát kiện nguồn",
             new ScrollViewer{Content=page,VerticalScrollBarVisibility=ScrollBarVisibility.Auto});
