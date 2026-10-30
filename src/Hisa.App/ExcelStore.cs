@@ -792,6 +792,9 @@ public sealed class ExcelStore
             {
                 if (incoming.Id.Length==0 || !ids.Add(incoming.Id))
                     throw new InvalidOperationException("Thiếu hoặc trùng ID kiện nguồn.");
+                if (incoming.Items==null || !incoming.Items.Any(x=>x.IsHungYen))
+                    throw new InvalidOperationException("Kiện HĐ " + incoming.Contract +
+                        " không có dòng vật tư Hưng Yên để ghi. Chưa nhập kho.");
                 if (requireContainer && incoming.ContainerNumber.Length==0)
                     throw new InvalidOperationException("Thiếu số container cho kiện " + incoming.Contract + ".");
                 if (!DateTime.TryParseExact(incoming.SourceDate,"yyyy-MM-dd",
