@@ -577,32 +577,32 @@ public sealed partial class WarehouseService : IDisposable
     public async Task<RecordArrivalResult> RecordVerifiedArrivalAsync(
         IReadOnlyList<Package> verified, DateTime actualArrivalDay, bool useKt = true)
     {
-        if (verified.Count == 0) throw new InvalidOperationException("Chưa chọn kiện nào đã về kho.");
-        if (verified.Any(x => string.IsNullOrWhiteSpace(x.Id)))
-            throw new InvalidOperationException("Có kiện không có định danh; cập nhật lại nguồn Excel.");
-        var day = actualArrivalDay.ToString("yyyy-MM-dd");
-        var sourceIds = verified.Select(x => x.Id).ToList();
-        if (sourceIds.Distinct(StringComparer.Ordinal).Count() != sourceIds.Count)
-            throw new InvalidOperationException("Một kiện nguồn được chọn nhiều lần. Chưa ghi dữ liệu.");
+        if (verified.Count==0) throw new InvalidOperationException("Chưa chọn kiện Hưng Yên đã về.");
+        if (verified.Any(x=>x.Id.Length==0 || x.ContainerNumber.Length==0 ||
+            x.OriginPackageId!=x.Id))
+            throw new InvalidOperationException("Kiện chưa có đầy đủ ID nguồn và container.");
+        if (verified.DistinctBy(x=>x.Id).Count()!=verified.Count)
+            throw new InvalidOperationException("Trùng ID kiện nguồn, chưa ghi kho.");
+        // Keep every package separate; selecting one does not select the whole contract.
         await RefreshAsync(false);
-        var fromSnapshot = Snapshot.ContPackages;
-        var existing = Snapshot.DetailPackages;
-        var approved = new List<Package>();
-        foreach (var item in verified)
+        var current=Snapshot;
+        foreach (var incoming in verified)
         {
-            var fresh = fromSnapshot.SingleOrDefault(x => x.Id == item.Id);
-            if (fresh == null || fresh.Identity != item.Identity ||
-                fresh.Items.Count != item.Items.Count)
-                throw new InvalidOperationException("Nguồn cont đã thay đổi cho HĐ " + item.Contract +
-                    ". Cần kiểm tra lại kiện và vật tư trước khi ghi.");
-            if (existing.Any(x => x.Identity == fresh.Identity && x.ArrivalDate == day))
-                throw new InvalidOperationException("HĐ " + item.Contract + " · " + item.Project +
-                    " đã có kiện nhập kho ngày " + Rules.Day(day) + ". Chưa ghi trùng.");
-            approved.Add(fresh);
+            var source=current.ContPackages.SingleOrDefault(x=>x.Id==incoming.Id);
+            if(source==null || source.Identity!=incoming.Identity ||
+               source.SourceDate!=incoming.SourceDate ||
+               PlannedArrivalWorkflow.MaterialFingerprint(source)!=
+               PlannedArrivalWorkflow.MaterialFingerprint(incoming))
+                throw new InvalidOperationException("Kiện "+incoming.Contract+
+                    " đã thay đổi nguồn hoặc số lượng; cần đối chiếu lại trước khi nhập.");
+            if(current.DetailPackages.Any(x=>x.OriginPackageId==incoming.Id))
+                throw new InvalidOperationException("Kiện "+incoming.Contract+
+                    " đã có trong Tổng hợp.xlsx. Không ghi trùng.");
         }
-        var result = await MutateAsync(() =>
-            _excel.RecordArrival(Settings.MasterPath, Settings.KtPath,
-                approved, actualArrivalDay, useKt));
+        // The underlying Excel operation re-reads the workbook and checks source IDs
+        // under its lock before writing. Never replace rows by contract identity.
+        var result=await MutateAsync(()=>
+            _excel.RecordSelectedArrival(Settings.MasterPath,verified,actualArrivalDay));
         await RefreshAsync(false);
         return result;
     }
