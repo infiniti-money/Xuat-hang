@@ -34,14 +34,14 @@ public static class UiV16Diagnostics
         };
         var pkgA = new Package
         {
-            Id = "source-01", Contract = "123(1)", Project = "Công trình A",
+            Id = "source-01", Contract = "123(1)", Project = "Công trình A", SourceDate="2026-10-26",
             Company = "HISA",
             Items = [new MaterialLine { Contract = "123(1)", Project = "Công trình A",
                 Company = "HISA", Material = "Đầu cửa tầng 700", Unit = "Bộ", Quantity = 1 }]
         };
         var pkgB = new Package
         {
-            Id = "source-02", Contract = "123(2)", Project = "Công trình B",
+            Id = "source-02", Contract = "123(2)", Project = "Công trình B", SourceDate="2026-10-27",
             Company = "HISA",
             Items = [new MaterialLine { Contract = "123(2)", Project = "Công trình B",
                 Company = "HISA", Material = "Đầu cửa tầng 750", Unit = "Bộ", Quantity = 1 }]
