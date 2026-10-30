@@ -49,9 +49,27 @@ public static class Rules
     // Project labels from Cont and KT often add a location after " - ". Treat
     // those as the same project, while keeping explicit sub-project markers
     // (parentheses and Thang 1 / T1) distinct.
+    // The only automatically generated project suffix is "(dd.MM)" at the END.
+    // It is a visual departure-date label, not part of the real project identity.
+    // Original tower markers (T1/T2, Thang 1/2 and numbered parentheses) remain significant.
+    private static readonly Regex DepartureSuffix = new(
+        @"\\s*\\((?:0?[1-9]|[12]\\d|3[01])\\.(?:0?[1-9]|1[0-2])\\)\\s*$",
+        RegexOptions.Compiled);
+
+    public static string ProjectWithContDate(string? project,string? sourceDay)
+    {
+        var original=(project??"").Trim();
+        if(original.Length==0)return original;
+        if(!DateTime.TryParseExact(sourceDay,
+            ["yyyy-MM-dd","dd/MM/yyyy","d/M/yyyy","dd.MM.yyyy","d.M.yyyy"],
+            CultureInfo.InvariantCulture,DateTimeStyles.None,out var parsed))
+            return original;
+        var suffix=" ("+parsed.ToString("dd.MM",CultureInfo.InvariantCulture)+")";
+        return original.EndsWith(suffix,StringComparison.Ordinal) ? original : original+suffix;
+    }
     public static string ProjectCode(string? project)
     {
-        var text=(project??"").Trim();
+        var text=DepartureSuffix.Replace((project??"").Trim(),"").Trim();
         var parenthetical=ProjectParenthesis.Matches(text).Select(m=>m.Groups[1].Value.Trim())
             .Select(x=>Regex.Match(Norm(x),@"^(?:THANG|T)\s*[-_.]?\s*(\d+)$") is { Success:true } tower ? "T"+tower.Groups[1].Value.TrimStart('0') : Code(x))
             .Select(x=>x=="T"?"T0":x).Where(x=>x.Length>0).Order(StringComparer.Ordinal).ToArray();
