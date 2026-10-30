@@ -6,12 +6,17 @@ namespace Hisa.App;
 
 public partial class MainWindow
 {
-    private void ShowPlannedArrivals()
+    private void ShowPlannedArrivals(bool onlyMarkedContracts=false)
     {
         _page = "planned-arrivals";
         // A changed but unapproved on-screen schedule must never be used to record real arrivals.
         var approved = _aiApproved && _aiDocument is { ApprovedAt: { Length: > 0 } }
-            ? _aiDocument : PlannedArrivalWorkflow.LoadLatestApproved(_service.DataDirectory);
+            ? _aiDocument : AiScheduleWorkspace.LatestApproved(_service.DataDirectory);
+        if(onlyMarkedContracts && (approved==null || approved.Arrivals.All(x=>!x.SelectedForArrival)))
+        {
+            Notify("Không có hợp đồng phần cont về nào được tích chọn. Mở màn lịch để chọn đúng hợp đồng trước.");
+            return;
+        }
         if (approved is null)
         {
             SetPage("Cont đã về kho",
@@ -57,15 +62,22 @@ public partial class MainWindow
                 feedback.Text = "Chọn ngày cont thực tế về kho để đối chiếu.";
                 return;
             }
-            rows = PlannedArrivalWorkflow.Preview(approved, _service.Snapshot, Day(date));
+            rows = onlyMarkedContracts
+                ? AiScheduleWorkspace.SelectedArrivalPreview(approved,_service.Snapshot,Day(date))
+                : PlannedArrivalWorkflow.Preview(approved,_service.Snapshot,Day(date));
+            if(onlyMarkedContracts)AiScheduleWorkspace.PreselectUnique(rows);
             grid.ItemsSource = rows;
             var ready = rows.Count(x => x.Status == "Đủ nguồn · chờ xác nhận đã về");
-            feedback.Text = $"{rows.Count} kiện từ lịch Gemini · {ready} kiện đủ nguồn · " +
-                $"{rows.Count - ready} kiện cần kiểm tra. Tích riêng từng KIỆN đã về THỰC TẾ (dù trùng số hợp đồng).";
+            feedback.Text = $"{rows.Count} kiện từ lịch đã duyệt · {ready} kiện đủ nguồn · " +
+                $"{rows.Count - ready} kiện cần kiểm tra. " +
+                (onlyMarkedContracts
+                    ? "Đang lọc theo hợp đồng đã tích từ màn lịch. Mỗi HĐ có nhiều kiện phải chọn riêng từng kiện."
+                    : "Tích riêng từng KIỆN đã về THỰC TẾ (dù trùng số hợp đồng).");
         }
         date.SelectedDateChanged += (_, _) => preview();
         var actions = Row(
             B("↻  Đối chiếu lại", preview),
+            B("Xem tất cả kiện trong lịch",()=>ShowPlannedArrivals()),
             B("Tích các dòng đủ nguồn", () =>
             {
                 foreach (var r in rows) r.Selected = r.Status == "Đủ nguồn · chờ xác nhận đã về";
@@ -104,7 +116,7 @@ public partial class MainWindow
             }, true)
         );
         var explanation = Card(Stack(
-            T("CONT HÀNG ĐÃ VỀ KHO", 18, true),
+            T(onlyMarkedContracts?"CONT ĐÃ VỀ · HĐ ĐƯỢC CHỌN TỪ LỊCH":"CONT HÀNG ĐÃ VỀ KHO",18,true),
             T("Lịch Gemini chỉ dự báo container. Khi hàng thực tế về kho, tích riêng từng KIỆN (không chỉ từng số HĐ) rồi " +
               "xác nhận để ghi trang chi tiết của Tổng hợp.xlsx. Không ghi chỉ vì có lịch.",
                 12, false, Muted),

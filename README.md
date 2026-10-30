@@ -1,4 +1,4 @@
-# Quản lý kho — C# / .NET 10 · phiên bản 1.8.1
+# Quản lý kho — C# / .NET 10 · phiên bản 1.9.0
 
 **Người tạo:** Trịnh Phương Tân  
 **SĐT:** 0867899987  
@@ -6,7 +6,7 @@
 
 ## Bộ cài đặt Windows tiếng Việt và cập nhật tự động · phiên bản 1.3.0
 
-- Vào [GitHub Releases](https://github.com/infiniti-money/Xuat-hang/releases/latest) và tải `HISA-Kho-Vat-Tu-1.8.1-Setup.exe`. Bộ cài sử dụng tiếng Việt và mặc định cài vào `C:\\Program Files\\HISA Kho Vat Tu`. Có biểu tượng trên Desktop và Start Menu, hỗ trợ gỡ cài.
+- Vào [GitHub Releases](https://github.com/infiniti-money/Xuat-hang/releases/latest) và tải `HISA-Kho-Vat-Tu-1.9.0-Setup.exe`. Bộ cài sử dụng tiếng Việt và mặc định cài vào `C:\\Program Files\\HISA Kho Vat Tu`. Có biểu tượng trên Desktop và Start Menu, hỗ trợ gỡ cài.
 - Giao diện chính hiển thị logo HISA. Phần mềm tự kiểm tra GitHub Releases khi mở, tải và xác minh bộ cài (SHA-256) trong nền; khi đóng ứng dụng sẽ nâng cấp yên lặng rồi mở lại.
 - Chế độ `/VERYSILENT` ẩn trình hướng dẫn cài đặt nhưng **không thể bỏ qua cửa sổ UAC của Windows** khi nâng cấp ứng dụng cài trong Program Files. Nếu không cấp quyền quản trị, phiên bản cũ và dữ liệu vẫn giữ nguyên.
 - Tài liệu ứng dụng: **Thư viện → Tài liệu → HISA Kho Vat Tu → APP KHO → data**.
@@ -28,6 +28,18 @@
 - Ảnh Gemini chỉ là lịch dự kiến: khi cont về thực tế, chọn đúng **từng kiện**, đối chiếu ngày cont đi / số cont / số HĐ / công trình và xác nhận mới ghi vào chi tiết của `Tổng hợp.xlsx`.
 - Bản mới ghi mã cont và ID kiện nguồn vào hai cột ẩn **AA / AB** của trang `chi tiết`, giữ nguyên vùng hiển thị A:J. Nếu các cột ẩn đã có dữ liệu của ứng dụng khác, HISA dừng để tránh ghi đè.
 - Những nguồn không xác định được kiện thuộc cont nào được cảnh báo và **không tự đoán**. Các dòng lịch chưa xác nhận không được nhập kho.
+
+## HISA v1.9.0 – Lịch nhập/xuất từ ảnh Zalo hoặc số hợp đồng nhập tay
+
+Mở **Trung tâm Gemini AI → Đọc lịch Zalo / Nhập hợp đồng**. Đây là một màn hình chung cho **hai danh sách độc lập**: (1) cont dự kiến về kho Hưng Yên và (2) hợp đồng dự kiến bàn giao. Các số HĐ có trên ảnh vẫn được Gemini đọc; những số phát sinh chưa có trên ảnh có thể **dán nhiều dòng hoặc thêm thủ công vào cùng lịch**, không cần API Key khi nhập tay.
+
+- **Tạo lịch bằng tay** khi chưa có ảnh; **Mở lịch đã duyệt** để tiếp tục phiên trước, kể cả lịch chỉ có hợp đồng xuất.
+- Phần **Thêm số hợp đồng thủ công**: chọn nhập kho hay bàn giao, dán một mã mỗi dòng, nhập công trình/đơn vị nếu biết, số cont và ngày cont đi đối với hàng về, ghi chú và ưu tiên. Nếu khớp đúng một danh tính trong nguồn, HISA tự điền thông tin; nếu cùng HĐ nhiều T1/T2 hoặc chưa có nguồn, giữ trạng thái **Chưa xác nhận**, không đoán sai công trình.
+- Hai đợt cùng số HĐ nhưng khác cont/ngày cont đi là **hai dòng lịch riêng**. Khi nhận thật, chọn HĐ ở cột **Chọn nhận**, sau đó đối chiếu **từng kiện vật lý**, ngày cont đi và mã cont trên màn hình xác nhận cuối; chỉ ghi `Tổng hợp.xlsx` sau khi người dùng duyệt.
+- Ở **Phần 2 – Xuất kho**, tích cột **Làm phiếu** trên HĐ ảnh Zalo hoặc nhập tay; kiểm tra dữ liệu hợp đồng, vật tư/serial máy kéo, rồi tạo **phiếu chờ xuất**, chưa chuyển thành Đã xuất.
+- Sau bất kỳ chỉnh sửa ngày, thông tin nguồn hoặc thêm HĐ, lịch phải **duyệt lại trước khi ghi hoặc lập phiếu**; chuyển trạng thái chọn không được hiểu là phê duyệt tự động.
+- **Đã có LX** vẫn là *đã có lịch xuất*, không phải đã có lái xe, đã bàn giao hay đã xuất hàng.
+- Chức năng nhập tay vẫn hoạt động khi Gemini không có khóa API; Gemini API Key hiện có không bị thay đổi, các file Excel nguồn không bị chỉnh sửa chỉ vì người dùng nhập lịch.
 
 ## HISA v1.8.0 – Giao diện tập trung theo quy trình thực tế
 

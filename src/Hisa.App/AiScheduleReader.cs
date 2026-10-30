@@ -14,6 +14,11 @@ public sealed class AiScheduleLine
     // Transient UI choice; never interpreted as authorization to deliver goods.
     [System.Text.Json.Serialization.JsonIgnore]
     public bool SelectedForHandover { get; set; }
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool SelectedForArrival { get; set; }
+    public bool ManualEntry { get; set; }
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string EntrySource => ManualEntry ? "Nhập tay" : "Ảnh Zalo";
     public string Project { get; set; } = "";
     public string Company { get; set; } = "";
     public string Contract { get; set; } = "";
