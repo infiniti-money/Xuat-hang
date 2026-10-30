@@ -128,6 +128,10 @@ public class Package
     public string SourceDate { get; set; } = "";
     public string ArrivalDate { get; set; } = "";
     public string ContDate { get; set; } = "";
+    // Explicit physical container and source package identity, persisted in hidden
+    // detail-sheet metadata so equal contracts/quantities in different containers stay separate.
+    public string ContainerNumber { get; set; } = "";
+    public string OriginPackageId { get; set; } = "";
     public string SourceFile { get; set; } = "";
     public string SourcePath { get; set; } = "";
     public string SourceSheet { get; set; } = "";

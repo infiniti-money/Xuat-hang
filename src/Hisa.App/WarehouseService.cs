@@ -570,6 +570,43 @@ public sealed partial class WarehouseService : IDisposable
         if(missing.Count>0)result.Warnings.Add("Chưa có trong cont nguồn: "+string.Join(", ",missing));
         await RefreshAsync(false);return result;
     }
+    /// <summary>
+    /// Import ONLY verified source package IDs explicitly selected from the approved
+    /// incoming container schedule; never include another project with the same contract.
+    /// </summary>
+    public async Task<RecordArrivalResult> RecordVerifiedArrivalAsync(
+        IReadOnlyList<Package> verified, DateTime actualArrivalDay, bool useKt = true)
+    {
+        if (verified.Count==0) throw new InvalidOperationException("Chưa chọn kiện Hưng Yên đã về.");
+        if (verified.Any(x=>x.Id.Length==0 || x.ContainerNumber.Length==0 ||
+            x.OriginPackageId!=x.Id))
+            throw new InvalidOperationException("Kiện chưa có đầy đủ ID nguồn và container.");
+        if (verified.DistinctBy(x=>x.Id).Count()!=verified.Count)
+            throw new InvalidOperationException("Trùng ID kiện nguồn, chưa ghi kho.");
+        // Keep every package separate; selecting one does not select the whole contract.
+        await RefreshAsync(false);
+        var current=Snapshot;
+        foreach (var incoming in verified)
+        {
+            var source=current.ContPackages.SingleOrDefault(x=>x.Id==incoming.Id);
+            if(source==null || source.Identity!=incoming.Identity ||
+               source.SourceDate!=incoming.SourceDate ||
+               PlannedArrivalWorkflow.MaterialFingerprint(source)!=
+               PlannedArrivalWorkflow.MaterialFingerprint(incoming))
+                throw new InvalidOperationException("Kiện "+incoming.Contract+
+                    " đã thay đổi nguồn hoặc số lượng; cần đối chiếu lại trước khi nhập.");
+            if(current.DetailPackages.Any(x=>x.OriginPackageId==incoming.Id))
+                throw new InvalidOperationException("Kiện "+incoming.Contract+
+                    " đã có trong Tổng hợp.xlsx. Không ghi trùng.");
+        }
+        // The underlying Excel operation re-reads the workbook and checks source IDs
+        // under its lock before writing. Never replace rows by contract identity.
+        var result=await MutateAsync(()=>
+            _excel.RecordSelectedArrival(Settings.MasterPath,verified,actualArrivalDay));
+        await RefreshAsync(false);
+        return result;
+    }
+
     public async Task<int> SyncKtAsync()
     {
         var count=await MutateAsync(()=>_excel.ApplyKt(Settings.MasterPath,Settings.KtPath));

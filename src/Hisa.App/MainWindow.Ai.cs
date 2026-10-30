@@ -41,6 +41,18 @@ public partial class MainWindow
                                   : new DataGridLength(width)
             });
         }
+        if (!incoming)
+        {
+            grid.Columns.Add(new DataGridCheckBoxColumn
+            {
+                Header = "Làm phiếu",
+                Binding = new Binding("SelectedForHandover") {
+                    Mode = BindingMode.TwoWay,
+                    UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
+                },
+                Width = 88
+            });
+        }
         TextColumn("Số HĐ", "Contract", 110);
         TextColumn("Công trình", "Project", -1);
         TextColumn("Đơn vị", "Company", 135);
@@ -145,7 +157,10 @@ public partial class MainWindow
         var incoming = ScheduleEditor(doc.Arrivals, true);
         var outgoing = ScheduleEditor(doc.Dispatches, false);
         incoming.CellEditEnding += (_, _) => _aiApproved = false;
-        outgoing.CellEditEnding += (_, _) => _aiApproved = false;
+        outgoing.CellEditEnding += (_, e) =>
+        {
+            if (e.Column.Header?.ToString() != "Làm phiếu") _aiApproved = false;
+        };
 
         var incomingCount = T(doc.Arrivals.Count + " công trình · hàng dự kiến nhập kho", 14, true);
         var outgoingCount = T(doc.Dispatches.Count + " công trình · hàng dự kiến xuất kho", 14, true);
@@ -168,8 +183,22 @@ public partial class MainWindow
             _aiApproved = false;
             grid.Items.Refresh();
         }
-        incomingBody.Children.Add(Row(B("Đổi trạng thái lịch xuất của dòng chọn", () => CycleSchedule(incoming))));
-        outgoingBody.Children.Add(Row(B("Đổi trạng thái lịch xuất của dòng chọn", () => CycleSchedule(outgoing))));
+        incomingBody.Children.Add(Row(
+            B("✓  Cont đã về kho → cập nhật Tổng hợp.xlsx", () =>
+            {
+                if (!_aiApproved || string.IsNullOrWhiteSpace(doc.ApprovedAt))
+                {
+                    Notify("Hãy kiểm tra và lưu lịch Gemini đã duyệt trước khi ghi nhận cont thực tế.");
+                    return;
+                }
+                ShowPlannedArrivals();
+            }, true),
+            B("Đổi trạng thái lịch xuất của dòng chọn", () => CycleSchedule(incoming))
+        ));
+        outgoingBody.Children.Add(Row(
+            B("Chọn tất cả dòng xuất", () => { foreach(var line in doc.Dispatches) line.SelectedForHandover = true; outgoing.Items.Refresh(); }),
+            B("Bỏ chọn", () => { foreach(var line in doc.Dispatches) line.SelectedForHandover = false; outgoing.Items.Refresh(); }),
+            B("Đổi trạng thái lịch xuất của dòng chọn", () => CycleSchedule(outgoing))));
 
         var warningsBlock = T("", 12, false, Muted);
         void RefreshWarnings()
@@ -218,28 +247,39 @@ public partial class MainWindow
             Notify("Đã lưu kế hoạch dự kiến vào:\n" + path +
                 "\n\nKhông có phiếu Đã xuất hoặc ngày cont về nào được ghi tự động.");
         }, true);
-        var toPlan = B("Nạp các hợp đồng xuất vào kế hoạch", () =>
+        var toPlan = A("✓  Lập phiếu từ hợp đồng đã tích", async () =>
         {
-            if (!_aiApproved) { Notify("Hãy duyệt và lưu bảng trước khi nạp vào kế hoạch."); return; }
-            RefreshWarnings();
-            if (doc.DispatchDate.Length == 0) { Notify("Thiếu ngày dự kiến xuất."); return; }
-            var codes = doc.Dispatches.Select(x => x.Contract).Where(x => x.Length > 0)
-                .DistinctBy(Rules.Contract).ToArray();
-            if (codes.Length == 0) { Notify("Chưa có mã hợp đồng xuất kho."); return; }
-            if (!Ask("Nạp " + codes.Length + " hợp đồng vào màn hình kế hoạch?\n" +
-                "Bạn vẫn cần kiểm tra vật tư và bấm lưu phiếu chờ thủ công.")) return;
+            Commit(outgoing);
+            if (!_aiApproved || string.IsNullOrWhiteSpace(doc.ApprovedAt))
+            {
+                Notify("Hãy kiểm tra, duyệt và lưu lịch Gemini trước khi tạo phiếu bàn giao.");
+                return;
+            }
+            var chosen = doc.Dispatches.Where(x => x.SelectedForHandover).ToList();
+            if (chosen.Count == 0)
+            {
+                Notify("Tích chọn ô 'Làm phiếu' của những hợp đồng cần bàn giao trong phần HÀNG DỰ KIẾN XUẤT KHO.");
+                return;
+            }
+            var codes = chosen.Select(x => x.Contract).DistinctBy(Rules.Contract).ToArray();
+            var report = _service.Search(new SearchFilter { ContractsText = string.Join("\n", codes) });
+            report = AiHandoverSelection.Build(report, doc, chosen);
+            if (!Ask("Tạo kế hoạch phiếu CHỜ XUẤT cho " + chosen.Count +
+                     " dòng đã tích?\nNgày dự kiến: " + Rules.Day(doc.DispatchDate) +
+                     "\n\nĐây là bước chuẩn bị phiếu. Anh kiểm tra vật tư và lưu phiếu chờ trước khi bàn giao.")) return;
             _draft = null;
-            _draftReport = _service.Search(new SearchFilter { ContractsText = string.Join("\n", codes) });
+            _draftReport = report;
             _aiDispatchDay = doc.DispatchDate;
             _createPlanMode = true;
             Navigate("plan");
-        });
+            await Task.CompletedTask;
+        }, true);
         var tools = Card(Stack(
             T("Ngày và phê duyệt", 16, true),
             Row(Field("Dự kiến nhập kho · yyyy-MM-dd", dayArrival),
                 Field("Dự kiến xuất kho · yyyy-MM-dd", dayDispatch),
                 B("Kiểm tra cảnh báo", RefreshWarnings)),
-            T("Lưu kế hoạch vào thư mục dữ liệu HISA. Bấm Nạp hợp đồng để chuyển sang màn hình kế hoạch cũ; mọi bước xuất kho vẫn cần xác nhận riêng.", 12, false, Muted),
+            T("Tích chọn hợp đồng ở bảng PHẦN 2 · XUẤT KHO, bấm Lập phiếu đã tích để kiểm tra vật tư và tạo phiếu chờ. Không tự ghi Đã xuất.", 12, false, Muted),
             Row(save, toPlan, B("Kiểm tra sẵn sàng xuất", () =>
             {
                 if (!_aiApproved) { Notify("Hãy lưu lịch AI đã duyệt trước."); return; }
@@ -266,7 +306,7 @@ public partial class MainWindow
         panel.Children.Add(Card(warningsBlock));
         panel.Children.Add(T("PHẦN 1 · NHẬP KHO", 16, true));
         panel.Children.Add(Card(incomingBody));
-        panel.Children.Add(T("PHẦN 2 · XUẤT KHO", 16, true));
+        panel.Children.Add(T("PHẦN 2 · XUẤT KHO · TÍCH CHỌN HỢP ĐỒNG ĐỂ LÀM PHIẾU", 16, true));
         panel.Children.Add(Card(outgoingBody));
         SetPage("AI lịch nhập – xuất kho", "Gemini AI · sửa bảng · duyệt kế hoạch trước khi lưu", Layout(top,
             new ScrollViewer { Content = panel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }));

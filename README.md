@@ -1,4 +1,4 @@
-# Quản lý kho — C# / .NET 10 · phiên bản 1.5.2
+# Quản lý kho — C# / .NET 10 · phiên bản 1.6.0
 
 **Người tạo:** Trịnh Phương Tân  
 **SĐT:** 0867899987  
@@ -6,13 +6,31 @@
 
 ## Bộ cài đặt Windows tiếng Việt và cập nhật tự động · phiên bản 1.3.0
 
-- Vào [GitHub Releases](https://github.com/infiniti-money/Xuat-hang/releases/latest) và tải `HISA-Kho-Vat-Tu-1.5.2-Setup.exe`. Bộ cài sử dụng tiếng Việt và mặc định cài vào `C:\\Program Files\\HISA Kho Vat Tu`. Có biểu tượng trên Desktop và Start Menu, hỗ trợ gỡ cài.
+- Vào [GitHub Releases](https://github.com/infiniti-money/Xuat-hang/releases/latest) và tải `HISA-Kho-Vat-Tu-1.6.0-Setup.exe`. Bộ cài sử dụng tiếng Việt và mặc định cài vào `C:\\Program Files\\HISA Kho Vat Tu`. Có biểu tượng trên Desktop và Start Menu, hỗ trợ gỡ cài.
 - Giao diện chính hiển thị logo HISA. Phần mềm tự kiểm tra GitHub Releases khi mở, tải và xác minh bộ cài (SHA-256) trong nền; khi đóng ứng dụng sẽ nâng cấp yên lặng rồi mở lại.
 - Chế độ `/VERYSILENT` ẩn trình hướng dẫn cài đặt nhưng **không thể bỏ qua cửa sổ UAC của Windows** khi nâng cấp ứng dụng cài trong Program Files. Nếu không cấp quyền quản trị, phiên bản cũ và dữ liệu vẫn giữ nguyên.
 - Tài liệu ứng dụng: **Thư viện → Tài liệu → HISA Kho Vat Tu → APP KHO → data**.
 - Sao lưu ZIP: **Thư viện → Tài liệu → HISA Kho Vat Tu → Backups**; các bản sao Excel trước khi ghi nằm trong thư mục **Backups → Excel**.
 - Gỡ phần mềm hoặc nâng cấp không xóa dữ liệu và bản sao lưu trong Thư viện. Khi nâng cấp từ bản cũ, các file dữ liệu tìm thấy tại vị trí cũ sẽ được chuyển sang nếu file đích chưa tồn tại.
 
+
+### Quy tắc phân biệt kiện Hưng Yên khi ghi Tổng hợp.xlsx
+
+**Mỗi kiện vật lý là một bản ghi riêng**, không gộp theo số hợp đồng:
+- Cùng số HĐ nhưng **khác số lượng hoặc danh mục vật tư** → giữ các kiện riêng.
+- Cùng HĐ, cùng số lượng nhưng tên công trình có **T1 / T2, Thang 1 / Thang 2 hoặc (1) / (2)** → các kiện riêng.
+- Cùng HĐ, cùng vật tư và số lượng nhưng **cont đi khác nhau** → các kiện riêng, có ID kiện nguồn và số cont để tránh ghi đè.
+- Ảnh Gemini chỉ là lịch dự kiến: khi cont về thực tế, chọn đúng **từng kiện**, đối chiếu ngày cont đi / số cont / số HĐ / công trình và xác nhận mới ghi vào chi tiết của `Tổng hợp.xlsx`.
+- Bản mới ghi mã cont và ID kiện nguồn vào hai cột ẩn **AA / AB** của trang `chi tiết`, giữ nguyên vùng hiển thị A:J. Nếu các cột ẩn đã có dữ liệu của ứng dụng khác, HISA dừng để tránh ghi đè.
+- Những nguồn không xác định được kiện thuộc cont nào được cảnh báo và **không tự đoán**. Các dòng lịch chưa xác nhận không được nhập kho.
+
+## HISA v1.6.0 – Giao diện điều hành và nhập cont thực tế
+
+- Mở ứng dụng: trang **Tổng quan kho** hiển thị lịch xuất theo ngày, số hợp đồng sẵn sàng/thiếu vật tư/cần kiểm tra.
+- **Hàng dự kiến xuất kho từ Gemini**: kiểm tra và lưu lịch, tích ô **Làm phiếu** ở từng hợp đồng cần xuất, bấm **Lập phiếu từ hợp đồng đã tích**. HISA đối chiếu đúng số HĐ + công trình + công ty, sau đó mở phiếu chờ cho anh kiểm tra và lưu. Không tự ghi đã xuất.
+- **Hàng dự kiến về kho**: sau khi cont về thực tế, vào **Cont đã về kho (AI)**, chọn ngày thực nhận, tích các container, xem kiện nguồn từ trang Cont đi Hưng Yên, xác nhận ghi trang chi tiết của **Tổng hợp.xlsx**. Không tự ghi nhập khi chỉ mới có lịch.
+- Giao diện WPF mới gồm thanh điều hướng chuyên nghiệp, bảng dữ liệu dễ đọc, các thẻ tình trạng, tìm kiếm và thao tác nhanh; không cần cài thêm Python/Node.
+- Gemini API Key vẫn lưu an toàn trong Windows Credential Manager ở mục **Cấu hình & sao lưu**, có thể lưu/thay/xóa.
 
 ## Gemini AI – nhập khóa một lần, lưu sau cập nhật (v1.5.2)
 

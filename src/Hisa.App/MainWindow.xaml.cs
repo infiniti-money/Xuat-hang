@@ -38,6 +38,7 @@ public partial class MainWindow : Window
         _service = service;
         Title = SoftwareInfo.DisplayName;
         VersionText.Text="Phiên bản "+SoftwareInfo.Version;
+        TodayText.Text=DateTime.Now.ToString("dddd, dd/MM/yyyy",CultureInfo.GetCultureInfo("vi-VN"));
         AddNav("dashboard", "▦", "Tổng quan kho");
         AddNav("lookup", "⌕", "Tra cứu hợp đồng");
         AddNav("packages", "▣", "Kiện Hưng Yên");
@@ -48,6 +49,7 @@ public partial class MainWindow : Window
         AddNav("daily", "▥", "Báo cáo theo ngày");
         NavCaption("NHẬP KHO & THIẾT LẬP");
         AddNav("ai-schedule", "✦", "AI lịch nhập – xuất kho");
+        AddNav("planned-arrivals", "▣", "Cont đã về kho (AI)");
         AddNav("arrival", "↓", "Nhập cont về kho");
         AddNav("arrival-packages", "▣", "Quản lý kiện cont về");
         AddNav("templates", "▧", "Mẫu phiếu in");
@@ -83,13 +85,13 @@ public partial class MainWindow : Window
         button.Click += (_,_)=>{if(key=="create")_createPlanMode=false;Navigate(key);};
         _nav[key]=button; Navigation.Children.Add(button);
     }
-    private void NavCaption(string title) => Navigation.Children.Add(new TextBlock {Text=title, FontSize=9, Foreground=Brush("#6B92AA"),FontWeight=FontWeights.SemiBold,Margin=new Thickness(25,20,0,8)});
+    private void NavCaption(string title) => Navigation.Children.Add(new TextBlock {Text=title, FontSize=10, Foreground=Brush("#729BAF"),FontWeight=FontWeights.SemiBold,Margin=new Thickness(25,20,0,8)});
     private void Navigate(string page)
     {
         if(_page=="create"&&_draft!=null)_captureDraftEditor?.Invoke();
         _captureDraftEditor=null;_captureDraftHeader=null;
         _page=page;
-        foreach(var pair in _nav) {var active=pair.Key==(page=="plan"?"create":page);pair.Value.Background=active?Brush("#24566A"):Brushes.Transparent;pair.Value.Foreground=active?Brushes.White:Brush("#AFC5D6");}
+        HighlightNavigation(page);
         switch(page)
         {
             case "dashboard":ShowDashboard();break;
@@ -101,6 +103,7 @@ public partial class MainWindow : Window
             case "daily":ShowDaily();break;
             case "ai-schedule":ShowAiSchedules();break;
             case "readiness":ShowDispatchReadiness();break;
+            case "planned-arrivals":ShowPlannedArrivals();break;
             case "arrival":ShowArrival();break;
             case "arrival-packages":ShowArrivalPackages();break;
             case "templates":ShowTemplates();break;
@@ -108,8 +111,27 @@ public partial class MainWindow : Window
             case "information":ShowInformation();break;
         }
     }
+    private void HighlightNavigation(string page)
+    {
+        foreach (var pair in _nav)
+        {
+            var active = pair.Key == (page == "plan" ? "create" : page);
+            pair.Value.Background = active ? Brush("#24445B") : Brushes.Transparent;
+            pair.Value.BorderBrush = active ? Brush("#52D4C5") : Brushes.Transparent;
+            pair.Value.Foreground = active ? Brushes.White : Brush("#ADC3D5");
+        }
+    }
     private void SetPage(string title,string subtitle,FrameworkElement content)
-    { PageTitle.Text=title;PageSubtitle.Text=subtitle;PageHost.Children.Clear();PageHost.Children.Add(content);UpdateStatus(); }
+    {
+        PageTitle.Text = title;
+        PageSubtitle.Text = subtitle;
+        BreadcrumbText.Text = "HISA  /  " + title.ToUpper(CultureInfo.GetCultureInfo("vi-VN"));
+        TodayText.Text = DateTime.Now.ToString("dddd, dd/MM/yyyy",CultureInfo.GetCultureInfo("vi-VN"));
+        HighlightNavigation(_page);
+        PageHost.Children.Clear();
+        PageHost.Children.Add(content);
+        UpdateStatus();
+    }
     private void UpdateStatus()
     {
         StatusText.Text=_service.IsBusy?"Đang cập nhật dữ liệu…":!string.IsNullOrEmpty(_service.LastError)?_service.LastError:$"Nguồn chính: {System.IO.Path.GetFileName(_service.Settings.MasterPath)}   ·   {_service.Snapshot.Packages.Count:N0} kiện Hưng Yên   ·   {_service.Warnings.Count} cảnh báo";
@@ -199,22 +221,7 @@ public partial class MainWindow : Window
         _page="dashboard";
         var report=_service.Search(new SearchFilter());
         var p=Stack();
-        // Prominent home-screen brand icon; it also matches the installer/Desktop icon.
-        var brandImage=new Border {
-            Width=76,Height=76,Background=Brushes.White,CornerRadius=new CornerRadius(16),
-            BorderBrush=Brush("#C9E5E3"),BorderThickness=new Thickness(1),
-            Padding=new Thickness(8),Margin=new Thickness(0,0,20,0),
-            Child=new Image {Source=BrandingAssets.Logo,Stretch=Stretch.Uniform}
-        };
-        DockPanel.SetDock(brandImage,Dock.Left);
-        var branding=new DockPanel{LastChildFill=true};
-        branding.Children.Add(brandImage);
-        branding.Children.Add(Stack(
-            T("HISA  ·  QUẢN LÝ KHO",21,true,Ink),
-            T("Xuất hàng, kiểm soát kiện, hợp đồng và bàn giao vật tư",12,false,Muted),
-            T("Phiên bản "+SoftwareInfo.Version+"  ·  Cập nhật bảo mật từ GitHub Releases",11,false,Brush("#277C81"))
-        ));
-        p.Children.Add(Card(branding,new Thickness(18)));
+        p.Children.Add(DashboardWelcomeCard());
         // Kế hoạch xuất được duyệt là nguồn chính; không suy ra sẵn hàng từ lịch cont về.
         try
         {
@@ -225,23 +232,18 @@ public partial class MainWindow : Window
             var visibleDay = readinessState.Plans.Any(p => p.Day == today) &&
                 !readinessState.Plans.Any(p => p.Day == tomorrow) ? today : tomorrow;
             var currentPlans = DispatchReadinessStore.Evaluate(readinessState, _service.Snapshot, visibleDay);
-            p.Children.Add(Card(Stack(
-                T("KẾ HOẠCH XUẤT " + Rules.Day(visibleDay), 15, true),
-                currentPlans.Count == 0 ?
-                    T("Chưa có lịch dự kiến. Anh muốn nhập ảnh Zalo hay thêm hợp đồng phát sinh?", 12, false, Muted) :
-                    T(currentPlans.Count + " hợp đồng · " +
-                        currentPlans.Count(x => x.Status.StartsWith("Sẵn sàng", StringComparison.Ordinal)) +
-                        " sẵn sàng · " + currentPlans.Count(x => x.Status == "Thiếu vật tư") +
-                        " báo thiếu · còn lại cần cập nhật hoặc kiểm tra.", 12, false, Muted),
-                Row(B("Xem sẵn sàng xuất hàng", () => Navigate("readiness"), true),
-                    B("Nhập ảnh Zalo", () => Navigate("ai-schedule")),
-                    B("Thêm hợp đồng phát sinh", () => Navigate("readiness"))))));
+            p.Children.Add(DashboardPlanCard(currentPlans,visibleDay));
         }
         catch (Exception ex)
         {
             p.Children.Add(Alert("Không đọc được kế hoạch chuẩn bị. File gốc được giữ nguyên: " + ex.Message, true));
         }
-        p.Children.Add(Row(B("+  Kế hoạch / tạo phiếu",()=>{_draft=null;_draftReport=null;_createPlanMode=false;Navigate("create");},true),B("↓  Nhập cont về kho",()=>Navigate("arrival")),B("▥  Báo cáo hôm nay",()=>Navigate("daily"))));
+        p.Children.Add(StyledDashboardPanel(Stack(
+            T("THAO TÁC NHANH", 12, true, Brush("#658296")),
+            Row(B("+  Tạo phiếu bàn giao",()=>{_draft=null;_draftReport=null;_createPlanMode=false;Navigate("create");},true),
+                B("↓  Nhập cont về kho",()=>Navigate("arrival")),
+                B("▥  Báo cáo hôm nay",()=>Navigate("daily")),
+                B("⌕  Tra cứu hợp đồng",()=>Navigate("lookup"))))));
         var kpis=new UniformGrid{Columns=3,Margin=new Thickness(0,12,0,12)};
         Kpi(kpis,"KIỆN HƯNG YÊN",_service.Snapshot.Packages.Count,"Mở danh sách kiện, xem đầy đủ vật tư",()=>Navigate("packages"));
         Kpi(kpis,"SỐ HỢP ĐỒNG",report.ContractCount,"Tách riêng từng công trình cùng số HĐ",()=>Navigate("lookup"));
@@ -259,7 +261,11 @@ public partial class MainWindow : Window
         }
         var duplicateTools=Card(Stack(T("Kiện Hưng Yên có cùng số hợp đồng",16,true),T("Ứng dụng tự tìm và liệt kê tất cả kiện thuộc số hợp đồng xuất hiện nhiều lần. Kiểm tra công trình trước khi xóa: tên có ngoặc, Thang 1/2 hoặc T1/T2 có thể là công trình riêng.",12,false,Muted),Row(Field("Lọc số hợp đồng",duplicateQuery),B("⌕  Lọc",loadDuplicateGroups,true),A("⌫  Xóa kiện đã chọn khỏi Tổng hợp.xlsx",async()=>{if(duplicatePackages.SelectedItem is not Package selected)throw new InvalidOperationException("Chọn kiện cần xóa.");if(!Ask($"HĐ {selected.Contract} có nhiều kiện. Kiện {selected.PackageNo} · {selected.Project} có phải bản ghi trùng cần xóa không?\n\nNếu đây là công trình/kiện riêng (kể cả tên có ngoặc, Thang 1/2, T1/T2), chọn Không và giữ lại.\n\nXóa chỉ tác động trang Cont đi Hưng Yên trong Tổng hợp.xlsx."))return;var n=await _service.DeleteContPackageAsync(selected);Notify($"Đã xóa kiện trùng ({n} dòng) khỏi Tổng hợp.xlsx.");loadDuplicateGroups();},false,true)),duplicateCount,duplicatePackages));
         duplicateQuery.TextChanged+=(_,_)=>loadDuplicateGroups();loadDuplicateGroups();
-        p.Children.Add(duplicateTools);
+        p.Children.Add(new Expander
+        {
+            Header="KIỂM TRA NÂNG CAO  /  KIỆN CÙNG SỐ HỢP ĐỒNG (bấm để mở)",
+            Content=duplicateTools, IsExpanded=false
+        });
         var groupPanel=new UniformGrid {Columns=3};
         foreach(var stat in report.Categories)
         {
@@ -277,7 +283,21 @@ public partial class MainWindow : Window
         SetPage("Tổng quan kho","Hưng Yên · hợp đồng, kiện hàng và tiến độ xuất kho",new ScrollViewer{Content=p,VerticalScrollBarVisibility=ScrollBarVisibility.Auto});
     }
     private void Kpi(Panel parent,string label,int number,string description,Action action)
-    {var b=B("",action);b.Padding=new Thickness(20);b.Margin=new Thickness(0,0,12,0);b.Content=Stack(T(label,10,true,Muted),new TextBlock{Text=number.ToString("N0"),FontSize=35,Foreground=Ink,FontWeight=FontWeights.Bold,Margin=new Thickness(0,8,0,6)},T(description,11,false,Muted));parent.Children.Add(b);}
+    {
+        var inner=Stack(
+            T(label,10,true,Brush("#188A90")),
+            new TextBlock {Text=number.ToString("N0"),FontSize=32,
+                Foreground=Ink,FontWeight=FontWeights.Bold,Margin=new Thickness(0,9,0,6)},
+            T(description,11,false,Muted));
+        var button=B("",action);
+        button.Content=inner;
+        button.HorizontalContentAlignment=HorizontalAlignment.Stretch;
+        button.Background=Brush("#FFFFFF");
+        button.BorderBrush=Brush("#E0E9F1");
+        button.Padding=new Thickness(18,17,18,17);
+        button.Margin=new Thickness(0,0,11,0);
+        parent.Children.Add(button);
+    }
 
     private void ShowLookup()
     {
