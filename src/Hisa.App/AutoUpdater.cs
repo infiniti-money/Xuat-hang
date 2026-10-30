@@ -19,6 +19,7 @@ public static class AutoUpdater
     private static readonly HttpClient Http = CreateClient();
     private static string? _readyInstaller;
     private static readonly object Sync = new();
+    private static readonly SemaphoreSlim CheckGate = new(1,1);
 
     public static string? ReadyVersion { get; private set; }
 
@@ -110,10 +111,18 @@ public static class AutoUpdater
         if(total==0)throw new InvalidDataException("Bản cập nhật rỗng.");
     }
 
-    public static async Task CheckAndStageAsync(CancellationToken cancellationToken=default)
+    // Shared by automatic and manual checks; returns the verified downloaded version.
+    public static async Task<string?> CheckAndStageAsync(CancellationToken cancellationToken=default)
+    {
+        await CheckGate.WaitAsync(cancellationToken);
+        try { return await StageCoreAsync(cancellationToken); }
+        finally { CheckGate.Release(); }
+    }
+
+    private static async Task<string?> StageCoreAsync(CancellationToken cancellationToken)
     {
         var release=await CheckLatestAsync(cancellationToken);
-        if(release==null)return;
+        if(release==null)return null;
         var expectedContent=await DownloadTextAsync(release.ChecksumUrl,cancellationToken);
         var lines=expectedContent.Split(['\r','\n'],StringSplitOptions.RemoveEmptyEntries);
         var line=lines.SingleOrDefault()?.Trim()??"";
@@ -143,6 +152,7 @@ public static class AutoUpdater
             lock(Sync){_readyInstaller=file;ReadyVersion=release.Version;}
         }
         finally{if(File.Exists(staging))File.Delete(staging);}
+        return release.Version;
     }
 
     /// <summary>Starts an unattended upgrade only after the warehouse application exits.</summary>
