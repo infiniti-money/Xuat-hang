@@ -195,6 +195,21 @@ public static class UiV16Diagnostics
         pkgA.ContainerNumber="";
         snapshot.ContPackages=[pkgA,pkgB];
 
+        // A source package header without any Hưng Yên material is not a receipt.
+        var emptyPackage=new Package {
+            Id="source-empty",Contract=pkgA.Contract,Project=pkgA.Project,
+            Company=pkgA.Company,SourceDate="2026-10-26"
+        };
+        snapshot.ContPackages=[emptyPackage,pkgB];
+        var emptyPreview=PlannedArrivalWorkflow.Preview(doc,snapshot,day);
+        Check(emptyPreview[0].Status=="Chưa có vật tư nguồn",
+            "AI cannot mark a physically empty Hưng Yên package ready for receipt");
+        var refusedEmpty=false;
+        try{PlannedArrivalWorkflow.SelectVerified([emptyPreview[0]],doc,snapshot,day);}
+        catch(InvalidOperationException){refusedEmpty=true;}
+        Check(refusedEmpty,"Empty source package never reaches Excel import");
+        snapshot.ContPackages=[pkgA,pkgB];
+
         // Handover is always based on Dispatches, never the Arrivals table.
         var report = new ContractReport
         {
