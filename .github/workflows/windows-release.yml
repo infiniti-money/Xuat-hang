@@ -71,6 +71,17 @@ jobs:
           }
           if (!(Test-Path -LiteralPath $compiler)) { throw 'Inno Setup compiler is missing' }
 
+      - name: Obtain Vietnamese installer language
+        shell: pwsh
+        run: |
+          # Vietnamese is a community-maintained translation, not bundled with Inno Setup.
+          # Pin its upstream revision for reproducible Windows builds.
+          $url = 'https://raw.githubusercontent.com/jrsoftware/issrc/2527da77ff7983514f535d19391a748c5d898336/Files/Languages/Unofficial/Vietnamese.isl'
+          Invoke-WebRequest -Uri $url -OutFile 'installer/Vietnamese.isl'
+          if (!(Test-Path 'installer/Vietnamese.isl') -or (Get-Item 'installer/Vietnamese.isl').Length -lt 10000) {
+            throw 'Cannot retrieve the official upstream Vietnamese translation'
+          }
+
       - name: Build Vietnamese Windows installer
         id: installer
         shell: pwsh
