@@ -29,6 +29,8 @@ public static class DistinctPackageExcelDiagnostics
                 var details=wb.AddWorksheet("chi tiết");details.Cell(2,2).Value="Ngày cont về";
                 wb.SaveAs(master);
             }
+            var manualMaster=Path.Combine(folder,"Tổng hợp-thucong.xlsx");
+            File.Copy(master,manualMaster);
             const string day="2026-10-31";
             Package Make(string id,string cont,string project,decimal qty,string sourceDay="2026-10-29")
             {
@@ -48,6 +50,21 @@ public static class DistinctPackageExcelDiagnostics
             var t2=Make("pkg-t2","CONT-04","Công trình B T2",1);
             var excel=new ExcelStore();
             var date=DateTime.ParseExact(day,"yyyy-MM-dd",System.Globalization.CultureInfo.InvariantCulture);
+            // Manual input historically replaced all same-identity packages on the same
+            // arrival day. It must now append both departures instead of overwriting.
+            var manualOne=excel.RecordArrival(manualMaster,"", [first],date,useKt:false);
+            var manualTwo=excel.RecordArrival(manualMaster,"", [second],date,useKt:false);
+            var manualSaved=excel.ReadMaster(manualMaster).DetailPackages;
+            Check(manualOne.Packages==1 && manualTwo.Packages==1 &&
+                manualSaved.Count==2 &&
+                manualSaved.Any(x=>x.Project=="Công trình A (26.10)") &&
+                manualSaved.Any(x=>x.Project=="Công trình A (27.10)"),
+                "manual arrival keeps same contract/material imported from two departure days");
+            var manualRepeat=excel.RecordArrival(manualMaster,"",[first],date,useKt:false);
+            Check(manualRepeat.Packages==0 &&
+                excel.ReadMaster(manualMaster).DetailPackages.Count==2,
+                "manual reimport of existing source package does not overwrite another departure");
+
             excel.RecordSelectedArrival(master,[first],date);
             excel.RecordSelectedArrival(master,[second],date);
             excel.RecordSelectedArrival(master,[third,t1,t2],date);
