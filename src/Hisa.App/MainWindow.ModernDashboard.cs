@@ -114,6 +114,35 @@ public partial class MainWindow
         return StyledDashboardPanel(body);
     }
 
+    private FrameworkElement DashboardInboundSummary()
+    {
+        AiScheduleDocument? approved;
+        try{approved=PlannedArrivalWorkflow.LoadLatestApproved(_service.DataDirectory);}
+        catch(Exception)
+        {
+            return StyledDashboardPanel(Stack(
+                T("CONT HƯNG YÊN / LỊCH DỰ KIẾN",15,true),
+                T("Không đọc được lịch cont đã duyệt. Hãy kiểm tra phần AI lịch Zalo; dữ liệu nhập kho không bị thay đổi.",12,false,Muted),
+                B("Mở công việc cont & kiện",()=>Navigate("arrival-hub"))));
+        }
+        if(approved is null)
+        {
+            return StyledDashboardPanel(Stack(
+                T("CONT HƯNG YÊN / LỊCH DỰ KIẾN",15,true),
+                T("Chưa có lịch cont dự kiến đã duyệt. Ảnh Zalo không tự chứng minh cont đã về kho.",12,false,Muted),
+                Row(B("Đọc lịch Zalo",()=>Navigate("ai-schedule")),
+                    B("Nhập cont thủ công",()=>Navigate("arrival")))));
+        }
+        var containers=approved.Arrivals.Select(x=>Rules.Code(x.Container))
+            .Where(x=>x.Length>0).Distinct(StringComparer.Ordinal).Count();
+        return StyledDashboardPanel(Stack(
+            Row(T("CONT DỰ KIẾN VỀ  /  "+Rules.Day(approved.ArrivalDate),15,true),
+                B("Xác nhận cont đã về",()=>Navigate("planned-arrivals"))),
+            T(containers+" container · "+approved.Arrivals.Count+
+                " dòng hợp đồng theo lịch Gemini đã duyệt. Chưa tính là đã nhập kho thực tế.",12,false,Muted),
+            T("Ngày cont đi khác nhau hoặc T1/T2, quy cách và số lượng khác nhau phải giữ các kiện độc lập.",11,false,Brush("#946E3E"))));
+    }
+
     private FrameworkElement DashboardNumber(string label, int value, string background, string accent)
     {
         var box = Stack(
