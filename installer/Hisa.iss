@@ -46,5 +46,12 @@ Name: "{autodesktop}\HISA Quản lý kho"; Filename: "{app}\{#AppExeName}"; Task
 
 [Run]
 Filename: "{app}\{#AppExeName}"; Description: "Mở HISA Quản lý kho"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#AppExeName}"; Flags: nowait; Check: IsSilentInstallation
+
+[Code]
+function IsSilentInstallation(): Boolean;
+begin
+  Result := WizardSilent;
+end;
 
 ; No [UninstallDelete] for Documents: application data and backups survive upgrades/uninstall.
