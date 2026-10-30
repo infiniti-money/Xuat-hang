@@ -183,7 +183,18 @@ public partial class MainWindow
             _aiApproved = false;
             grid.Items.Refresh();
         }
-        incomingBody.Children.Add(Row(B("Đổi trạng thái lịch xuất của dòng chọn", () => CycleSchedule(incoming))));
+        incomingBody.Children.Add(Row(
+            B("✓  Cont đã về kho → cập nhật Tổng hợp.xlsx", () =>
+            {
+                if (!_aiApproved || string.IsNullOrWhiteSpace(doc.ApprovedAt))
+                {
+                    Notify("Hãy kiểm tra và lưu lịch Gemini đã duyệt trước khi ghi nhận cont thực tế.");
+                    return;
+                }
+                ShowPlannedArrivals();
+            }, true),
+            B("Đổi trạng thái lịch xuất của dòng chọn", () => CycleSchedule(incoming))
+        ));
         outgoingBody.Children.Add(Row(
             B("Chọn tất cả dòng xuất", () => { foreach(var line in doc.Dispatches) line.SelectedForHandover = true; outgoing.Items.Refresh(); }),
             B("Bỏ chọn", () => { foreach(var line in doc.Dispatches) line.SelectedForHandover = false; outgoing.Items.Refresh(); }),
