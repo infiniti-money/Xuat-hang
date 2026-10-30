@@ -11,6 +11,7 @@ public partial class App : Application
 {
     private Mutex? _instance;
     private WarehouseService? _service;
+    private CancellationTokenSource? _updaterCancellation;
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
@@ -66,6 +67,13 @@ public partial class App : Application
             MainWindow=new MainWindow(_service);
             if(e.Args.Contains("--demo"))MainWindow.Title+=" · DỮ LIỆU THỬ";
             MainWindow.Show();
+            // Network update checks are best-effort, asynchronous, and never block startup.
+            // No app data or Excel file is changed until the user closes the application.
+            if(!e.Args.Contains("--demo"))
+            {
+                _updaterCancellation=new CancellationTokenSource();
+                _=CheckForUpdatesAsync(_updaterCancellation.Token);
+            }
         }
         catch(Exception ex)
         {
@@ -76,12 +84,27 @@ public partial class App : Application
             Shutdown(1);
         }
     }
+    private async Task CheckForUpdatesAsync(CancellationToken cancellationToken)
+    {
+        try { await AutoUpdater.CheckAndStageAsync(cancellationToken); }
+        catch(OperationCanceledException) { }
+        catch(Exception ex)
+        {
+            // Update service failures must not prevent offline warehouse work.
+            _service?.Log("auto-update",ex);
+        }
+    }
     private static string? Argument(string[] args,string key)
     {
         var index=Array.IndexOf(args,key);return index>=0&&index+1<args.Length?args[index+1]:null;
     }
     protected override void OnExit(ExitEventArgs e)
     {
-        _service?.Dispose();_instance?.Dispose();base.OnExit(e);
+        _updaterCancellation?.Cancel();
+        _service?.Dispose();_instance?.Dispose();
+        // Start the validated installer after the application has released its Excel handles.
+        AutoUpdater.InstallWhenExiting();
+        _updaterCancellation?.Dispose();
+        base.OnExit(e);
     }
 }
