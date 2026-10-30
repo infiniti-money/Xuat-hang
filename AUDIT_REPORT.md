@@ -1,3 +1,38 @@
+# Báo cáo rà soát HISA v1.8.1 – 30/10/2026
+
+**Phạm vi:** mã nguồn GitHub `infiniti-money/Xuat-hang`, WPF/.NET 10, dữ liệu Excel/phiếu, luồng cont Hưng Yên, lịch Zalo Gemini, xác nhận nhập–xuất, Gemini Chat/credential, updater và Windows GitHub Actions.
+
+**Mức độ xác minh:** đọc mã và kiểm thử tự động trên Windows CI. Đây không phải chứng nhận đã thử nghiệm mọi thao tác GUI trên máy tính thực tế hoặc mọi biến thể workbook của đơn vị.
+
+## Lỗi đã tìm thấy và sửa trong bản vá 1.8.1
+
+| Mức độ | Nhóm | Mô tả | Xử lý |
+| --- | --- | --- | --- |
+| Nghiêm trọng | Nhập cont từ AI | Một hợp đồng chỉ xuất hiện ở một container trên ảnh, nhưng các kiện cùng HĐ trong Excel có nhiều ngày cont đi. Khi không có nguồn khớp, mã cũ có thể gán toàn bộ kiện sang cont đó. | Chặn gán theo HĐ; bắt buộc khớp mã container hoặc ngày cont đi đã xác minh. |
+| Nghiêm trọng | Cont và ngày không khớp | Nếu nguồn đã có số cont, mã cũ chỉ đối chiếu cont, bỏ qua ngày cont đi khác với ảnh. | Cả hai thuộc tính phải khớp khi cả hai được cung cấp. |
+| Cao | Cùng cont nhiều đợt | Nguồn có một mã cont lặp qua nhiều ngày mà ảnh không có ngày cont đi. | Hiển thị trạng thái Chưa xác minh ngày cont đi, không cho ghi Excel. |
+| Cao | Ngày duyệt AI | Sửa ngày dự kiến sau khi lưu duyệt không hủy duyệt phiên, có thể dùng lịch chưa được duyệt để tạo phiếu. | Chỉnh ngày hoặc nội dung bảng đều làm mất phê duyệt, phải duyệt lại. |
+| Trung bình | Tên công trình | Ghi lại một kiện sau khi sửa ngày có thể thêm nhiều hậu tố `(dd.MM)`. | Chuẩn hóa chỉ một hậu tố cuối và giữ dấu T1/T2 hoặc số thang. |
+| Trung bình | Gemini Chat | AI nhìn thấy kế hoạch nhưng thiếu trạng thái chuẩn bị từ bộ kiểm tra HISA, có thể suy luận không chính xác. | Gửi trạng thái đã đối chiếu, không đưa serial hoặc nguồn Excel gốc. |
+
+## Quy tắc an toàn được giữ
+- Lịch **dự kiến** không đồng nghĩa hàng **đã về** hay **đã xuất**.
+- Phân biệt kiện theo **số HĐ + công trình/Thang/T1/T2 + vật tư/số lượng + mã cont + ngày cont đi**.
+- Không gộp hoặc ghi đè kiện khác ngày cont đi; khi thiếu bằng chứng phải yêu cầu xác minh.
+- Cần người dùng xác nhận trước khi ghi `Tổng hợp.xlsx` hoặc lập phiếu, và xác nhận riêng khi thực sự bàn giao.
+- Khóa Gemini lưu qua các lần nâng cấp trong Windows Credential Manager, có thể xóa tại Cấu hình; mặc định Gemini Chat không đọc dữ liệu kho.
+
+## Các giới hạn chưa thể chứng thực bằng CI
+- Hiển thị giao diện thực tế khi thay đổi độ phân giải, DPI và phiên Windows; chưa nhận được ảnh chụp màn hình từ ứng dụng đang chạy.
+- Đọc và đối chiếu workbook máy kéo có serial và đầu cửa cabin của đơn vị (chưa được cung cấp bản mẫu thực).
+- Đọc ảnh Zalo và kiểm tra kết quả Gemini trên API Key, mạng và hạn mức thực tế.
+- Không thử nghiệm trực tiếp với workbook gốc của người dùng để tránh thay đổi dữ liệu thật.
+
+## Kiểm thử & phát hành
+Bộ kiểm thử hồi quy Windows theo `.github/workflows/windows-release.yml` chạy với workbook tạm; kết quả và trạng thái phát hành được xem trực tiếp tại GitHub Actions của nhánh/PR tương ứng. Chỉ gộp và phát hành bản 1.8.1 sau khi CI đạt.
+
+---
+
 # Báo cáo rà soát · Quản lý kho 1.2.1
 
 Đã rà soát mã nguồn, chạy kiểm tra nghiệp vụ và kiểm tra lại bản `.exe` tự chứa .NET. Kết quả: **220 kiểm tra đạt**, biên dịch không có lỗi/cảnh báo. Bộ kiểm tra tăng từ 143 lên 220 trường hợp. Các thao tác ghi thử dùng workbook và thư mục tạm; không ghi vào workbook thực tế của người dùng.
