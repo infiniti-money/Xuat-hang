@@ -285,7 +285,7 @@ public sealed partial class WarehouseService : IDisposable
             try
             {
                 var files=Directory.Exists(source)?Directory.EnumerateFiles(source,"*.xlsx",SearchOption.AllDirectories):File.Exists(source)?[source]:Array.Empty<string>();
-                stamps.AddRange(files.Where(p=>!Path.GetFileName(p).StartsWith("~$")&&!p.Contains(Path.DirectorySeparatorChar+".hisa-backups"+Path.DirectorySeparatorChar)&&!p.Equals(Settings.MasterPath,StringComparison.OrdinalIgnoreCase)&&!p.Equals(Settings.KtPath,StringComparison.OrdinalIgnoreCase)&&!p.Equals(Settings.ProductExportPath,StringComparison.OrdinalIgnoreCase)&&!p.Contains(Path.DirectorySeparatorChar+"XUẤT HÀNG"+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase)).Select(FileStamp));
+                stamps.AddRange(files.Where(p=>!Path.GetFileName(p).StartsWith("~$")&&!ContFileOrganizer.HasHangGuiName(p)&&!ContFileOrganizer.IsHangGuiFolder(p)&&!p.Contains(Path.DirectorySeparatorChar+".hisa-backups"+Path.DirectorySeparatorChar)&&!p.Equals(Settings.MasterPath,StringComparison.OrdinalIgnoreCase)&&!p.Equals(Settings.KtPath,StringComparison.OrdinalIgnoreCase)&&!p.Equals(Settings.ProductExportPath,StringComparison.OrdinalIgnoreCase)&&!p.Contains(Path.DirectorySeparatorChar+"XUẤT HÀNG"+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase)).Select(FileStamp));
                 var parent=Directory.Exists(source)?Directory.GetParent(source)?.FullName:Path.GetDirectoryName(source);
                 if(parent!=null)stamps.AddRange(Directory.EnumerateFiles(parent,"Lịch xuất hàng*.xlsx").Concat(Directory.EnumerateFiles(parent,"HÀNG THEO CONT.xlsx")).Select(FileStamp));
             }
@@ -330,20 +330,28 @@ public sealed partial class WarehouseService : IDisposable
             await Task.Run(()=>
             {
                 var warnings=new List<string>();
+                SourceScanResult? sourceScan=null;
+                var sourceFilesStable=false;
+                var importSaved=false;
+                string sourceStamp="";
                 if(scanCont && Settings.DataSources.Count>0)
                 {
                     Say("Quét file cont thay đổi và nhận diện kiện Hưng Yên…");
                     var progress=new Progress<OperationProgress>(p=>Say(p.Message));
                     var sourceBefore=SourceFingerprint();
+                    sourceStamp=sourceBefore;
                     var scan=_excel.ScanSources(Settings,progress,_stop.Token);
+                    sourceScan=scan;
                     warnings.AddRange(scan.Warnings);
                     var stable=sourceBefore==SourceFingerprint();
+                    sourceFilesStable=stable && scan.Warnings.Count==0;
                     _sourceSyncPending=scan.Warnings.Count>0||!stable;
                     if(!stable)warnings.Add("Nguồn cont đang thay đổi; ứng dụng sẽ quét lại sau khi sao chép/cập nhật file hoàn tất.");
                     if(stable && scan.Warnings.Count==0 && scan.FileCount>0 && scan.Packages.Count>0 && File.Exists(Settings.MasterPath))
                     {
                         Say($"Cập nhật {scan.Packages.Count:N0} kiện từ {scan.FileCount:N0} tệp nguồn…");
                         _excel.WriteContSummary(Settings.MasterPath,scan.Packages);
+                        importSaved=true;
                     }
                     else if(scan.Warnings.Count>0)warnings.Add("Nguồn có cảnh báo; giữ nguyên trang cont để tránh ghi thiếu dữ liệu.");
                     else if(scan.Packages.Count==0)warnings.Add("Không tìm thấy kiện Hưng Yên trong nguồn; giữ nguyên Tổng hợp.xlsx.");
@@ -359,6 +367,14 @@ public sealed partial class WarehouseService : IDisposable
                 var loaded=_excel.ReadMaster(Settings.MasterPath);
                 if(masterBefore!=FileStamp(Settings.MasterPath))throw new IOException("Tổng hợp.xlsx vừa thay đổi trong lúc đọc. Ứng dụng sẽ tự tải lại.");
                 SetSnapshot(loaded);
+                // Never move files until the master workbook was updated and read successfully.
+                // Archived files stay below CONT ĐI and are included in subsequent scans.
+                if(sourceScan!=null && sourceFilesStable && sourceStamp==SourceFingerprint())
+                {
+                    if(importSaved)
+                        warnings.AddRange(ContFileOrganizer.MoveFiles(sourceScan.ImportedHungYenFiles,"Đã nhập kho"));
+                    warnings.AddRange(ContFileOrganizer.MoveFiles(sourceScan.HangGuiFiles,"Hàng gửi"));
+                }
                 lock(_stateLock)_warnings=[..warnings,"Đang kiểm tra lịch sử xuất hàng và các cảnh báo trước khi lập phiếu."];
                 Notify();
                 warnings.AddRange(loaded.Warnings);
