@@ -1,3 +1,21 @@
+# HISA Quản lý kho — v1.5.1 (Windows x64 · sửa kết nối AI)
+
+## Khắc phục lỗi GPT / Gemini
+- Phần mềm hiển thị **riêng mã HTTP và hướng dẫn xử lý** khi OpenAI hoặc Gemini không kết nối được (401 khóa API, 403 quyền truy cập, 404 mô hình, 429 hạn mức, 503 máy chủ). Không hiển thị nội dung lỗi thô có thể chứa API Key.
+- Thay mô hình mặc định Gemini 2.5 Flash bị giới hạn quyền cho nhiều dự án API mới bằng **gemini-3.5-flash-lite** (hỗ trợ ảnh, JSON và trích xuất bảng).
+- Xử lý thông báo khi mô hình trả dữ liệu không đúng định dạng, bị chặn hoặc hết thời gian chờ; giữ lỗi dưới màn AI sau khi đóng hộp thoại.
+- Có thể chạy chỉ GPT hoặc chỉ Gemini nếu chỉ nhập API Key của một nhà cung cấp. Phần mềm ghi rõ một AI chưa được kiểm chứng chéo.
+- Thêm kiểm thử lỗi HTTP, phân biệt tín dụng và bảo vệ không làm lộ API Key.
+
+## Sử dụng
+1. Mở **AI lịch nhập – xuất kho** và chọn ảnh Zalo.
+2. Điền API Key OpenAI và/hoặc Google AI Studio. Tài khoản ChatGPT Plus không phải API Key, hạn mức tính riêng.
+3. Nếu có lỗi, đọc dòng thông báo riêng GPT/Gemini để kiểm tra quyền API, billing, mô hình hoặc mạng. **Không gửi API Key hay ảnh chứa thông tin nhạy cảm lên nơi công khai.**
+
+Không có API Key nào được lưu trong cấu hình hoặc đóng gói EXE. Bản vá không chỉnh sửa workbook, phiếu bàn giao hay dữ liệu kho thực tế.
+
+---
+
 # HISA Quản lý kho — v1.5.0 (Windows x64 · bản thử nghiệm)
 
 ## Kiểm tra sẵn sàng xuất hàng theo lịch
