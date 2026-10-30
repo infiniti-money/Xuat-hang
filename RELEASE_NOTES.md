@@ -1,3 +1,20 @@
+# HISA Quản lý kho v1.9.0 – Trung tâm lịch nhập – xuất và hợp đồng phát sinh
+
+## Một màn hình điều hành cho nhập và bàn giao
+- Mở lịch từ **ảnh Zalo** qua Gemini hoặc tạo lịch trống rồi **nhập số hợp đồng thủ công**. Hai nguồn có thể bổ sung cho nhau trong cùng lịch đang xem; không tạo dữ liệu vật tư giả.
+- Dán nhiều số hợp đồng, mỗi dòng một số. Chọn rõ **Cont dự kiến về Hưng Yên** hoặc **Hợp đồng dự kiến bàn giao**, bổ sung ngày, tên công trình, đơn vị, cont, ghi chú và ưu tiên.
+- Tự nhận diện công trình/đơn vị chỉ khi hợp đồng trùng **đúng một danh tính** trong dữ liệu nguồn. Hợp đồng không tìm thấy hoặc trùng số trên nhiều công trình T1/T2 được cảnh báo, cho sửa tay.
+- **Phần 1 – Nhập kho:** tích cột *Chọn nhận* theo hợp đồng; chương trình chuyển sang danh sách kiện nguồn đã khớp **ngày cont đi + số cont** để người dùng chọn lại và xác nhận hàng thực nhận. Nhiều kiện cùng HĐ phải chọn riêng; không nhập kho dựa vào ảnh dự kiến.
+- **Phần 2 – Bàn giao:** tích cột *Làm phiếu* theo hợp đồng đã duyệt, đối chiếu vật tư và tạo phiếu chờ. Không xác nhận xuất hàng tự động.
+- Có nút **Mở lịch đã duyệt** cả khi lịch chỉ gồm phần xuất; các lựa chọn tích nhập/xuất là trạng thái phiên hiện tại, không tự ghi sổ. Thay đổi nội dung lịch cần duyệt lại.
+- Sử dụng Gemini API Key cũ để đọc ảnh; nhập tay không phụ thuộc API Key. Giữ nguyên dữ liệu kho, cột ngày cont, serial và cơ chế sao lưu/cập nhật.
+
+## Kiểm thử
+- Bộ kiểm thử offline: nhập nhiều mã, nhập trùng, tự nhận diện công trình duy nhất, hợp đồng chưa có nguồn, hai ngày cont đi cho cùng HĐ, nhập tay không ghi Excel, lịch chỉ có phần xuất được mở lại, cảnh báo thủ công được giải quyết sau khi điền đủ thông tin.
+- Biên dịch .NET 10 WPF và kiểm thử Windows CI trước khi gộp/đóng gói phát hành.
+
+---
+
 # HISA Quản lý kho v1.8.1 – Sửa lỗi sau rà soát toàn diện
 
 ## Các lỗi nghiệp vụ được khắc phục
