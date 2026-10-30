@@ -12,7 +12,7 @@ public partial class MainWindow
 {
     private static string TodayDay() => DateTime.Today.ToString("yyyy-MM-dd",CultureInfo.InvariantCulture);
 
-    private static string PreferredDispatchDay(DispatchReadinessState state)
+    internal static string PreferredDispatchDay(DispatchReadinessState state)
     {
         var today=TodayDay();
         var tomorrow=DateTime.Today.AddDays(1).ToString("yyyy-MM-dd",CultureInfo.InvariantCulture);
