@@ -18,6 +18,14 @@
 - Sau khi xác nhận, chỉ ghi **các kiện đã chọn** vào trang chi tiết của Tổng hợp.xlsx bằng luồng sao lưu/ghi an toàn sẵn có; không ghi nhầm các công trình cùng mã hoặc suy luận cont dự kiến đã về.
 - Mỗi lần ghi đối chiếu lại dữ liệu hiện tại; không ghi nếu kiện đã nhập trong cùng ngày. Các container không chọn vẫn ở trạng thái dự kiến.
 
+## Quy tắc bổ sung: nhiều kiện cùng số hợp đồng
+- Hai kiện cùng HĐ nhưng vật tư hoặc số lượng khác nhau phải ghi thành **hai kiện riêng**.
+- Các tên công trình có T1/T2, Thang 1/Thang 2, (1)/(2) không được gộp kể cả số lượng giống nhau.
+- Một HĐ đi hai container được quản lý riêng theo **cont đi + ID kiện nguồn**, không cộng dồn hoặc thay thế kiện còn lại.
+- Cont đã về (AI): màn hình chọn theo từng kiện và hiển thị ngày cont đi, vật tư, số lượng; chỉ ghi sau xác nhận thực nhận. Ghi dấu cont và ID kiện vào các cột ẩn AA/AB của trang chi tiết, giữ nguyên nội dung hiển thị A:J.
+- Nếu Excel cũ thiếu dấu nhận dạng mà trùng vật tư/số lượng hoặc lịch cont không chứng minh được nguồn, HISA dừng để yêu cầu đối chiếu; không xóa hoặc tự gộp kiện.
+- Kiểm thử Excel cô lập gồm hai cont cùng HĐ/số lượng, số lượng khác nhau, T1/T2 và ngăn nhập trùng.
+
 ## Bảo mật và tương thích
 - Gemini API Key lưu trong Windows Credential Manager, giữ khi nâng cấp cùng tài khoản Windows. Có nút lưu/thay/xóa trong Cấu hình.
 - Giữ cấu trúc dữ liệu, phiếu, file Excel, quy tắc serial máy kéo và thư mục ngày như 26.10 / 27.10.
