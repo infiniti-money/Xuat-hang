@@ -383,10 +383,18 @@ public sealed class ExcelStore
                 else if (File.Exists(source)) { files.Add(Path.GetFullPath(source));parents.Add(Path.GetDirectoryName(source)!); }
                 else result.Warnings.Add($"Không tìm thấy nguồn: {source}");
             }
-            var manifests=files.Where(x=>Path.GetFileName(x).StartsWith("THANG",StringComparison.OrdinalIgnoreCase)).ToList();
+            // Files named hanggui/Hàng gửi are sorted separately and never treated as stock.
+            var roots=settings.DataSources.Where(Directory.Exists).ToList();
+            foreach(var file in files.Where(ContFileOrganizer.HasHangGuiName))
+            {
+                var candidate=ContFileOrganizer.MakeCandidate(file,roots);
+                if(candidate!=null)result.HangGuiFiles.Add(candidate);
+            }
+            var manifests=files.Where(x=>!ContFileOrganizer.HasHangGuiName(x)&&Path.GetFileName(x).StartsWith("THANG",StringComparison.OrdinalIgnoreCase)).ToList();
             var manifest=ManifestMetadata(manifests,result.Warnings);
             var metadata=ScheduleMetadata(parents,result.Warnings);
-            var raw=files.Where(x=>!Path.GetFileName(x).StartsWith("~$") && !manifests.Contains(x) && !IsReserved(x,settings)).Order().ToList();
+            var raw=files.Where(x=>!Path.GetFileName(x).StartsWith("~$") && !ContFileOrganizer.HasHangGuiName(x)
+                && !ContFileOrganizer.IsHangGuiFolder(x) && !manifests.Contains(x) && !IsReserved(x,settings)).Order().ToList();
             result.FileCount=raw.Count;
             var metadataStamp=string.Join("|",manifest.Select(x=>x.ToString()).Concat(metadata.Select(x=>x.ToString())));
             for(int index=0;index<raw.Count;index++)
@@ -397,12 +405,26 @@ public sealed class ExcelStore
                 try
                 {
                     var stamp=Stamp(path)+metadataStamp;
-                    if(sourceCache.TryGetValue(path,out var cached) && cached.Stamp==stamp) { result.Packages.AddRange(Clone(cached.Packages));result.Warnings.AddRange(cached.Warnings);continue; }
+                    if(sourceCache.TryGetValue(path,out var cached) && cached.Stamp==stamp)
+                    {
+                        result.Packages.AddRange(Clone(cached.Packages));result.Warnings.AddRange(cached.Warnings);
+                        if(cached.Packages.Count>0 && cached.Warnings.Count==0)
+                        {
+                            var classified=ContFileOrganizer.MakeCandidate(path,roots);
+                            if(classified!=null)result.ImportedHungYenFiles.Add(classified);
+                        }
+                        continue;
+                    }
                     var fileWarnings=new List<string>();
                     var packages=ParseSource(path,manifest,metadata,fileWarnings);
                     sourceCache[path]=(stamp,packages,fileWarnings);
                     result.Warnings.AddRange(fileWarnings);
                     result.Packages.AddRange(Clone(packages));
+                    if(packages.Count>0 && fileWarnings.Count==0)
+                    {
+                        var classified=ContFileOrganizer.MakeCandidate(path,roots);
+                        if(classified!=null)result.ImportedHungYenFiles.Add(classified);
+                    }
                     result.ChangedFiles++;
                 }
                 catch(Exception ex) when(ex is not OperationCanceledException)
@@ -459,7 +481,7 @@ public sealed class ExcelStore
                     if(hy)
                     {
                         ordinal++;
-                        current=new Package {Id="source|"+path+"|"+ordinal,Contract=contract,Project=project,Company=company,SourceDate=day,ContDate=day,SourceFile=Path.GetFileName(path),SourcePath=path,SourceSheet=sheet.Name,PackageNo=ordinal,SourceRowStart=row,SourceRowEnd=row};
+                        current=new Package {Id="source|"+ContFileOrganizer.OriginalPath(path)+"|"+ordinal,Contract=contract,Project=project,Company=company,SourceDate=day,ContDate=day,SourceFile=Path.GetFileName(path),SourcePath=path,SourceSheet=sheet.Name,PackageNo=ordinal,SourceRowStart=row,SourceRowEnd=row};
                         blocks.Add(current);
                     }
                 }
@@ -471,7 +493,7 @@ public sealed class ExcelStore
         }
         if(!explicitDestination && blocks.Count==0 && match!=null && pending.Count>0)
         {
-            var package=new Package {Id="source|"+path+"|1",Contract=contract,Project=project,Company=company,SourceDate=day,ContDate=day,SourceFile=Path.GetFileName(path),SourcePath=path,PackageNo=1};
+            var package=new Package {Id="source|"+ContFileOrganizer.OriginalPath(path)+"|1",Contract=contract,Project=project,Company=company,SourceDate=day,ContDate=day,SourceFile=Path.GetFileName(path),SourcePath=path,PackageNo=1};
             foreach(var line in pending) package.Items.Add(NewLine(package,line.Material,line.Unit,line.Quantity,line.Note));
             blocks.Add(package);
         }
