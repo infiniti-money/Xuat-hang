@@ -570,6 +570,43 @@ public sealed partial class WarehouseService : IDisposable
         if(missing.Count>0)result.Warnings.Add("Chưa có trong cont nguồn: "+string.Join(", ",missing));
         await RefreshAsync(false);return result;
     }
+    /// <summary>
+    /// Import ONLY verified source package IDs explicitly selected from the approved
+    /// incoming container schedule; never include another project with the same contract.
+    /// </summary>
+    public async Task<RecordArrivalResult> RecordVerifiedArrivalAsync(
+        IReadOnlyList<Package> verified, DateTime actualArrivalDay, bool useKt = true)
+    {
+        if (verified.Count == 0) throw new InvalidOperationException("Chưa chọn kiện nào đã về kho.");
+        if (verified.Any(x => string.IsNullOrWhiteSpace(x.Id)))
+            throw new InvalidOperationException("Có kiện không có định danh; cập nhật lại nguồn Excel.");
+        var day = actualArrivalDay.ToString("yyyy-MM-dd");
+        var sourceIds = verified.Select(x => x.Id).ToList();
+        if (sourceIds.Distinct(StringComparer.Ordinal).Count() != sourceIds.Count)
+            throw new InvalidOperationException("Một kiện nguồn được chọn nhiều lần. Chưa ghi dữ liệu.");
+        await RefreshAsync(false);
+        var fromSnapshot = Snapshot.ContPackages;
+        var existing = Snapshot.DetailPackages;
+        var approved = new List<Package>();
+        foreach (var item in verified)
+        {
+            var fresh = fromSnapshot.SingleOrDefault(x => x.Id == item.Id);
+            if (fresh == null || fresh.Identity != item.Identity ||
+                fresh.Items.Count != item.Items.Count)
+                throw new InvalidOperationException("Nguồn cont đã thay đổi cho HĐ " + item.Contract +
+                    ". Cần kiểm tra lại kiện và vật tư trước khi ghi.");
+            if (existing.Any(x => x.Identity == fresh.Identity && x.ArrivalDate == day))
+                throw new InvalidOperationException("HĐ " + item.Contract + " · " + item.Project +
+                    " đã có kiện nhập kho ngày " + Rules.Day(day) + ". Chưa ghi trùng.");
+            approved.Add(fresh);
+        }
+        var result = await MutateAsync(() =>
+            _excel.RecordArrival(Settings.MasterPath, Settings.KtPath,
+                approved, actualArrivalDay, useKt));
+        await RefreshAsync(false);
+        return result;
+    }
+
     public async Task<int> SyncKtAsync()
     {
         var count=await MutateAsync(()=>_excel.ApplyKt(Settings.MasterPath,Settings.KtPath));
