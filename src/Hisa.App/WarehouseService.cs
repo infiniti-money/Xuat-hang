@@ -407,6 +407,9 @@ public sealed partial class WarehouseService : IDisposable
             if(filter.ShipDate.Length>0 && !row.Shipments.Any(x=>x.Date==filter.ShipDate)&&!row.Slips.Any(x=>x.Status=="delivered"&&x.HandoverDate==filter.ShipDate))
             {row.Warning="Chưa ghi nhận xuất trong ngày đã chọn.";result.DateMismatch.Add(row);continue;}
             row.Materials=row.AllMaterials.Where(x=>Rules.MaterialMatches(x,filter.Categories,Rules.Tokens(filter.KeywordsText))).ToList();
+            // A filtered-out project is visible for reference, but must never be
+            // selected for export or a delivery slip unless explicitly checked.
+            if(row.Materials.Count==0&&(filter.Categories.Count>0||Rules.Tokens(filter.KeywordsText).Count>0))row.Selected=false;
             scoped.Add(row);
             if(row.Materials.Count>0)result.Rows.Add(row);else result.NoMaterialMatch.Add(row);
         }
