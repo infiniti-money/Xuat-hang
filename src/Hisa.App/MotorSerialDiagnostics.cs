@@ -24,6 +24,12 @@ public static class MotorSerialDiagnostics
         try{await service.SaveSlipAsync(invalid);throw new InvalidOperationException("Export unexpectedly succeeded");}
         catch(ArgumentException){checks.Add("Backend rejects missing serial before modifying saved state");}
         Check(service.Slips.Single(x=>x.Id==waiting.Id).Status=="planned","Failed export retains the waiting slip");
+        invalid.AllowMissingMotorSerials=true;
+        var confirmed=await service.SaveSlipAsync(invalid);
+        Check(confirmed.Status=="delivered"&&confirmed.MotorSerials.Count==5&&confirmed.MotorSerials.All(x=>x.SerialNumber.Length==0),
+            "Explicit missing-serial waiver allows export and retains empty serial slots");
+        await service.ChangeSlipStatusAsync(confirmed.Id,"planned");
+        Check(service.Slips.Single(x=>x.Id==waiting.Id).Status=="planned","Confirmed incomplete delivery can return to planned status");
         SerialTestData.Fill(draft,"MOTOR");draft.MotorSerials[0].SerialNumber=" 0000392-A ";
         MotorSerials.Validate(draft);Check(draft.MotorSerials[0].SerialNumber=="0000392-A","Serial leading zeroes and punctuation preserved, outer spaces trimmed");
         var duplicate=WarehouseService.Clone(draft);duplicate.MotorSerials[1].SerialNumber="0000392-a";
