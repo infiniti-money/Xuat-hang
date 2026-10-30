@@ -40,6 +40,8 @@ public static class GeminiChatDiagnostics
             snapshot,slips,state,new DateTime(2026,10,30));
         Check(scoped.Contains("Đầu cửa tầng 700") && scoped.Contains("Máy kéo M1"),
             "Explicit full contract code includes matching material and specification");
+        Check(scoped.Contains("TÌNH TRẠNG VẬT TƯ ĐÃ ĐỐI CHIẾU=Chưa cập nhật đầy đủ"),
+            "Unconfirmed preparation is not reported as ready by the chat assistant");
         Check(scoped.Contains("Công trình A T1 (26.10)") && scoped.Contains("CONT001"),
             "Context preserves T1 and departure date/container distinctions");
         Check(!scoped.Contains("PRIVATE-SERIAL") && !scoped.Contains("C:\\PRIVATE") &&
