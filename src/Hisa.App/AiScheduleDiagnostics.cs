@@ -80,6 +80,22 @@ public static class AiScheduleDiagnostics
         Check(persisted.Dispatches.Count == 2 &&
               persisted.Dispatches[0].HasExportSchedule == true,
             "Reviewed schedule JSON round-trip keeps LX semantics");
+        // Provider failures must be actionable and must never expose raw provider responses or credentials.
+        Check(AiScheduleReader.DiagnoseApiFailure("GPT", 401,
+            "{\"error\":{\"code\":\"invalid_api_key\",\"message\":\"Unauthorized\"}}")
+            .Contains("API Key không hợp lệ"), "GPT 401 provides valid API key guidance");
+        Check(AiScheduleReader.DiagnoseApiFailure("GPT", 429,
+            "{\"error\":{\"code\":\"insufficient_quota\",\"message\":\"Billing quota exceeded\"}}")
+            .Contains("hạn mức/tín dụng"), "GPT insufficient quota error is distinguished from server outages");
+        Check(AiScheduleReader.DiagnoseApiFailure("Gemini", 404,
+            "{\"error\":{\"code\":\"NOT_FOUND\",\"message\":\"Model not found\"}}")
+            .Contains("mô hình"), "Gemini missing model guidance");
+        var secret = "AIzaDontEverShowThisSecret";
+        Check(!AiScheduleReader.DiagnoseApiFailure("Gemini", 403,
+            "{\"error\":{\"message\":\"" + secret + " is blocked\"}}").Contains(secret),
+            "Provider errors do not leak returned API key text");
+        Check(AiScheduleReader.DiagnoseApiFailure("Gemini", 503, "<html>Error</html>")
+            .Contains("tạm thời"), "Non-JSON proxy and transient errors have safe guidance");
         return checks;
     }
 }
