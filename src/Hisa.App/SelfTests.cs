@@ -106,7 +106,7 @@ public static class SelfTests
             Check(service.Search(new SearchFilter{ContractsText="123(1)"}).Rows.Single().Project=="Công trình riêng (1)","Parenthesized contract resolution",result);
             var draft=service.CreateDraft(day,"contract_delivery","2026-10-27");
             SerialTestData.Fill(draft,"FLOW");
-            Check(draft.ContractPackages.Count==2&&draft.Lines.Count==2&&draft.ContractPackages.Sum(x=>x.Items.Count)==4,"Slip includes filtered lines and full scoped package snapshots",result);
+            Check(draft.ContractPackages.Count==2&&draft.Lines.Count==2&&draft.ContractPackages.Sum(x=>x.Items.Count)==4,$"Slip includes filtered lines and full scoped package snapshots (lines={draft.Lines.Count}, packages={draft.ContractPackages.Count}, items={draft.ContractPackages.Sum(x=>x.Items.Count)}, source={string.Join(";",day.Rows[0].Packages.Select(p=>p.Id+":"+p.Items.Count))})",result);
             var saved=await service.SaveSlipAsync(draft);Check(saved.SlipCode.Length>0&&saved.Status=="planned","Unique native slip code and planned save",result);
             await service.ChangeSlipStatusAsync(saved.Id,"delivered");
             Check(new ExcelStore().ReadShipments(service.Settings).Any(x=>x.SlipId==saved.Id),"Delivered writes canonical product ledger",result);
