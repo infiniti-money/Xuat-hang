@@ -637,6 +637,9 @@ public partial class MainWindow : Window
         var syncKt=new CheckBox{Content="Tự cập nhật trang chi tiết khi file KT thay đổi",IsChecked=model.AutoSyncKt};
         var poll=Input(model.PollSeconds.ToString());poll.Width=90;
         var p=Stack();
+        p.Children.Add(Card(Stack(T("TRUNG TÂM CẤU HÌNH",20,true),
+            T("Gemini AI · Nguồn Excel · Đồng bộ · Bảo vệ dữ liệu",12,false,Muted))));
+        p.Children.Add(GeminiSettingsCard());
         p.Children.Add(Card(Stack(T("Nguồn dữ liệu Excel",18,true),T("Chọn duy nhất một thư mục. Ứng dụng tự quét nguồn cont và tự nhận diện ba tệp Excel cần dùng; không cần chọn riêng từng tệp.",12,false,Muted),DockWithButton(sources,B("Chọn thư mục nguồn",()=>{var dialog=new OpenFolderDialog{Title="Chọn thư mục nguồn duy nhất"};if(dialog.ShowDialog(this)==true)sources.Text=dialog.FolderName;})),discovery)));
         p.Children.Add(Card(Stack(T("Tốc độ & đồng bộ",18,true),auto,cont,syncKt,Row(Field("Chu kỳ kiểm tra · giây",poll)),T("Dữ liệu được lập chỉ mục trong bộ nhớ và giữ bộ nhớ đệm để mở ứng dụng nhanh. File Excel đang mở sẽ được báo và thử lại, không ghi dở dang.",12,false,Muted))));
         p.Children.Add(Row(A("Lưu cấu hình & tải lại",async()=>
@@ -646,7 +649,7 @@ public partial class MainWindow : Window
             await _service.SaveSettingsAsync(model);await _service.RefreshAsync(true);Notify("Đã lưu cấu hình nguồn.");ShowSettings();
         },true),A("Sao lưu vào Thư viện",async()=>{var path=System.IO.Path.Combine(_service.BackupDirectory,$"HISA-sao-luu-{DateTime.Now:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}.zip");await _service.BackupAsync(path);Notify("Đã sao lưu vào Thư viện → Tài liệu:\n"+path);}),B("Mở thư mục Backup",()=>System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(_service.BackupDirectory){UseShellExecute=true})),B("Mở thư mục dữ liệu",()=>System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(_service.DataDirectory){UseShellExecute=true}))));
         p.Children.Add(Alert($"Dữ liệu ứng dụng: {_service.DataDirectory}\nSao lưu (ZIP và Excel): {_service.BackupDirectory}\nCác bản sao lưu cũ tại nguồn sẽ được giữ nguyên."));
-        SetPage("Cấu hình & sao lưu","Kết nối nhiều nguồn · điều chỉnh đồng bộ · sao lưu lịch sử phiếu",new ScrollViewer{Content=p,VerticalScrollBarVisibility=ScrollBarVisibility.Auto});
+        SetPage("Cấu hình & sao lưu","Gemini AI · lưu / xóa API Key · đồng bộ dữ liệu Excel · sao lưu",new ScrollViewer{Content=p,VerticalScrollBarVisibility=ScrollBarVisibility.Auto});
     }
     private static FrameworkElement DockWithButton(FrameworkElement input,Button button)
     {var p=new DockPanel();DockPanel.SetDock(button,Dock.Right);p.Children.Add(button);p.Children.Add(input);return p;}
