@@ -14,6 +14,16 @@
 - Gỡ phần mềm hoặc nâng cấp không xóa dữ liệu và bản sao lưu trong Thư viện. Khi nâng cấp từ bản cũ, các file dữ liệu tìm thấy tại vị trí cũ sẽ được chuyển sang nếu file đích chưa tồn tại.
 
 
+### Quy tắc phân biệt kiện Hưng Yên khi ghi Tổng hợp.xlsx
+
+**Mỗi kiện vật lý là một bản ghi riêng**, không gộp theo số hợp đồng:
+- Cùng số HĐ nhưng **khác số lượng hoặc danh mục vật tư** → giữ các kiện riêng.
+- Cùng HĐ, cùng số lượng nhưng tên công trình có **T1 / T2, Thang 1 / Thang 2 hoặc (1) / (2)** → các kiện riêng.
+- Cùng HĐ, cùng vật tư và số lượng nhưng **cont đi khác nhau** → các kiện riêng, có ID kiện nguồn và số cont để tránh ghi đè.
+- Ảnh Gemini chỉ là lịch dự kiến: khi cont về thực tế, chọn đúng **từng kiện**, đối chiếu ngày cont đi / số cont / số HĐ / công trình và xác nhận mới ghi vào chi tiết của `Tổng hợp.xlsx`.
+- Bản mới ghi mã cont và ID kiện nguồn vào hai cột ẩn **AA / AB** của trang `chi tiết`, giữ nguyên vùng hiển thị A:J. Nếu các cột ẩn đã có dữ liệu của ứng dụng khác, HISA dừng để tránh ghi đè.
+- Những nguồn không xác định được kiện thuộc cont nào được cảnh báo và **không tự đoán**. Các dòng lịch chưa xác nhận không được nhập kho.
+
 ## HISA v1.6.0 – Giao diện điều hành và nhập cont thực tế
 
 - Mở ứng dụng: trang **Tổng quan kho** hiển thị lịch xuất theo ngày, số hợp đồng sẵn sàng/thiếu vật tư/cần kiểm tra.
