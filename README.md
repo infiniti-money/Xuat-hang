@@ -1,4 +1,4 @@
-# Quản lý kho — C# / .NET 10 · phiên bản 1.6.0
+# Quản lý kho — C# / .NET 10 · phiên bản 1.6.1
 
 **Người tạo:** Trịnh Phương Tân  
 **SĐT:** 0867899987  
@@ -6,7 +6,7 @@
 
 ## Bộ cài đặt Windows tiếng Việt và cập nhật tự động · phiên bản 1.3.0
 
-- Vào [GitHub Releases](https://github.com/infiniti-money/Xuat-hang/releases/latest) và tải `HISA-Kho-Vat-Tu-1.6.0-Setup.exe`. Bộ cài sử dụng tiếng Việt và mặc định cài vào `C:\\Program Files\\HISA Kho Vat Tu`. Có biểu tượng trên Desktop và Start Menu, hỗ trợ gỡ cài.
+- Vào [GitHub Releases](https://github.com/infiniti-money/Xuat-hang/releases/latest) và tải `HISA-Kho-Vat-Tu-1.6.1-Setup.exe`. Bộ cài sử dụng tiếng Việt và mặc định cài vào `C:\\Program Files\\HISA Kho Vat Tu`. Có biểu tượng trên Desktop và Start Menu, hỗ trợ gỡ cài.
 - Giao diện chính hiển thị logo HISA. Phần mềm tự kiểm tra GitHub Releases khi mở, tải và xác minh bộ cài (SHA-256) trong nền; khi đóng ứng dụng sẽ nâng cấp yên lặng rồi mở lại.
 - Chế độ `/VERYSILENT` ẩn trình hướng dẫn cài đặt nhưng **không thể bỏ qua cửa sổ UAC của Windows** khi nâng cấp ứng dụng cài trong Program Files. Nếu không cấp quyền quản trị, phiên bản cũ và dữ liệu vẫn giữ nguyên.
 - Tài liệu ứng dụng: **Thư viện → Tài liệu → HISA Kho Vat Tu → APP KHO → data**.
@@ -28,6 +28,14 @@
 - Ảnh Gemini chỉ là lịch dự kiến: khi cont về thực tế, chọn đúng **từng kiện**, đối chiếu ngày cont đi / số cont / số HĐ / công trình và xác nhận mới ghi vào chi tiết của `Tổng hợp.xlsx`.
 - Bản mới ghi mã cont và ID kiện nguồn vào hai cột ẩn **AA / AB** của trang `chi tiết`, giữ nguyên vùng hiển thị A:J. Nếu các cột ẩn đã có dữ liệu của ứng dụng khác, HISA dừng để tránh ghi đè.
 - Những nguồn không xác định được kiện thuộc cont nào được cảnh báo và **không tự đoán**. Các dòng lịch chưa xác nhận không được nhập kho.
+
+## Bản vá v1.6.1: tách kiện theo ngày cont đi
+
+- Hưng Yên nhận hàng đi hai ngày **26.10** và **27.10** thì quản lý thành hai kiện riêng ngay cả khi trùng số HĐ, công trình và số lượng.
+- Trong `Tổng hợp.xlsx` → `chi tiết`: tên công trình sẽ có hậu tố ngày cont đi: `Công trình A T1 (26.10)`, `Công trình A T1 (27.10)`.
+- Ngày cont đi đầy đủ được giữ ở cột ẩn AC; số container và mã kiện nguồn lần lượt ở AA và AB. Vẫn có thể tra cứu theo tên công trình gốc mà không bị nhầm do hậu tố ngày.
+- Cả nhập theo ảnh Gemini đã duyệt và **nhập cont thủ công** đều không thay thế kiện khác ngày; không nhập kho tự động từ lịch dự kiến.
+- Gặp nguồn cũ có khả năng trùng kiện nhưng chưa có mã cont hoặc ID nguồn, phần mềm yêu cầu kiểm tra trước khi ghi.
 
 ## HISA v1.6.0 – Giao diện điều hành và nhập cont thực tế
 
