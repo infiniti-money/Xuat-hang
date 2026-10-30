@@ -1,0 +1,107 @@
+name: Windows build, regression tests and release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: hisa-release-main
+  cancel-in-progress: false
+
+jobs:
+  windows-release:
+    name: Build and validate Windows x64
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Install .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Check application versions
+        id: version
+        shell: pwsh
+        run: |
+          [xml]$project = Get-Content -LiteralPath 'src/Hisa.App/Hisa.App.csproj' -Raw
+          $version = [string]$project.Project.PropertyGroup.Version
+          $info = Get-Content -LiteralPath 'src/Hisa.App/SoftwareInfo.cs' -Raw
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw "Invalid application version: $version" }
+          if (-not $info.Contains('public const string Version = "' + $version + '";')) {
+            throw 'Hisa.App.csproj and SoftwareInfo.cs have different versions'
+          }
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Restore and build self-contained Windows app
+        shell: pwsh
+        run: |
+          dotnet publish 'src/Hisa.App/Hisa.App.csproj' -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:DebugType=None -o publish --nologo
+          if ($LASTEXITCODE -ne 0) { throw 'dotnet publish failed' }
+          if (!(Test-Path -LiteralPath 'publish/HISA Kho Vat Tu.exe')) { throw 'Windows executable missing' }
+
+      - name: Run isolated regression tests
+        shell: pwsh
+        run: |
+          $exe = Join-Path (Resolve-Path 'publish').Path 'HISA Kho Vat Tu.exe'
+          $report = Join-Path $env:RUNNER_TEMP ("hisa-self-test-" + [guid]::NewGuid().ToString('N') + '.json')
+          $process = Start-Process -FilePath $exe -ArgumentList @('--self-test', '--output', ('"' + $report + '"')) -PassThru -Wait
+          if (!(Test-Path -LiteralPath $report)) { throw 'Self-test did not create a new report' }
+          $result = Get-Content -LiteralPath $report -Raw | ConvertFrom-Json
+          if ($process.ExitCode -ne 0 -or $result.success -ne $true -or $result.checks.Count -lt 1) {
+            Get-Content -LiteralPath $report
+            throw "Regression tests failed (exit $($process.ExitCode))"
+          }
+          Write-Host "Regression tests passed: $($result.checks.Count)"
+          Copy-Item -LiteralPath $report -Destination 'self-test.json'
+
+      - name: Create ZIP and SHA-256 checksum
+        id: package
+        shell: pwsh
+        env:
+          APP_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          $stage = Join-Path $env:RUNNER_TEMP "HISA-Kho-Vat-Tu-$env:APP_VERSION"
+          New-Item -ItemType Directory -Path $stage -Force | Out-Null
+          Copy-Item -Path 'publish/*' -Destination $stage -Recurse -Force
+          Copy-Item 'README.md', 'RELEASE_NOTES.md' -Destination $stage
+          $zip = Join-Path (Get-Location).Path "HISA-Kho-Vat-Tu-$env:APP_VERSION-win-x64.zip"
+          Compress-Archive -LiteralPath $stage -DestinationPath $zip -CompressionLevel Optimal -Force
+          $checksum = "$zip.sha256"
+          $hash = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $(Split-Path $zip -Leaf)" | Set-Content -LiteralPath $checksum -Encoding ascii
+          "zip=$zip" >> $env:GITHUB_OUTPUT
+          "checksum=$checksum" >> $env:GITHUB_OUTPUT
+
+      - name: Upload verified build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: HISA-Windows-x64-${{ steps.version.outputs.version }}
+          path: |
+            HISA-Kho-Vat-Tu-*.zip
+            HISA-Kho-Vat-Tu-*.zip.sha256
+            self-test.json
+          if-no-files-found: error
+
+      - name: Publish first release if version is new
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APP_VERSION: ${{ steps.version.outputs.version }}
+          RELEASE_ZIP: ${{ steps.package.outputs.zip }}
+          RELEASE_HASH: ${{ steps.package.outputs.checksum }}
+        run: |
+          $tag = "v$env:APP_VERSION"
+          $null = gh release view $tag --repo $env:GITHUB_REPOSITORY --json tagName 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Release $tag already exists; not overwriting an existing public release."
+            exit 0
+          }
+          gh release create $tag $env:RELEASE_ZIP $env:RELEASE_HASH --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "HISA Quản lý kho $tag (Windows x64)" --notes-file RELEASE_NOTES.md --latest
+          if ($LASTEXITCODE -ne 0) { throw "Could not publish GitHub release $tag" }
