@@ -300,6 +300,7 @@ public partial class MainWindow
             Commit(outgoing);
             doc.ArrivalDate = dayArrival.Text.Trim();
             doc.DispatchDate = dayDispatch.Text.Trim();
+            AiScheduleWorkspace.RefreshManualReview(doc);
             doc.Warnings = doc.Warnings.Distinct().ToList();
             var warnings = AiScheduleReader.ValidateWithWarehouse(doc, _service.Snapshot);
             warningsBlock.Text = warnings.Count == 0
