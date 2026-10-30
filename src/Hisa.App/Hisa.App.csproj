@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>HISA Kho Vat Tu</AssemblyName>
+    <RootNamespace>Hisa.App</RootNamespace>
+    <Version>1.2.8</Version>
+    <Product>Quản lý kho</Product>
+    <AssemblyTitle>Quản lý kho</AssemblyTitle>
+    <Authors>Trịnh Phương Tân</Authors>
+    <Description>Quản lý kho · Người tạo: Trịnh Phương Tân · SĐT: 0867899987 · Email: infinitimoney@icloud.com</Description>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\hisa.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="ClosedXML" Version="0.105.0" />
+    <Resource Include="Assets\hisa-logo.jpg" />
+    <Resource Include="Assets\hisa.ico" />
+  </ItemGroup>
+</Project>
