@@ -1,4 +1,4 @@
-# Quản lý kho — C# / .NET 10 · phiên bản 1.6.1
+# Quản lý kho — C# / .NET 10 · phiên bản 1.7.0
 
 **Người tạo:** Trịnh Phương Tân  
 **SĐT:** 0867899987  
@@ -6,7 +6,7 @@
 
 ## Bộ cài đặt Windows tiếng Việt và cập nhật tự động · phiên bản 1.3.0
 
-- Vào [GitHub Releases](https://github.com/infiniti-money/Xuat-hang/releases/latest) và tải `HISA-Kho-Vat-Tu-1.6.1-Setup.exe`. Bộ cài sử dụng tiếng Việt và mặc định cài vào `C:\\Program Files\\HISA Kho Vat Tu`. Có biểu tượng trên Desktop và Start Menu, hỗ trợ gỡ cài.
+- Vào [GitHub Releases](https://github.com/infiniti-money/Xuat-hang/releases/latest) và tải `HISA-Kho-Vat-Tu-1.7.0-Setup.exe`. Bộ cài sử dụng tiếng Việt và mặc định cài vào `C:\\Program Files\\HISA Kho Vat Tu`. Có biểu tượng trên Desktop và Start Menu, hỗ trợ gỡ cài.
 - Giao diện chính hiển thị logo HISA. Phần mềm tự kiểm tra GitHub Releases khi mở, tải và xác minh bộ cài (SHA-256) trong nền; khi đóng ứng dụng sẽ nâng cấp yên lặng rồi mở lại.
 - Chế độ `/VERYSILENT` ẩn trình hướng dẫn cài đặt nhưng **không thể bỏ qua cửa sổ UAC của Windows** khi nâng cấp ứng dụng cài trong Program Files. Nếu không cấp quyền quản trị, phiên bản cũ và dữ liệu vẫn giữ nguyên.
 - Tài liệu ứng dụng: **Thư viện → Tài liệu → HISA Kho Vat Tu → APP KHO → data**.
@@ -28,6 +28,16 @@
 - Ảnh Gemini chỉ là lịch dự kiến: khi cont về thực tế, chọn đúng **từng kiện**, đối chiếu ngày cont đi / số cont / số HĐ / công trình và xác nhận mới ghi vào chi tiết của `Tổng hợp.xlsx`.
 - Bản mới ghi mã cont và ID kiện nguồn vào hai cột ẩn **AA / AB** của trang `chi tiết`, giữ nguyên vùng hiển thị A:J. Nếu các cột ẩn đã có dữ liệu của ứng dụng khác, HISA dừng để tránh ghi đè.
 - Những nguồn không xác định được kiện thuộc cont nào được cảnh báo và **không tự đoán**. Các dòng lịch chưa xác nhận không được nhập kho.
+
+## Trợ lý Gemini AI trực tiếp trong phần mềm (v1.7.0)
+
+Mở **Trợ lý Gemini AI** từ thanh điều hướng hoặc nút trên Tổng quan kho để đặt câu hỏi bằng tiếng Việt. Dùng Gemini API Key đã lưu trong **Cấu hình & sao lưu**; không có kết nối GPT. Có thể hỏi cách làm phiếu, quy tắc phân biệt kiện, dự kiến xuất và tra cứu vật tư.
+
+- **Mặc định chỉ gửi câu hỏi và lịch sử trò chuyện** đến Gemini qua Internet.
+- Tích **Cho phép Gemini đọc tóm tắt dữ liệu kho liên quan** khi cần hỏi dữ liệu thực tế. HISA chỉ gửi một bản tóm tắt có giới hạn; câu hỏi có mã HĐ đầy đủ mới được đính kèm vật tư của HĐ đó. Không gửi file Excel nguyên bản, đường dẫn và serial. Bật/tắt chế độ này bắt đầu phiên chat mới.
+- Lịch sử trò chuyện chỉ nằm trong bộ nhớ đang chạy, bấm **Xóa hội thoại** để làm mới. Không có lưu hội thoại hoặc ghi dữ liệu kho từ AI.
+- Gemini chỉ hỗ trợ tư vấn; **không tự nhập kho, trừ tồn, ghi nhận Đã xuất hoặc lưu phiếu bàn giao**. Anh duyệt mọi bước trong các màn hình chức năng hiện hữu.
+- Muốn dùng chat cần Internet và Gemini API Key còn hiệu lực/hạn mức.
 
 ## Bản vá v1.6.1: tách kiện theo ngày cont đi
 
