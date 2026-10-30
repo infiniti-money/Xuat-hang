@@ -285,7 +285,7 @@ public sealed partial class WarehouseService : IDisposable
             try
             {
                 var files=Directory.Exists(source)?Directory.EnumerateFiles(source,"*.xlsx",SearchOption.AllDirectories):File.Exists(source)?[source]:Array.Empty<string>();
-                stamps.AddRange(files.Where(p=>!Path.GetFileName(p).StartsWith("~$")&&!ContFileOrganizer.HasHangGuiName(p)&&!ContFileOrganizer.IsHangGuiFolder(p)&&!p.Contains(Path.DirectorySeparatorChar+".hisa-backups"+Path.DirectorySeparatorChar)&&!p.Equals(Settings.MasterPath,StringComparison.OrdinalIgnoreCase)&&!p.Equals(Settings.KtPath,StringComparison.OrdinalIgnoreCase)&&!p.Equals(Settings.ProductExportPath,StringComparison.OrdinalIgnoreCase)&&!p.Contains(Path.DirectorySeparatorChar+"XUẤT HÀNG"+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase)).Select(FileStamp));
+                stamps.AddRange(files.Where(p=>!Path.GetFileName(p).StartsWith("~$")&&!ContFileOrganizer.IsHangGuiFolder(p)&&!p.Contains(Path.DirectorySeparatorChar+".hisa-backups"+Path.DirectorySeparatorChar)&&!p.Equals(Settings.MasterPath,StringComparison.OrdinalIgnoreCase)&&!p.Equals(Settings.KtPath,StringComparison.OrdinalIgnoreCase)&&!p.Equals(Settings.ProductExportPath,StringComparison.OrdinalIgnoreCase)&&!p.Contains(Path.DirectorySeparatorChar+"XUẤT HÀNG"+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase)).Select(FileStamp));
                 var parent=Directory.Exists(source)?Directory.GetParent(source)?.FullName:Path.GetDirectoryName(source);
                 if(parent!=null)stamps.AddRange(Directory.EnumerateFiles(parent,"Lịch xuất hàng*.xlsx").Concat(Directory.EnumerateFiles(parent,"HÀNG THEO CONT.xlsx")).Select(FileStamp));
             }
