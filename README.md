@@ -1,4 +1,4 @@
-# Quản lý kho — C# / .NET 10 · phiên bản 1.5.0
+# Quản lý kho — C# / .NET 10 · phiên bản 1.5.2
 
 **Người tạo:** Trịnh Phương Tân  
 **SĐT:** 0867899987  
@@ -6,13 +6,23 @@
 
 ## Bộ cài đặt Windows tiếng Việt và cập nhật tự động · phiên bản 1.3.0
 
-- Vào [GitHub Releases](https://github.com/infiniti-money/Xuat-hang/releases/latest) và tải `HISA-Kho-Vat-Tu-1.5.0-Setup.exe`. Bộ cài sử dụng tiếng Việt và mặc định cài vào `C:\\Program Files\\HISA Kho Vat Tu`. Có biểu tượng trên Desktop và Start Menu, hỗ trợ gỡ cài.
+- Vào [GitHub Releases](https://github.com/infiniti-money/Xuat-hang/releases/latest) và tải `HISA-Kho-Vat-Tu-1.5.2-Setup.exe`. Bộ cài sử dụng tiếng Việt và mặc định cài vào `C:\\Program Files\\HISA Kho Vat Tu`. Có biểu tượng trên Desktop và Start Menu, hỗ trợ gỡ cài.
 - Giao diện chính hiển thị logo HISA. Phần mềm tự kiểm tra GitHub Releases khi mở, tải và xác minh bộ cài (SHA-256) trong nền; khi đóng ứng dụng sẽ nâng cấp yên lặng rồi mở lại.
 - Chế độ `/VERYSILENT` ẩn trình hướng dẫn cài đặt nhưng **không thể bỏ qua cửa sổ UAC của Windows** khi nâng cấp ứng dụng cài trong Program Files. Nếu không cấp quyền quản trị, phiên bản cũ và dữ liệu vẫn giữ nguyên.
 - Tài liệu ứng dụng: **Thư viện → Tài liệu → HISA Kho Vat Tu → APP KHO → data**.
 - Sao lưu ZIP: **Thư viện → Tài liệu → HISA Kho Vat Tu → Backups**; các bản sao Excel trước khi ghi nằm trong thư mục **Backups → Excel**.
 - Gỡ phần mềm hoặc nâng cấp không xóa dữ liệu và bản sao lưu trong Thư viện. Khi nâng cấp từ bản cũ, các file dữ liệu tìm thấy tại vị trí cũ sẽ được chuyển sang nếu file đích chưa tồn tại.
 
+
+## Gemini AI – nhập khóa một lần, lưu sau cập nhật (v1.5.2)
+
+- HISA **chỉ sử dụng Gemini**, bỏ GPT/OpenAI khỏi màn hình phân tích ảnh Zalo.
+- Vào **Cấu hình & sao lưu → Gemini AI**, dán API Key, bấm **Lưu / thay Gemini API Key**. Khóa lưu trong Windows Credential Manager của tài khoản Windows hiện tại, không nằm trong thư mục cài đặt hoặc tệp Excel/JSON/backup và không bị xóa khi nâng cấp cùng tài khoản.
+- Màn hình AI chỉ cần chọn ảnh Zalo rồi bấm **Phân tích ảnh với Gemini**. Đọc hai phần hàng dự kiến về Hưng Yên và lịch dự kiến xuất kho, tự cảnh báo dòng cần xác minh. Duyệt trước khi lưu, không tự ghi xuất/nhập kho.
+- Để thu hồi khóa: vào **Cấu hình & sao lưu → Xóa Gemini API Key**, xác nhận. Chỉ khóa bị xóa, không xóa dữ liệu kho.
+- Giao diện mới bổ sung quy trình bốn bước, thẻ số liệu tổng quan, màn hình cấu hình rõ ràng và thông báo lỗi dễ hiểu.
+- **Lưu ý:** Khóa tồn tại qua cập nhật HISA nhưng không chuyển tự động sang tài khoản Windows hoặc máy tính khác. Nếu xóa tài khoản Windows thì phải nhập lại.
+- Kết nối Gemini yêu cầu Internet và hạn mức API hợp lệ. Khóa chỉ được gửi đến Google qua HTTPS khi anh chủ động phân tích ảnh.
 
 ## Sẵn sàng xuất hàng theo ngày (v1.5.0 thử nghiệm)
 
@@ -24,7 +34,7 @@
 - Ghi nhận tại APP KHO/data/dispatch_readiness.json, không tự ghi Excel gốc, lịch sử xuất hoặc trừ tồn kho.
 - Giới hạn thử nghiệm: chưa tự động đồng bộ file máy kéo/đầu cửa cabin độc lập do chưa có mẫu. Cần rà soát số lượng đã chuẩn bị khi có nhiều lần xuất cùng hợp đồng.
 
-## AI đọc ảnh bảng lịch kho (v1.4.0)
+## AI đọc ảnh bảng lịch kho (v1.4.0 – giao diện cũ, đã thay bằng Gemini v1.5.2)
 
 1. Mở **AI lịch nhập – xuất kho** trên thanh điều hướng; tải ảnh chụp bảng Excel từ Zalo về máy rồi chọn JPG/PNG/WEBP.
 2. Nhập API Key OpenAI và Gemini (cung cấp bởi tài khoản dịch vụ API, không phải mật khẩu ChatGPT). Nhập cả hai để AI kiểm tra chéo; nếu một API lỗi, phần mềm có cảnh báo.
