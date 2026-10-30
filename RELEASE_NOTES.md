@@ -1,3 +1,25 @@
+# HISA Quản lý kho — v1.4.0 AI (Windows 64-bit)
+
+## AI đọc lịch nhập – xuất kho từ ảnh Zalo
+
+- Màn hình **AI lịch nhập – xuất kho**: chọn một ảnh JPG/PNG/WEBP đã tải từ Zalo, nhập API Key OpenAI và Gemini; hai dịch vụ phân tích qua Internet và đối chiếu kết quả.
+- Nhận dạng **hai bảng tách biệt**: hàng dự kiến nhập kho Hưng Yên theo container, ngày xuất container, đơn vị, số hợp đồng, công trình, ghi chú và hàng dự kiến xuất kho theo ngày.
+- **"Đã có LX" = "Đã có lịch xuất"**, không phải đã có tài xế, cũng không phải đã xuất hàng. Ghi chú trống = **chưa xác nhận lịch xuất**. "Khách cần gấp" được đánh dấu để ưu tiên.
+- Đối chiếu mã hợp đồng với nguồn HISA và giữa hai bảng; nếu GPT/Gemini có kết quả khác nhau, hàng được gắn **Cần kiểm tra**, không tự đoán dữ liệu còn thiếu.
+- Người dùng **sửa và duyệt từng hàng**, lưu kế hoạch riêng dưới dạng JSON vào thư mục dữ liệu tại máy. Có thể nạp mã hợp đồng xuất vào màn hình kế hoạch hiện hữu và chỉ tạo phiếu chờ sau khi thao tác xác nhận riêng.
+- **Không tự ghi sổ Excel, không ghi nhận đã xuất, không điều xe**, không lấy dữ liệu từ Zalo trực tiếp; người dùng tải ảnh và chọn thủ công.
+- API Key chỉ giữ trong phiên làm việc, không lưu vào JSON, workbook hoặc cài sẵn trong EXE. Ảnh được gửi tới nhà cung cấp AI khi bấm phân tích; cần có Internet và API Key riêng (có thể phát sinh phí API).
+
+## Cài đặt
+
+Nếu CI Windows đạt, tệp phát hành sẽ là HISA-Kho-Vat-Tu-1.4.0-Setup.exe, bản ZIP Windows x64 và SHA-256. Các phiên bản 1.3.x được nâng cấp tại chỗ; dữ liệu Excel, cấu hình và lịch sử phiếu được giữ nguyên.
+
+## Kiểm thử
+
+Bộ tự kiểm tra có thêm ca phân tích bảng kép, so sánh hai AI, trạng thái LX, cảnh báo hợp đồng thiếu và round-trip JSON. Kết nối API thực tế cần người dùng nhập khóa riêng và kiểm tra với ảnh mẫu của đơn vị.
+
+---
+
 # HISA Quản lý kho — v1.3.1 (Windows 64-bit)
 
 ## Tính năng mới
