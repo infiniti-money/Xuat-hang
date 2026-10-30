@@ -244,15 +244,22 @@ public partial class MainWindow : Window
             var readinessState = readinessStore.Load();
             var tomorrow = DateTime.Today.AddDays(1).ToString("yyyy-MM-dd");
             var today = DateTime.Today.ToString("yyyy-MM-dd");
-            var visibleDay = readinessState.Plans.Any(p => p.Day == today) &&
-                !readinessState.Plans.Any(p => p.Day == tomorrow) ? today : tomorrow;
-            var currentPlans = DispatchReadinessStore.Evaluate(readinessState, _service.Snapshot, visibleDay);
-            p.Children.Add(DashboardPlanCard(currentPlans,visibleDay));
+            // Work due today is always visible; when today's plan exists, also show tomorrow.
+            // Both are independent forecasts, never confirmation goods have shipped.
+            var todayPlans = DispatchReadinessStore.Evaluate(readinessState, _service.Snapshot, today);
+            var tomorrowPlans = DispatchReadinessStore.Evaluate(readinessState, _service.Snapshot, tomorrow);
+            if (todayPlans.Count>0)
+            {
+                p.Children.Add(DashboardPlanCard(todayPlans,today));
+                p.Children.Add(DashboardPlanCard(tomorrowPlans,tomorrow));
+            }
+            else p.Children.Add(DashboardPlanCard(tomorrowPlans,tomorrow));
         }
         catch (Exception ex)
         {
             p.Children.Add(Alert("Không đọc được kế hoạch chuẩn bị. File gốc được giữ nguyên: " + ex.Message, true));
         }
+        p.Children.Add(DashboardInboundSummary());
         p.Children.Add(StyledDashboardPanel(Stack(
             T("MỞ NHANH THEO CÔNG VIỆC", 12, true, Brush("#658296")),
             Row(B("▤  Điều hành xuất hàng",()=>Navigate("dispatch-hub"),true),
