@@ -120,58 +120,6 @@ Trả về DUY NHẤT JSON object, KHÔNG thêm Markdown; khuôn dạng:
             row.ReviewNote = string.IsNullOrWhiteSpace(row.ReviewNote) ? reason : row.ReviewNote + "; " + reason;
     }
 
-    public static AiScheduleDocument Combine(AiScheduleDocument primary, AiScheduleDocument secondary)
-    {
-        var merged = WarehouseService.Clone(primary);
-        merged.Arrivals = MergeLines(merged.Arrivals, secondary.Arrivals, "Nhập", merged.Warnings);
-        merged.Dispatches = MergeLines(merged.Dispatches, secondary.Dispatches, "Xuất", merged.Warnings);
-        if (primary.ArrivalDate != secondary.ArrivalDate)
-            merged.Warnings.Add("GPT và Gemini đọc khác ngày nhập kho; cần xác minh trên ảnh.");
-        if (primary.DispatchDate != secondary.DispatchDate)
-            merged.Warnings.Add("GPT và Gemini đọc khác ngày xuất kho; cần xác minh trên ảnh.");
-        merged.AnalyzedBy = "GPT + Gemini";
-        Normalize(merged);
-        return merged;
-    }
-
-    private static List<AiScheduleLine> MergeLines(List<AiScheduleLine> primary,
-        List<AiScheduleLine> secondary, string part, List<string> warnings)
-    {
-        var unused = new List<AiScheduleLine>(secondary);
-        foreach (var row in primary)
-        {
-            var matches = unused.Where(x => Rules.Contract(x.Contract) == Rules.Contract(row.Contract) &&
-                        !string.IsNullOrEmpty(row.Contract)).ToList();
-            AiScheduleLine? other = matches.Count == 1 ? matches[0]
-                : matches.FirstOrDefault(x => Rules.ProjectCode(x.Project) == Rules.ProjectCode(row.Project));
-            if (other == null)
-            {
-                Flag(row, "Chỉ GPT nhận dạng dòng này");
-                continue;
-            }
-            unused.Remove(other);
-            var differences = new List<string>();
-            if (Rules.ProjectCode(row.Project) != Rules.ProjectCode(other.Project)) differences.Add("công trình");
-            if (Rules.Code(row.Company) != Rules.Code(other.Company)) differences.Add("đơn vị");
-            if (Rules.Code(row.Container) != Rules.Code(other.Container)) differences.Add("container");
-            if (row.PlannedDate != other.PlannedDate) differences.Add("ngày dự kiến");
-            if (row.ContainerExportDate != other.ContainerExportDate) differences.Add("ngày xuất container");
-            if (row.HasExportSchedule != other.HasExportSchedule) differences.Add("trạng thái lịch xuất");
-            if (row.Urgent != other.Urgent) differences.Add("khách cần gấp");
-            if (Rules.Code(row.Note) != Rules.Code(other.Note)) differences.Add("ghi chú");
-            if (differences.Count > 0) Flag(row, "GPT/Gemini khác: " + string.Join(", ", differences));
-        }
-        foreach (var extra in unused)
-        {
-            var row = WarehouseService.Clone(extra);
-            Flag(row, "Chỉ Gemini nhận dạng dòng này");
-            primary.Add(row);
-        }
-        if (primary.Any(x => x.NeedsReview))
-            warnings.Add("Bảng " + part + " có hàng cần đối chiếu thủ công trước khi duyệt.");
-        return primary;
-    }
-
     public static List<string> ValidateWithWarehouse(AiScheduleDocument doc, WorkbookSnapshot snapshot)
     {
         var warnings = new List<string>(doc.Warnings);
@@ -204,45 +152,30 @@ Trả về DUY NHẤT JSON object, KHÔNG thêm Markdown; khuôn dạng:
     }
 
     public static async Task<AiScheduleDocument> AnalyzeAsync(string filename,
-        string? openAiKey, string? geminiKey, CancellationToken token = default)
+        string geminiKey, CancellationToken token = default)
     {
         if (!File.Exists(filename)) throw new FileNotFoundException("Không tìm thấy ảnh đã chọn.");
-        var ext = Path.GetExtension(filename).ToLowerInvariant();
-        var mime = ext switch
+        if (string.IsNullOrWhiteSpace(geminiKey))
+            throw new InvalidOperationException("Chưa cấu hình Gemini API Key. Vào Cấu hình & sao lưu → Gemini AI để nhập và lưu.");
+        var mime = Path.GetExtension(filename).ToLowerInvariant() switch
         {
             ".jpg" or ".jpeg" => "image/jpeg",
             ".png" => "image/png",
             ".webp" => "image/webp",
             _ => throw new InvalidOperationException("Chỉ hỗ trợ ảnh JPG, PNG, WEBP.")
         };
-        var info = new FileInfo(filename);
-        if (info.Length > 10 * 1024 * 1024) throw new InvalidOperationException("Ảnh phải nhỏ hơn hoặc bằng 10 MB.");
-        if (info.Length == 0) throw new InvalidOperationException("Ảnh rỗng.");
-        if (string.IsNullOrWhiteSpace(openAiKey) && string.IsNullOrWhiteSpace(geminiKey))
-            throw new InvalidOperationException("Nhập API Key GPT hoặc Gemini để sử dụng AI qua Internet.");
+        var file = new FileInfo(filename);
+        if (file.Length == 0) throw new InvalidOperationException("Ảnh rỗng.");
+        if (file.Length > 10 * 1024 * 1024)
+            throw new InvalidOperationException("Ảnh phải nhỏ hơn hoặc bằng 10 MB.");
         var bytes = await File.ReadAllBytesAsync(filename, token);
         var base64 = Convert.ToBase64String(bytes);
-        var tasks = new List<Task<(string Provider, AiScheduleDocument? Data, string Error)>>();
-        if (!string.IsNullOrWhiteSpace(openAiKey))
-            tasks.Add(SafeCall("GPT", () => OpenAiAsync(base64, mime, openAiKey.Trim(), token)));
-        if (!string.IsNullOrWhiteSpace(geminiKey))
-            tasks.Add(SafeCall("Gemini", () => GeminiAsync(base64, mime, geminiKey.Trim(), token)));
-        var results = await Task.WhenAll(tasks);
-        var success = results.Where(x => x.Data != null).ToArray();
-        if (success.Length == 0)
-            throw new InvalidOperationException(
-                (results.Length == 2 ? "Cả hai kết nối AI đều thất bại." : "Kết nối AI thất bại.") +
-                "\n" + string.Join("\n", results.Select(x => x.Provider + ": " + x.Error)) +
-                "\nKiểm tra API Key, quyền truy cập API, hạn mức và Internet. Không gửi API Key cho người khác.");
-        var doc = success.Length == 2 ? Combine(success[0].Data!, success[1].Data!)
-                                      : success[0].Data!;
-        if (success.Length != 2)
-        {
-            doc.AnalyzedBy = success[0].Provider;
-            doc.Warnings.Add("Mới có một AI nhận dạng; chưa kiểm chứng chéo bằng cả GPT và Gemini.");
-        }
-        foreach (var failed in results.Where(x => x.Data == null))
-            doc.Warnings.Add(failed.Provider + " không hoạt động: " + failed.Error);
+        var result = await SafeCall("Gemini", () => GeminiAsync(base64, mime, geminiKey.Trim(), token));
+        if (result.Item2 is null)
+            throw new InvalidOperationException("Kết nối Gemini thất bại.\n" + result.Item3 +
+                "\nKiểm tra API Key trong Cấu hình & sao lưu, hạn mức API hoặc Internet. Không gửi API Key cho người khác.");
+        var doc = result.Item2;
+        doc.AnalyzedBy = "Gemini";
         doc.ImageSha256 = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
         return doc;
     }
@@ -316,36 +249,6 @@ Trả về DUY NHẤT JSON object, KHÔNG thêm Markdown; khuôn dạng:
         catch (JsonException) { return (provider, null, "AI trả phản hồi JSON bị lỗi hoặc không đủ dữ liệu. Thử lại với ảnh rõ hơn."); }
         catch (FormatException e) { return (provider, null, e.Message); }
         catch (Exception e) { return (provider, null, "Lỗi xử lý kết quả (" + e.GetType().Name + "). Hãy thử lại."); }
-    }
-
-    private static async Task<AiScheduleDocument> OpenAiAsync(string image, string mime, string key, CancellationToken token)
-    {
-        var body = new
-        {
-            model = "gpt-4o-mini",
-            temperature = 0,
-            max_tokens = 8192,
-            response_format = new { type = "json_object" },
-            messages = new[] { new { role = "user", content = new object[]
-            {
-                new { type = "text", text = Prompt },
-                new { type = "image_url", image_url = new { url = "data:" + mime + ";base64," + image, detail = "high" } }
-            } } }
-        };
-        using var req = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/chat/completions");
-        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key);
-        req.Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
-        using var response = await Http.SendAsync(req, token);
-        var payload = await response.Content.ReadAsStringAsync(token);
-        CheckResponse("GPT", response, payload);
-        using var document = JsonDocument.Parse(payload);
-        if (!document.RootElement.TryGetProperty("choices", out var choices) ||
-            choices.GetArrayLength() == 0 ||
-            !choices[0].TryGetProperty("message", out var msg) ||
-            !msg.TryGetProperty("content", out var output) ||
-            output.ValueKind != JsonValueKind.String)
-            throw new FormatException("GPT chưa trả về nội dung để đọc lịch. Thử lại hoặc chọn ảnh rõ hơn.");
-        return Parse(output.GetString() ?? "");
     }
 
     private static async Task<AiScheduleDocument> GeminiAsync(string image, string mime, string key, CancellationToken token)
