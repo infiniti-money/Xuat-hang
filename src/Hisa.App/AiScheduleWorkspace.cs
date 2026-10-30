@@ -95,6 +95,36 @@ public static class AiScheduleWorkspace
         return added;
     }
 
+    public static void RefreshManualReview(AiScheduleDocument doc)
+    {
+        const string identityFlag="Chưa xác nhận công trình/đơn vị; hãy sửa trong bảng trước khi lập phiếu hoặc nhập kho";
+        const string contFlag="Cần mã cont và ngày cont đi để xác minh kiện nhận kho";
+        foreach(var row in doc.Arrivals.Concat(doc.Dispatches).Where(x=>x.ManualEntry))
+        {
+            var hasId=Rules.Contract(row.Contract).Length>0 &&
+                !string.IsNullOrWhiteSpace(row.Project) &&
+                !string.IsNullOrWhiteSpace(row.Company);
+            var incoming=doc.Arrivals.Contains(row);
+            var hasCont=!incoming || (!string.IsNullOrWhiteSpace(row.Container) &&
+                DateTime.TryParseExact(row.ContainerExportDate,"yyyy-MM-dd",
+                    CultureInfo.InvariantCulture,DateTimeStyles.None,out _));
+            var existing=row.ReviewNote??"";
+            var ownsAuto=existing.Contains(identityFlag,StringComparison.Ordinal) ||
+                         existing.Contains(contFlag,StringComparison.Ordinal);
+            if(!ownsAuto)continue;
+            var remaining=existing.Replace(identityFlag,"",StringComparison.Ordinal)
+                .Replace(contFlag,"",StringComparison.Ordinal)
+                .Trim(' ',';','.');
+            var reasons=new List<string>();
+            if(!hasId)reasons.Add(identityFlag);
+            if(!hasCont)reasons.Add(contFlag);
+            row.ReviewNote=string.Join("; ",reasons.Concat(
+                remaining.Length==0?[]:new[]{remaining}));
+            // Do not silence a separate human review note.
+            row.NeedsReview=row.ReviewNote.Length>0;
+        }
+    }
+
     /// <summary>Loads approved schedules of either direction, including dispatch-only drafts.</summary>
     public static AiScheduleDocument? LatestApproved(string dataDirectory)
     {
