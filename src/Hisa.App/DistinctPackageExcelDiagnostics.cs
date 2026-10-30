@@ -50,6 +50,21 @@ public static class DistinctPackageExcelDiagnostics
             var t2=Make("pkg-t2","CONT-04","Công trình B T2",1);
             var excel=new ExcelStore();
             var date=DateTime.ParseExact(day,"yyyy-MM-dd",System.Globalization.CultureInfo.InvariantCulture);
+            // The Cont đi Hưng Yên summary itself must show the short departure date,
+            // not only the received-goods detail worksheet.
+            excel.WriteContSummary(manualMaster,[first,second]);
+            using(var wb=new XLWorkbook(manualMaster))
+            {
+                var cont=wb.Worksheet("Cont đi Hưng Yên");
+                Check(cont.Cell(2,2).GetString()=="Công trình A (26.10)" &&
+                    cont.Cell(3,2).GetString()=="Công trình A (27.10)",
+                    "Cont đi Hưng Yên worksheet shows (dd.MM) on each departure");
+            }
+            var contPackages=excel.ReadMaster(manualMaster).ContPackages;
+            Check(contPackages.Count==2 &&
+                contPackages.Select(x=>x.SourceDate).Distinct().Count()==2 &&
+                contPackages.Select(x=>x.Identity).Distinct().Count()==1,
+                "two departure dates stay separate packages while preserving same project identity");
             // Manual input historically replaced all same-identity packages on the same
             // arrival day. It must now append both departures instead of overwriting.
             var manualOne=excel.RecordArrival(manualMaster,"", [first],date,useKt:false);
