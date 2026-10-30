@@ -4,6 +4,7 @@
 - **Không nhập nhầm kiện theo lịch AI**: nếu lịch Zalo có một dòng hợp đồng nhưng nguồn `Cont đi Hưng Yên` chứa nhiều kiện khác ngày xuất cont, HISA chỉ cho phép chọn kiện khớp chính xác **ngày cont đi hoặc mã container**. Không còn tự lấy tất cả kiện của hợp đồng khi không xác minh được nguồn.
 - **Đối chiếu cả số cont và ngày xuất tại nhà máy**: nếu đã biết cả hai, chúng phải nhất quán; số cont trùng nhưng lịch xuất tại nhà máy khác ngày sẽ bị chặn.
 - **Cùng số cont đi nhiều ngày**: nếu nguồn ghi nhiều đợt mà ảnh Zalo không có ngày cont đi, không cho nhập dựa trên phỏng đoán; thông báo **Chưa xác minh ngày cont đi**.
+- **Kiện nguồn không có vật tư Hưng Yên**: ngăn ghi nhận nhập kho hoặc báo đã nhập khi không có dòng vật tư phù hợp; phải cập nhật/đối chiếu nguồn trước.
 - **Chỉnh lịch AI sau phê duyệt**: sửa ngày dự kiến hoặc dữ liệu bảng sau khi duyệt sẽ hủy trạng thái duyệt ở phiên đang sửa. Không thể dùng nội dung thay đổi chưa được duyệt để chuẩn bị phiếu chờ hay ghi nhận cont thực tế.
 - **Ngày cont đi trong tên công trình**: cập nhật lại hậu tố ngày `(dd.MM)` sẽ **thay thế** hậu tố cũ, không lặp thành `(26.10) (27.10)`; vẫn bảo toàn T1/T2, Thang 1/2, (1)/(2).
 - **Trò chuyện Gemini có quyền xem dữ liệu**: trợ lý nhận trạng thái chuẩn bị được tính bởi quy tắc HISA thay vì tự suy luận hàng đã sẵn từ lịch dự kiến. Không gửi serial máy kéo hoặc file Excel gốc.
