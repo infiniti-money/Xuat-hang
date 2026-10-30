@@ -712,43 +712,73 @@ public sealed class ExcelStore
         if(row>first) { sheet.Range(first,6,row-1,6).Style.Alignment.Vertical=XLAlignmentVerticalValues.Center;sheet.Range(first,6,row-1,6).Style.Alignment.Horizontal=XLAlignmentHorizontalValues.Center;sheet.Range(first,9,row-1,9).Style.NumberFormat.Format="0.00"; }
         return row-first;
     }
-    public RecordArrivalResult RecordArrival(string masterPath,string ktPath,IReadOnlyList<Package> selected,DateTime arrival,bool useKt=true)
+    public RecordArrivalResult RecordArrival(string masterPath,string ktPath,
+        IReadOnlyList<Package> selected,DateTime arrival,bool useKt=true)
     {
         lock(gate)
         {
-            if(selected.Count==0) throw new InvalidOperationException("Không có kiện Hưng Yên để nhập kho.");
-            var current=ReadMaster(masterPath);var day=arrival.ToString("yyyy-MM-dd");
-            var selectedIds=selected.Select(x=>x.Identity).ToHashSet();
+            if(selected.Count==0)throw new InvalidOperationException("Không có kiện Hưng Yên để nhập kho.");
             var packages=Clone(selected.ToList());
             var result=new RecordArrivalResult();
             if(useKt)
             {
                 if(File.Exists(ktPath))
                 {
-                    var kt=ReadKt(ktPath);var claimed=new HashSet<string>();
+                    var kt=ReadKt(ktPath);
+                    var claimed=new HashSet<string>();
                     foreach(var package in packages)
                     {
-                        var match=kt.Where(x=>x.Identity==package.Identity && !claimed.Contains(x.Id)).OrderByDescending(x=>Overlap(x,package)).ThenByDescending(x=>x.PackageNo==package.PackageNo).FirstOrDefault();
-                        if(match!=null) { package.Items=Clone(match.Items);claimed.Add(match.Id); }
-                        else result.Warnings.Add($"{package.Contract} · {package.Project}: không có kiện khớp trong KT; giữ vật tư cont đi.");
+                        // Match KT by identity AND material overlap, but preserve original
+                        // source package ID / departure day / container.
+                        var match=kt.Where(x=>x.Identity==package.Identity &&
+                            !claimed.Contains(x.Id))
+                            .OrderByDescending(x=>Overlap(x,package))
+                            .ThenByDescending(x=>x.PackageNo==package.PackageNo)
+                            .FirstOrDefault();
+                        if(match!=null){package.Items=Clone(match.Items);claimed.Add(match.Id);}
+                        else result.Warnings.Add(package.Contract+" · "+package.Project+
+                            ": không có kiện khớp trong KT; giữ vật tư cont đi.");
                     }
                 }
                 else result.Warnings.Add("Chưa có KT tổng hợp.xlsx; sử dụng vật tư từ cont đi Hưng Yên.");
             }
-            var existing=current.DetailPackages.Where(x=>selectedIds.Contains(x.Identity)&&x.ArrivalDate==day).ToList();
-            // Replacing only selected identity/day keeps other arrival shipments and makes repeated entry idempotent.
-            using var wb=new XLWorkbook(masterPath);var ws=wb.Worksheets.FirstOrDefault(x=>Rules.Code(x.Name)=="CHITIET")??wb.AddWorksheet("chi tiết");
-            RemovePackageRows(ws,existing);ws.Cell(2,2).Value="Ngày cont về";
-            foreach(var package in packages) result.Lines+=AppendDetailPackage(ws,package,day);
-            result.Contracts=packages.Select(x=>Rules.Contract(x.Contract)).Distinct().Count();result.Packages=packages.Count;
-            AtomicSave(wb,masterPath);
+            var imported=ReadMaster(masterPath).DetailPackages
+                .Where(x=>x.OriginPackageId.Length>0)
+                .Select(x=>x.OriginPackageId).ToHashSet(StringComparer.Ordinal);
+            var toWrite=new List<Package>();
+            foreach(var package in packages)
+            {
+                if(package.Id.Length==0)
+                    throw new InvalidOperationException("Kiện Hưng Yên chưa có mã nguồn; làm mới Excel.");
+                if(!DateTime.TryParseExact(package.SourceDate,"yyyy-MM-dd",
+                    CultureInfo.InvariantCulture,DateTimeStyles.None,out _))
+                    throw new InvalidOperationException("Kiện HĐ "+package.Contract+
+                        " chưa có ngày cont đi. Không gộp hoặc ghi thiếu ngày.");
+                if(imported.Contains(package.Id))
+                {
+                    result.Warnings.Add("Đã nhập trước đây: "+package.Contract+
+                        " · "+package.Project+" · cont đi "+Rules.Day(package.SourceDate)+
+                        "; giữ nguyên kiện cũ.");
+                    continue;
+                }
+                package.OriginPackageId=package.Id;
+                toWrite.Add(package);
+            }
+            if(toWrite.Count==0)return result;
+            // The same contract in two different departure days or separate blocks is
+            // appended as distinct packages; never remove other rows by identity/day.
+            var written=RecordSelectedArrival(masterPath,toWrite,arrival,requireContainer:false);
+            result.Contracts=written.Contracts;
+            result.Packages=written.Packages;
+            result.Lines=written.Lines;
+            result.Warnings.AddRange(written.Warnings);
             return result;
         }
     }
     // Incremental, verified AI arrival import. Never replace all packages of an identity/day.
     // A package remains distinct by original source ID even if contract, project and quantity are equal.
     public RecordArrivalResult RecordSelectedArrival(string masterPath,
-        IReadOnlyList<Package> selected, DateTime arrival)
+        IReadOnlyList<Package> selected, DateTime arrival, bool requireContainer=true)
     {
         lock (gate)
         {
@@ -762,7 +792,7 @@ public sealed class ExcelStore
             {
                 if (incoming.Id.Length==0 || !ids.Add(incoming.Id))
                     throw new InvalidOperationException("Thiếu hoặc trùng ID kiện nguồn.");
-                if (incoming.ContainerNumber.Length==0)
+                if (requireContainer && incoming.ContainerNumber.Length==0)
                     throw new InvalidOperationException("Thiếu số container cho kiện " + incoming.Contract + ".");
                 if (!DateTime.TryParseExact(incoming.SourceDate,"yyyy-MM-dd",
                     CultureInfo.InvariantCulture,DateTimeStyles.None,out _))
