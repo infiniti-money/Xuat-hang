@@ -48,6 +48,7 @@ public partial class MainWindow : Window
         AddNav("slips", "▤", "Phiếu bàn giao");
         AddNav("daily", "▥", "Báo cáo theo ngày");
         NavCaption("NHẬP KHO & THIẾT LẬP");
+        AddNav("gemini-chat", "✧", "Trợ lý Gemini AI");
         AddNav("ai-schedule", "✦", "AI lịch nhập – xuất kho");
         AddNav("planned-arrivals", "▣", "Cont đã về kho (AI)");
         AddNav("arrival", "↓", "Nhập cont về kho");
@@ -101,6 +102,7 @@ public partial class MainWindow : Window
             case "plan":_createPlanMode=true;ShowCreate(true);break;
             case "slips":ShowSlips();break;
             case "daily":ShowDaily();break;
+            case "gemini-chat":ShowGeminiChat();break;
             case "ai-schedule":ShowAiSchedules();break;
             case "readiness":ShowDispatchReadiness();break;
             case "planned-arrivals":ShowPlannedArrivals();break;
