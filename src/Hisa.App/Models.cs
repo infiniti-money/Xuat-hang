@@ -255,6 +255,8 @@ public class WorkbookSnapshot
 public class SourceScanResult
 {
     public List<Package> Packages { get; set; } = [];
+    public List<ContFileOrganizer.Candidate> HangGuiFiles { get; set; } = [];
+    public List<ContFileOrganizer.Candidate> ImportedHungYenFiles { get; set; } = [];
     public List<string> Warnings { get; set; } = [];
     public int FileCount { get; set; }
     public int ChangedFiles { get; set; }
