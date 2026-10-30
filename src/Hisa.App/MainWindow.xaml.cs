@@ -200,8 +200,7 @@ public partial class MainWindow : Window
             Width=76,Height=76,Background=Brushes.White,CornerRadius=new CornerRadius(16),
             BorderBrush=Brush("#C9E5E3"),BorderThickness=new Thickness(1),
             Padding=new Thickness(8),Margin=new Thickness(0,0,20,0),
-            Child=new Image {Source=BrandingAssets.Logo,Stretch=Stretch.Uniform,
-                RenderOptions.BitmapScalingMode=BitmapScalingMode.HighQuality}
+            Child=new Image {Source=BrandingAssets.Logo,Stretch=Stretch.Uniform}
         };
         DockPanel.SetDock(brandImage,Dock.Left);
         var branding=new DockPanel{LastChildFill=true};
