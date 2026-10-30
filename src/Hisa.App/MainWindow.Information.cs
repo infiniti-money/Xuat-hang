@@ -29,7 +29,26 @@ public partial class MainWindow
             T("Công cụ quản lý kho hằng ngày",18,true),
             T("Tra cứu theo hợp đồng và kiện Hưng Yên; theo dõi cont về; đối chiếu dữ liệu Excel; lập kế hoạch, tạo và sửa phiếu bàn giao; quản lý các trạng thái xuất hàng; thiết kế mẫu in và tổng hợp báo cáo theo ngày.",13,false,Muted)
         ),new Thickness(26));
-        var panel=Stack(heading,contacts,capabilities);
+        var updating=Card(Stack(
+            T("Cập nhật phần mềm",18,true),
+            T("Kiểm tra thủ công phiên bản mới trên GitHub. Bộ cài sẽ được tải và kiểm tra SHA-256 trước khi sử dụng. Không ảnh hưởng dữ liệu trong Thư viện.",12,false,Muted),
+            Row(
+                A("Kiểm tra cập nhật",async()=>
+                {
+                    var version=await AutoUpdater.CheckAndStageAsync();
+                    if(version==null)Notify("Bạn đang sử dụng phiên bản "+SoftwareInfo.Version+" hoặc hiện chưa có bản cài mới.");
+                    else Notify("Đã tải và xác minh phiên bản "+version+". Bạn có thể tiếp tục làm việc; phần mềm sẽ nâng cấp khi đóng.");
+                },true),
+                B("Cài bản đã tải",()=>
+                {
+                    var version=AutoUpdater.ReadyVersion;
+                    if(version==null){Notify("Chưa có bản cập nhật được tải và xác minh. Chọn Kiểm tra cập nhật trước.");return;}
+                    if(Ask("Đóng phần mềm và cài bản "+version+" ở chế độ yên lặng?\nDữ liệu đã lưu sẽ được giữ nguyên."))Close();
+                })
+            ),
+            T("Lưu ý: Windows có thể yêu cầu quyền quản trị (UAC) để thay thế chương trình trong Program Files.",11,false,Muted)
+        ),new Thickness(26));
+        var panel=Stack(heading,contacts,updating,capabilities);
         panel.MaxWidth=920;panel.HorizontalAlignment=HorizontalAlignment.Left;
         SetPage("Thông tin phần mềm",SoftwareInfo.DisplayName+" · Phiên bản "+SoftwareInfo.Version,new ScrollViewer
         {
