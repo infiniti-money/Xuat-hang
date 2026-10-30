@@ -19,6 +19,10 @@
 - Mỗi lần ghi đối chiếu lại dữ liệu hiện tại; không ghi nếu kiện đã nhập trong cùng ngày. Các container không chọn vẫn ở trạng thái dự kiến.
 
 ## Quy tắc bổ sung: nhiều kiện cùng số hợp đồng
+- **Cùng số HĐ nhưng ngày cont đi khác nhau = hai kiện Hưng Yên riêng**, bất kể vật tư/số lượng có giống nhau hay không.
+- Khi xác nhận cont đã về, HISA ghi tên công trình trong `Tổng hợp.xlsx` như `Công trình A (26.10)` hoặc `Công trình A (27.10)`, giữ T1/T2, Thang 1/2 và các phần trong ngoặc trước đó.
+- Ngày cont đi ISO được lưu ở cột ẩn AC, bên cạnh container (AA) và ID kiện nguồn (AB). Đọc lại Excel không biến hậu tố ngày thành công trình khác; ngăn nhập trùng ID kiện.
+
 - Hai kiện cùng HĐ nhưng vật tư hoặc số lượng khác nhau phải ghi thành **hai kiện riêng**.
 - Các tên công trình có T1/T2, Thang 1/Thang 2, (1)/(2) không được gộp kể cả số lượng giống nhau.
 - Một HĐ đi hai container được quản lý riêng theo **cont đi + ID kiện nguồn**, không cộng dồn hoặc thay thế kiện còn lại.
