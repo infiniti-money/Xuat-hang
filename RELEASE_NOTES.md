@@ -1,3 +1,29 @@
+# HISA Quản lý kho v1.8.0 – Giao diện tối ưu theo công việc kho Hưng Yên
+
+## Gộp menu và loại bỏ thao tác trùng lặp
+- Từ 15 mục điều hướng riêng lẻ thành **7 nhóm chính**: Tổng quan, Điều hành xuất hàng, Cont & kiện Hưng Yên, Tra cứu hợp đồng, Trung tâm Gemini AI, Báo cáo & tiện ích, Cấu hình & sao lưu.
+- Các tính năng v1.7.0 vẫn được giữ nguyên và mở từ các trung tâm chức năng. Không xóa dữ liệu, phiếu, trạng thái hoặc lịch sử cũ.
+- Màn hình **Điều hành xuất hàng** dẫn lần lượt: lịch dự kiến → đối chiếu vật tư → lập phiếu chờ → bàn giao sau xác nhận. Gemini đọc ảnh và nhập hợp đồng phát sinh là các cách tạo lịch trong cùng quy trình.
+- Màn **Cont & kiện Hưng Yên** kết hợp lịch cont dự kiến, xác nhận cont về thực tế, nhập kho thủ công, kiểm soát kiện cont đi và kiểm tra kiện cont về. Không tự hiểu lịch dự kiến là đã nhập.
+- Màn **Trung tâm Gemini AI** gộp lối vào trò chuyện, đọc ảnh Zalo và cấu hình API Key. Trò chuyện chỉ gửi dữ liệu kho khi người dùng bật quyền chia sẻ.
+- Màn **Báo cáo & tiện ích** giữ báo cáo, mẫu phiếu in và thông tin phần mềm; truy cập phiếu bàn giao từ trung tâm xuất hàng.
+
+## Tối ưu trang chủ
+- Khi có lịch **hôm nay và ngày mai**, hiển thị cả hai thay vì chỉ một ngày; ưu tiên hợp đồng khẩn và chưa sẵn sàng.
+- Hàng dự kiến về kho được hiển thị riêng, ghi rõ chưa phải hàng đã nhập thực tế.
+- Thao tác nhanh dẫn tới đúng trung tâm công việc, tránh phải tìm kiếm nhiều mục.
+- Bảng nhóm vật tư và phiếu gần đây được thu gọn theo yêu cầu; không mở quá nhiều bảng cùng lúc.
+- **Rà soát số hợp đồng trùng** được chuyển khỏi trang chủ vào mục nâng cao của Cont & kiện; trùng HĐ không đồng nghĩa kiện trùng. Giữ nguyên hộp xác nhận trước khi xóa dữ liệu nhập sai và không tự gộp kiện.
+
+## Tương thích và an toàn
+- Các màn chức năng và đường dẫn điều hướng nội bộ cũ vẫn hoạt động.
+- Giữ nguồn Excel, tồn kho, mã cont, ngày cont đi, T1/T2, số lượng, serial máy kéo, trạng thái phiếu và quy trình sao lưu.
+- Gemini API Key vẫn được Windows Credential Manager lưu qua các lần nâng cấp cùng tài khoản.
+- Phím tắt: Ctrl+1 Tổng quan, Ctrl+2 Điều hành xuất, Ctrl+3 Cont & kiện, Ctrl+4 Trung tâm Gemini, Ctrl+F Tra cứu, Ctrl+N Tạo phiếu, F5 Đồng bộ.
+- Kiểm thử hồi quy xác minh đường dẫn của các mục cũ và logic hiển thị lịch; CI Windows biên dịch, tạo bộ cài tiếng Việt, ZIP và SHA-256.
+
+---
+
 # HISA Quản lý kho v1.7.0 – Trợ lý trò chuyện Gemini AI (Windows x64)
 
 ## Trò chuyện trực tiếp trong HISA
