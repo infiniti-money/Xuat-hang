@@ -576,7 +576,7 @@ public sealed class ExcelStore
                 int start=row;
                 foreach(var item in package.Items.Where(x=>x.IsHungYen))
                 {
-                    SetDate(ws.Cell(row,1),package.SourceDate);ws.Cell(row,2).Value=package.Project;ws.Cell(row,3).Value=package.Company;SetContract(ws.Cell(row,4),package.Contract);
+                    SetDate(ws.Cell(row,1),package.SourceDate);ws.Cell(row,2).Value=Rules.ProjectWithContDate(package.Project,package.SourceDate);ws.Cell(row,3).Value=package.Company;SetContract(ws.Cell(row,4),package.Contract);
                     if(row==start) ws.Cell(row,5).Value="HƯNG\nYÊN";
                     ws.Cell(row,6).Value=item.Material;ws.Cell(row,7).Value=item.Unit;
                     if(item.Quantity.HasValue) ws.Cell(row,8).Value=(double)item.Quantity.Value;
