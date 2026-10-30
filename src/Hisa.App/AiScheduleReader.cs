@@ -230,8 +230,10 @@ Trả về DUY NHẤT JSON object, KHÔNG thêm Markdown; khuôn dạng:
         var results = await Task.WhenAll(tasks);
         var success = results.Where(x => x.Data != null).ToArray();
         if (success.Length == 0)
-            throw new InvalidOperationException("Cả hai kết nối AI đều thất bại. " +
-                string.Join("; ", results.Select(x => x.Provider + ": " + x.Error)));
+            throw new InvalidOperationException(
+                (results.Length == 2 ? "Cả hai kết nối AI đều thất bại." : "Kết nối AI thất bại.") +
+                "\n" + string.Join("\n", results.Select(x => x.Provider + ": " + x.Error)) +
+                "\nKiểm tra API Key, quyền truy cập API, hạn mức và Internet. Không gửi API Key cho người khác.");
         var doc = success.Length == 2 ? Combine(success[0].Data!, success[1].Data!)
                                       : success[0].Data!;
         if (success.Length != 2)
@@ -245,13 +247,75 @@ Trả về DUY NHẤT JSON object, KHÔNG thêm Markdown; khuôn dạng:
         return doc;
     }
 
+    // These errors are safe for the UI: never surface a raw API response that might contain credentials.
+    // The model may return a detailed error code; map it to an actionable Vietnamese explanation.
+    public static string DiagnoseApiFailure(string provider, int status, string responseBody)
+    {
+        var code = "";
+        var message = "";
+        try
+        {
+            using var json = JsonDocument.Parse(responseBody);
+            if (json.RootElement.TryGetProperty("error", out var error))
+            {
+                if (error.TryGetProperty("code", out var c) && c.ValueKind == JsonValueKind.String)
+                    code = c.GetString() ?? "";
+                if (error.TryGetProperty("status", out var st) && st.ValueKind == JsonValueKind.String && code.Length == 0)
+                    code = st.GetString() ?? "";
+                if (error.TryGetProperty("type", out var type) && type.ValueKind == JsonValueKind.String && code.Length == 0)
+                    code = type.GetString() ?? "";
+                if (error.TryGetProperty("message", out var m) && m.ValueKind == JsonValueKind.String)
+                    message = m.GetString() ?? "";
+            }
+        }
+        catch (JsonException) { /* Non-JSON response, e.g. proxy/firewall. */ }
+        var lower = (code + " " + message).ToLowerInvariant();
+        // Never show raw response text or a key. Include only a constrained API error code.
+        var safeCode = code.Length is > 0 and <= 64 &&
+            code.All(ch => char.IsAsciiLetterOrDigit(ch) || ch is '_' or '-' or '.')
+                ? " [" + code + "]" : "";
+        var advice = status switch
+        {
+            400 => "Yêu cầu API không hợp lệ (mô hình, ảnh hoặc tham số). Hãy cập nhật HISA rồi thử lại.",
+            401 => "API Key không hợp lệ hoặc chưa được cấp quyền. Kiểm tra khóa API của nhà cung cấp.",
+            402 => "Tài khoản API cần nạp tiền hoặc kích hoạt thanh toán.",
+            403 => lower.Contains("leak") || lower.Contains("block")
+                ? "API Key bị khóa. Tạo khóa mới trong trang quản trị nhà cung cấp."
+                : "Dự án/API Key không có quyền gọi mô hình; kiểm tra quyền API và thanh toán.",
+            404 => "Không tìm thấy mô hình hoặc dự án chưa có quyền truy cập mô hình này.",
+            408 => "Máy chủ API phản hồi quá chậm. Thử lại sau.",
+            413 => "Ảnh quá lớn đối với API. Hãy giảm kích thước ảnh.",
+            429 => lower.Contains("insufficient_quota") || lower.Contains("quota") || lower.Contains("billing")
+                ? "API hết hạn mức/tín dụng. Kiểm tra quota hoặc billing của tài khoản API."
+                : "API đang giới hạn tốc độ. Thử lại sau hoặc kiểm tra hạn mức.",
+            500 or 502 or 503 or 504 => "Máy chủ AI tạm thời gặp lỗi. Thử lại sau.",
+            _ => "Không nhận được phản hồi thành công từ API. Kiểm tra mạng và quyền truy cập."
+        };
+        return provider + " HTTP " + status + safeCode + ": " + advice;
+    }
+
+    private sealed class AiProviderException(string message) : Exception(message);
+
+    private static void CheckResponse(string provider, HttpResponseMessage response, string content)
+    {
+        if (!response.IsSuccessStatusCode)
+            throw new AiProviderException(DiagnoseApiFailure(provider, (int)response.StatusCode, content));
+    }
+
     private static async Task<(string, AiScheduleDocument?, string)> SafeCall(
         string provider, Func<Task<AiScheduleDocument>> call)
     {
         try { return (provider, await call(), ""); }
-        catch (OperationCanceledException) { return (provider, null, "Hết thời gian chờ hoặc đã hủy"); }
-        catch (HttpRequestException e) { return (provider, null, "Lỗi HTTP " + e.StatusCode); }
-        catch (Exception e) { return (provider, null, e is JsonException or FormatException ? "Sai định dạng JSON" : e.GetType().Name); }
+        catch (AiProviderException e) { return (provider, null, e.Message); }
+        catch (OperationCanceledException) { return (provider, null, "Hết thời gian chờ (105 giây) hoặc thao tác đã hủy. Kiểm tra Internet rồi thử lại."); }
+        catch (HttpRequestException e)
+        {
+            return (provider, null, "Không kết nối được máy chủ API (" + e.HttpRequestError +
+                "). Kiểm tra Internet, DNS, proxy, tường lửa và TLS.");
+        }
+        catch (JsonException) { return (provider, null, "AI trả phản hồi JSON bị lỗi hoặc không đủ dữ liệu. Thử lại với ảnh rõ hơn."); }
+        catch (FormatException e) { return (provider, null, e.Message); }
+        catch (Exception e) { return (provider, null, "Lỗi xử lý kết quả (" + e.GetType().Name + "). Hãy thử lại."); }
     }
 
     private static async Task<AiScheduleDocument> OpenAiAsync(string image, string mime, string key, CancellationToken token)
@@ -272,11 +336,16 @@ Trả về DUY NHẤT JSON object, KHÔNG thêm Markdown; khuôn dạng:
         req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key);
         req.Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
         using var response = await Http.SendAsync(req, token);
-        response.EnsureSuccessStatusCode();
-        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(token));
-        var content = document.RootElement.GetProperty("choices")[0]
-            .GetProperty("message").GetProperty("content").GetString() ?? "";
-        return Parse(content);
+        var payload = await response.Content.ReadAsStringAsync(token);
+        CheckResponse("GPT", response, payload);
+        using var document = JsonDocument.Parse(payload);
+        if (!document.RootElement.TryGetProperty("choices", out var choices) ||
+            choices.GetArrayLength() == 0 ||
+            !choices[0].TryGetProperty("message", out var msg) ||
+            !msg.TryGetProperty("content", out var output) ||
+            output.ValueKind != JsonValueKind.String)
+            throw new FormatException("GPT chưa trả về nội dung để đọc lịch. Thử lại hoặc chọn ảnh rõ hơn.");
+        return Parse(output.GetString() ?? "");
     }
 
     private static async Task<AiScheduleDocument> GeminiAsync(string image, string mime, string key, CancellationToken token)
@@ -288,17 +357,21 @@ Trả về DUY NHẤT JSON object, KHÔNG thêm Markdown; khuôn dạng:
                 new { text = Prompt },
                 new { inline_data = new { mime_type = mime, data = image } }
             } } },
-            generationConfig = new { responseMimeType = "application/json", temperature = 0, maxOutputTokens = 8192 }
+            generationConfig = new { responseMimeType = "application/json", maxOutputTokens = 16384 }
         };
         using var req = new HttpRequestMessage(HttpMethod.Post,
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent");
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent");
         req.Headers.TryAddWithoutValidation("x-goog-api-key", key);
         req.Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
         using var response = await Http.SendAsync(req, token);
-        response.EnsureSuccessStatusCode();
-        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(token));
-        var parts = document.RootElement.GetProperty("candidates")[0]
-            .GetProperty("content").GetProperty("parts");
+        var payload = await response.Content.ReadAsStringAsync(token);
+        CheckResponse("Gemini", response, payload);
+        using var document = JsonDocument.Parse(payload);
+        if (!document.RootElement.TryGetProperty("candidates", out var candidates) ||
+            candidates.GetArrayLength() == 0 ||
+            !candidates[0].TryGetProperty("content", out var answer) ||
+            !answer.TryGetProperty("parts", out var parts))
+            throw new FormatException("Gemini chưa trả nội dung (có thể bị chặn hoặc hết output token). Hãy thử lại với ảnh rõ hơn.");
         var content = string.Join("", parts.EnumerateArray()
             .Where(x => x.TryGetProperty("text", out _)).Select(x => x.GetProperty("text").GetString()));
         return Parse(content);
