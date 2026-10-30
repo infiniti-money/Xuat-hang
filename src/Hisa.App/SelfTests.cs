@@ -130,6 +130,7 @@ public static class SelfTests
             var zip=Path.Combine(root,"backup.zip");await service.BackupAsync(zip);Check(File.Exists(zip),"Backup includes native state and canonical workbooks",result);
             var link=Path.Combine(root,"Hưng Yên C#.lnk");WindowsShortcut.Create(link,Environment.ProcessPath!);Check(File.Exists(link),"Unicode Windows shortcut",result);
             result.Checks.AddRange(ExcelDiagnostics.Run(root));
+            result.Checks.AddRange(ContFileDiagnostics.Run(root));
             service.Dispose();service.Dispose();Check(true,"Safe repeated shutdown",result);
             using(var reopened=new WarehouseService(root))
             {
