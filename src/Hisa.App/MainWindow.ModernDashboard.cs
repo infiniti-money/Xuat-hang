@@ -95,8 +95,9 @@ public partial class MainWindow
         }
         else
         {
-            var selected = plans.OrderBy(x => x.Status.StartsWith("Sẵn sàng", StringComparison.Ordinal) ? 1 : 0)
-                .ThenByDescending(x => x.Plan.Urgent)
+            var selected = plans.OrderByDescending(x => x.Plan.Urgent)
+                .ThenBy(x => x.Status.StartsWith("Sẵn sàng", StringComparison.Ordinal) ? 1 : 0)
+                .ThenBy(x => x.Contract, StringComparer.Ordinal)
                 .Take(7).ToList();
             var grid = Table(selected,
                 ("Ưu tiên", "Priority", 80),
