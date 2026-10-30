@@ -1,4 +1,4 @@
-# Quản lý kho — C# / .NET 10 · phiên bản 1.7.0
+# Quản lý kho — C# / .NET 10 · phiên bản 1.8.0
 
 **Người tạo:** Trịnh Phương Tân  
 **SĐT:** 0867899987  
@@ -6,7 +6,7 @@
 
 ## Bộ cài đặt Windows tiếng Việt và cập nhật tự động · phiên bản 1.3.0
 
-- Vào [GitHub Releases](https://github.com/infiniti-money/Xuat-hang/releases/latest) và tải `HISA-Kho-Vat-Tu-1.7.0-Setup.exe`. Bộ cài sử dụng tiếng Việt và mặc định cài vào `C:\\Program Files\\HISA Kho Vat Tu`. Có biểu tượng trên Desktop và Start Menu, hỗ trợ gỡ cài.
+- Vào [GitHub Releases](https://github.com/infiniti-money/Xuat-hang/releases/latest) và tải `HISA-Kho-Vat-Tu-1.8.0-Setup.exe`. Bộ cài sử dụng tiếng Việt và mặc định cài vào `C:\\Program Files\\HISA Kho Vat Tu`. Có biểu tượng trên Desktop và Start Menu, hỗ trợ gỡ cài.
 - Giao diện chính hiển thị logo HISA. Phần mềm tự kiểm tra GitHub Releases khi mở, tải và xác minh bộ cài (SHA-256) trong nền; khi đóng ứng dụng sẽ nâng cấp yên lặng rồi mở lại.
 - Chế độ `/VERYSILENT` ẩn trình hướng dẫn cài đặt nhưng **không thể bỏ qua cửa sổ UAC của Windows** khi nâng cấp ứng dụng cài trong Program Files. Nếu không cấp quyền quản trị, phiên bản cũ và dữ liệu vẫn giữ nguyên.
 - Tài liệu ứng dụng: **Thư viện → Tài liệu → HISA Kho Vat Tu → APP KHO → data**.
@@ -28,6 +28,18 @@
 - Ảnh Gemini chỉ là lịch dự kiến: khi cont về thực tế, chọn đúng **từng kiện**, đối chiếu ngày cont đi / số cont / số HĐ / công trình và xác nhận mới ghi vào chi tiết của `Tổng hợp.xlsx`.
 - Bản mới ghi mã cont và ID kiện nguồn vào hai cột ẩn **AA / AB** của trang `chi tiết`, giữ nguyên vùng hiển thị A:J. Nếu các cột ẩn đã có dữ liệu của ứng dụng khác, HISA dừng để tránh ghi đè.
 - Những nguồn không xác định được kiện thuộc cont nào được cảnh báo và **không tự đoán**. Các dòng lịch chưa xác nhận không được nhập kho.
+
+## HISA v1.8.0 – Giao diện tập trung theo quy trình thực tế
+
+**7 mục chính thay cho menu nhiều mục trùng:** Tổng quan · Điều hành xuất hàng · Cont & kiện Hưng Yên · Tra cứu hợp đồng · Trung tâm Gemini AI · Báo cáo & tiện ích · Cấu hình & sao lưu.
+
+1. Mở HISA → thấy lịch dự kiến hôm nay/ngày mai nếu có, kiện cần chuẩn bị và cont dự kiến về. Nếu chưa có lịch, phần mềm hỏi anh nhập ảnh Zalo hoặc nhập thủ công.
+2. Vào **Điều hành xuất hàng** → nạp lịch AI đã duyệt hoặc thêm HĐ phát sinh → đối chiếu chuẩn bị vật tư → lập phiếu chờ → chỉ xác nhận sau bàn giao.
+3. Vào **Cont & kiện Hưng Yên** → xem lịch cont đi / dự kiến về → tích đúng kiện thực tế về → duyệt ghi Tổng hợp.xlsx; có lối nhập cont thủ công và rà soát kiện trùng số HĐ nâng cao.
+4. Vào **Trung tâm Gemini AI** để trò chuyện hoặc đọc ảnh Zalo. Chỉ gửi tóm tắt dữ liệu kho khi bật cho phép; khóa Gemini lưu ở Cấu hình, không nhập lại khi nâng cấp.
+5. Vào **Báo cáo & tiện ích** để xem báo cáo, phiếu và in mẫu. Các tính năng cũ không bị xóa, chỉ gom điều hướng.
+
+Giữ nguyên quy tắc: cùng HĐ nhưng khác cont, ngày cont đi, số lượng, quy cách hoặc T1/T2 là các kiện độc lập. Chưa cập nhật dữ liệu không tự coi là thiếu; chưa có phiếu xác nhận không coi là đã xuất.
 
 ## Trợ lý Gemini AI trực tiếp trong phần mềm (v1.7.0)
 
