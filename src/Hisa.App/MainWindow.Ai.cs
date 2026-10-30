@@ -247,7 +247,7 @@ public partial class MainWindow
             Notify("Đã lưu kế hoạch dự kiến vào:\n" + path +
                 "\n\nKhông có phiếu Đã xuất hoặc ngày cont về nào được ghi tự động.");
         }, true);
-        var toPlan = B("✓  Lập phiếu từ hợp đồng đã tích", () =>
+        var toPlan = A("✓  Lập phiếu từ hợp đồng đã tích", async () =>
         {
             Commit(outgoing);
             if (!_aiApproved || string.IsNullOrWhiteSpace(doc.ApprovedAt))
@@ -272,7 +272,8 @@ public partial class MainWindow
             _aiDispatchDay = doc.DispatchDate;
             _createPlanMode = true;
             Navigate("plan");
-        });
+            await Task.CompletedTask;
+        }, true);
         var tools = Card(Stack(
             T("Ngày và phê duyệt", 16, true),
             Row(Field("Dự kiến nhập kho · yyyy-MM-dd", dayArrival),
