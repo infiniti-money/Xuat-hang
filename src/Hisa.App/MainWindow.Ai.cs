@@ -232,7 +232,11 @@ public partial class MainWindow
                 Field("Dự kiến xuất kho · yyyy-MM-dd", dayDispatch),
                 B("Kiểm tra cảnh báo", RefreshWarnings)),
             T("Lưu kế hoạch vào thư mục dữ liệu HISA. Bấm Nạp hợp đồng để chuyển sang màn hình kế hoạch cũ; mọi bước xuất kho vẫn cần xác nhận riêng.", 12, false, Muted),
-            Row(save, toPlan),
+            Row(save, toPlan, B("Kiểm tra sẵn sàng xuất", () =>
+            {
+                if (!_aiApproved) { Notify("Hãy lưu lịch AI đã duyệt trước."); return; }
+                ShowDispatchReadiness(doc.DispatchDate);
+            })),
             saved
         ));
         panel.Children.Add(tools);

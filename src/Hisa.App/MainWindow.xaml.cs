@@ -43,6 +43,7 @@ public partial class MainWindow : Window
         AddNav("packages", "▣", "Kiện Hưng Yên");
         NavCaption("XUẤT HÀNG & BÀN GIAO");
         AddNav("create", "+", "Kế hoạch / tạo phiếu");
+        AddNav("readiness", "✓", "Sẵn sàng xuất hàng");
         AddNav("slips", "▤", "Phiếu bàn giao");
         AddNav("daily", "▥", "Báo cáo theo ngày");
         NavCaption("NHẬP KHO & THIẾT LẬP");
@@ -99,6 +100,7 @@ public partial class MainWindow : Window
             case "slips":ShowSlips();break;
             case "daily":ShowDaily();break;
             case "ai-schedule":ShowAiSchedules();break;
+            case "readiness":ShowDispatchReadiness();break;
             case "arrival":ShowArrival();break;
             case "arrival-packages":ShowArrivalPackages();break;
             case "templates":ShowTemplates();break;
@@ -213,6 +215,32 @@ public partial class MainWindow : Window
             T("Phiên bản "+SoftwareInfo.Version+"  ·  Cập nhật bảo mật từ GitHub Releases",11,false,Brush("#277C81"))
         ));
         p.Children.Add(Card(branding,new Thickness(18)));
+        // Kế hoạch xuất được duyệt là nguồn chính; không suy ra sẵn hàng từ lịch cont về.
+        try
+        {
+            var readinessStore = new DispatchReadinessStore(_service.DataDirectory);
+            var readinessState = readinessStore.Load();
+            var tomorrow = DateTime.Today.AddDays(1).ToString("yyyy-MM-dd");
+            var today = DateTime.Today.ToString("yyyy-MM-dd");
+            var visibleDay = readinessState.Plans.Any(p => p.Day == today) &&
+                !readinessState.Plans.Any(p => p.Day == tomorrow) ? today : tomorrow;
+            var currentPlans = DispatchReadinessStore.Evaluate(readinessState, _service.Snapshot, visibleDay);
+            p.Children.Add(Card(Stack(
+                T("KẾ HOẠCH XUẤT " + Rules.Day(visibleDay), 15, true),
+                currentPlans.Count == 0 ?
+                    T("Chưa có lịch dự kiến. Anh muốn nhập ảnh Zalo hay thêm hợp đồng phát sinh?", 12, false, Muted) :
+                    T(currentPlans.Count + " hợp đồng · " +
+                        currentPlans.Count(x => x.Status.StartsWith("Sẵn sàng", StringComparison.Ordinal)) +
+                        " sẵn sàng · " + currentPlans.Count(x => x.Status == "Thiếu vật tư") +
+                        " báo thiếu · còn lại cần cập nhật hoặc kiểm tra.", 12, false, Muted),
+                Row(B("Xem sẵn sàng xuất hàng", () => Navigate("readiness"), true),
+                    B("Nhập ảnh Zalo", () => Navigate("ai-schedule")),
+                    B("Thêm hợp đồng phát sinh", () => Navigate("readiness"))))));
+        }
+        catch (Exception ex)
+        {
+            p.Children.Add(Alert("Không đọc được kế hoạch chuẩn bị. File gốc được giữ nguyên: " + ex.Message, true));
+        }
         p.Children.Add(Row(B("+  Kế hoạch / tạo phiếu",()=>{_draft=null;_draftReport=null;_createPlanMode=false;Navigate("create");},true),B("↓  Nhập cont về kho",()=>Navigate("arrival")),B("▥  Báo cáo hôm nay",()=>Navigate("daily"))));
         var kpis=new UniformGrid{Columns=3,Margin=new Thickness(0,12,0,12)};
         Kpi(kpis,"KIỆN HƯNG YÊN",_service.Snapshot.Packages.Count,"Mở danh sách kiện, xem đầy đủ vật tư",()=>Navigate("packages"));

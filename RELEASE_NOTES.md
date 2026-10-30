@@ -1,3 +1,20 @@
+# HISA Quản lý kho — v1.5.0 (Windows x64 · bản thử nghiệm)
+
+## Kiểm tra sẵn sàng xuất hàng theo lịch
+
+- Tổng quan ưu tiên lịch hôm nay nếu đã có, hoặc ngày mai. Không có lịch sẽ hỏi nhập ảnh Zalo hay hợp đồng phát sinh.
+- Màn hình **Sẵn sàng xuất hàng** nạp phần xuất của lịch AI đã duyệt và nhập tay hợp đồng phát sinh, lý do tùy chọn, phân biệt kho thành phẩm/xuất trực tiếp.
+- Đối chiếu kiện Hưng Yên theo hợp đồng, công trình, đơn vị, tên vật tư đầy đủ và số lượng; phân biệt 700/750. Chưa cập nhật không bị xem là thiếu.
+- Lưu số lượng thực tế đã chuẩn bị; máy kéo kiểm tra serial theo số lượng trước khi đánh dấu sẵn sàng.
+- Không tự bàn giao khi chuẩn bị xong, không tự ghi nhận Đã xuất hay chỉnh Excel gốc.
+- File trạng thái riêng: APP KHO/data/dispatch_readiness.json. Chưa tự kết nối file theo dõi máy kéo/đầu cửa cabin vì chưa có mẫu thực tế.
+
+## Kiểm thử
+
+Có thêm kiểm thử độc lập: phân biệt quy cách, thiếu dữ liệu, serial máy kéo, duyệt AI đúng phần xuất và lưu/đọc trạng thái. CI Windows chạy biên dịch .NET 10, tự kiểm tra và đóng gói. Trên nhánh thử nghiệm chỉ tạo build artifact; GitHub Release chính thức chỉ có sau khi hợp nhất main và CI thành công.
+
+---
+
 # HISA Quản lý kho — v1.4.0 AI (Windows 64-bit)
 
 ## AI đọc lịch nhập – xuất kho từ ảnh Zalo

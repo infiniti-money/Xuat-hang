@@ -1,4 +1,4 @@
-# Quản lý kho — C# / .NET 10 · phiên bản 1.4.0
+# Quản lý kho — C# / .NET 10 · phiên bản 1.5.0
 
 **Người tạo:** Trịnh Phương Tân  
 **SĐT:** 0867899987  
@@ -6,13 +6,23 @@
 
 ## Bộ cài đặt Windows tiếng Việt và cập nhật tự động · phiên bản 1.3.0
 
-- Vào [GitHub Releases](https://github.com/infiniti-money/Xuat-hang/releases/latest) và tải `HISA-Kho-Vat-Tu-1.4.0-Setup.exe`. Bộ cài sử dụng tiếng Việt và mặc định cài vào `C:\\Program Files\\HISA Kho Vat Tu`. Có biểu tượng trên Desktop và Start Menu, hỗ trợ gỡ cài.
+- Vào [GitHub Releases](https://github.com/infiniti-money/Xuat-hang/releases/latest) và tải `HISA-Kho-Vat-Tu-1.5.0-Setup.exe`. Bộ cài sử dụng tiếng Việt và mặc định cài vào `C:\\Program Files\\HISA Kho Vat Tu`. Có biểu tượng trên Desktop và Start Menu, hỗ trợ gỡ cài.
 - Giao diện chính hiển thị logo HISA. Phần mềm tự kiểm tra GitHub Releases khi mở, tải và xác minh bộ cài (SHA-256) trong nền; khi đóng ứng dụng sẽ nâng cấp yên lặng rồi mở lại.
 - Chế độ `/VERYSILENT` ẩn trình hướng dẫn cài đặt nhưng **không thể bỏ qua cửa sổ UAC của Windows** khi nâng cấp ứng dụng cài trong Program Files. Nếu không cấp quyền quản trị, phiên bản cũ và dữ liệu vẫn giữ nguyên.
 - Tài liệu ứng dụng: **Thư viện → Tài liệu → HISA Kho Vat Tu → APP KHO → data**.
 - Sao lưu ZIP: **Thư viện → Tài liệu → HISA Kho Vat Tu → Backups**; các bản sao Excel trước khi ghi nằm trong thư mục **Backups → Excel**.
 - Gỡ phần mềm hoặc nâng cấp không xóa dữ liệu và bản sao lưu trong Thư viện. Khi nâng cấp từ bản cũ, các file dữ liệu tìm thấy tại vị trí cũ sẽ được chuyển sang nếu file đích chưa tồn tại.
 
+
+## Sẵn sàng xuất hàng theo ngày (v1.5.0 thử nghiệm)
+
+- Mở HISA: Tổng quan hiện kế hoạch hôm nay nếu có, nếu không thì kế hoạch ngày mai. Khi chưa có lịch, giao diện hỏi nhập ảnh Zalo hoặc thêm hợp đồng phát sinh.
+- Vào **AI lịch nhập – xuất kho**, đọc ảnh và duyệt. Vào **Sẵn sàng xuất hàng**, chọn ngày, bấm **Nạp lịch AI đã duyệt**. Chỉ lấy phần lịch xuất; không coi container dự kiến về là hàng đã nhập.
+- Bổ sung hợp đồng phát sinh bằng tay, lý do **tùy chọn**, chọn **Kho thành phẩm** hoặc **Xuất trực tiếp khách**.
+- Kiểm tra từng kiện Hưng Yên theo số hợp đồng, công trình, tên vật tư đầy đủ có quy cách (700/750 là hai dòng khác nhau), số lượng và đơn vị. Nếu dữ liệu chưa cập nhật, không suy đoán đủ hoặc thiếu.
+- Nhập số lượng thực tế đã chuẩn bị, máy kéo phải có serial tương ứng mới báo sẵn sàng. Vật tư đã chuẩn bị vẫn giữ ở kho Hưng Yên **chờ đến lịch** và cần phiếu bàn giao được xác nhận riêng.
+- Ghi nhận tại APP KHO/data/dispatch_readiness.json, không tự ghi Excel gốc, lịch sử xuất hoặc trừ tồn kho.
+- Giới hạn thử nghiệm: chưa tự động đồng bộ file máy kéo/đầu cửa cabin độc lập do chưa có mẫu. Cần rà soát số lượng đã chuẩn bị khi có nhiều lần xuất cùng hợp đồng.
 
 ## AI đọc ảnh bảng lịch kho (v1.4.0)
 
