@@ -12,7 +12,7 @@ public static class ContFileDiagnostics
         void Check(bool ok,string label) {if(!ok)throw new InvalidOperationException("FAIL: "+label);messages.Add(label);}
         var root=Path.Combine(testWorkspace,"cont-file-sorting-"+Guid.NewGuid().ToString("N"));
         var source=Path.Combine(root,"CONT ĐI");
-        var numbered=Path.Combine(source,"12");var sentNumbered=Path.Combine(source,"08");
+        var numbered=Path.Combine(source,"26.10");var sentNumbered=Path.Combine(source,"27.10");
         Directory.CreateDirectory(numbered);Directory.CreateDirectory(sentNumbered);
         var hy=Path.Combine(numbered,"29102026.xlsx");
         var sent=Path.Combine(sentNumbered,"hanggui_001.xlsx");
@@ -52,10 +52,12 @@ public static class ContFileDiagnostics
             "Move imported workbooks without errors");
         Check(ContFileOrganizer.MoveFiles(first.HangGuiFiles,"Hàng gửi").Count==0,
             "Move sent-goods workbooks without errors");
-        var archived=Path.Combine(source,"Đã nhập kho","12","29102026.xlsx");
-        var sentArchive=Path.Combine(source,"Hàng gửi","08","hanggui_001.xlsx");
+        var archived=Path.Combine(source,"Đã nhập kho","26.10","29102026.xlsx");
+        var sentArchive=Path.Combine(source,"Hàng gửi","27.10","hanggui_001.xlsx");
         Check(File.Exists(archived)&&!File.Exists(hy)&&File.Exists(sentArchive)&&!File.Exists(sent),
-            "Preserve original numbered directory while separating archived and sent files");
+            "Preserve exact dot-formatted date names 26.10 and 27.10 while sorting files");
+        Check(Directory.Exists(numbered)&&Directory.Exists(sentNumbered),
+            "Leave original CONT ĐI date directories 26.10 and 27.10 unchanged");
         Check(File.Exists(other),"Leave files without Hưng Yên packages at their original path");
         var second=store.ScanSources(settings);
         Check(second.Packages.Count==1 && second.Packages[0].Id==priorId && second.ImportedHungYenFiles.Count==0,
