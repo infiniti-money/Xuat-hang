@@ -7,5 +7,5 @@ public static class SoftwareInfo
     public const string Creator = "Trịnh Phương Tân";
     public const string Phone = "0867899987";
     public const string Email = "infinitimoney@icloud.com";
-    public const string Version = "1.5.1";
+    public const string Version = "1.5.2";
 }

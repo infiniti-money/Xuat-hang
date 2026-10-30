@@ -11,8 +11,6 @@ public partial class MainWindow
 {
     private AiScheduleDocument? _aiDocument;
     private string _aiImagePath = "";
-    private string _aiOpenAiKey = "";
-    private string _aiGeminiKey = "";
     private string? _aiDispatchDay;
     private bool _aiApproved;
 
@@ -79,12 +77,11 @@ public partial class MainWindow
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(8)
         };
-        var gptKey = new PasswordBox { Width = 260, Margin = new Thickness(0, 4, 12, 10) };
-        var geminiKey = new PasswordBox { Width = 260, Margin = new Thickness(0, 4, 12, 10) };
-        // Session-only secrets: never stored in Excel, JSON, backups, source code or logs.
-        gptKey.Password = _aiOpenAiKey;
-        geminiKey.Password = _aiGeminiKey;
-        var status = T("Ảnh được gửi tới API của nhà cung cấp đã chọn khi bạn bấm Phân tích. API Key chỉ giữ trong phiên chạy, không được lưu.", 12, false, Muted);
+        var keySaved = new GeminiCredentialStore().HasKey();
+        var status = T(keySaved
+            ? "● ĐÃ CẤU HÌNH GEMINI · Khóa được lưu an toàn trong Windows và giữ lại sau khi cập nhật."
+            : "○ CHƯA CÓ GEMINI API KEY · Vào Cấu hình & sao lưu → Gemini AI để nhập và lưu.",
+            12, true, keySaved ? Brush("#16745C") : Brush("#AF6A38"));
         var choose = B("Chọn ảnh từ Zalo", () =>
         {
             var file = new OpenFileDialog
@@ -100,42 +97,42 @@ public partial class MainWindow
                 upload.Text = Path.GetFileName(file.FileName);
             }
         }, true);
-        var analyze = A("GPT + Gemini · Phân tích ảnh", async () =>
+        var analyze = A("②  Phân tích ảnh với Gemini", async () =>
         {
-            if (_aiImagePath.Length == 0) throw new InvalidOperationException("Chọn một ảnh lịch nhập/xuất trước.");
-            _aiOpenAiKey = gptKey.Password;
-            _aiGeminiKey = geminiKey.Password;
-            if (_aiOpenAiKey.Length == 0 && _aiGeminiKey.Length == 0)
-                throw new InvalidOperationException("Nhập ít nhất một API Key. Nên dùng cả GPT và Gemini để kiểm chứng chéo.");
-            status.Text = "Đang đọc ảnh và kiểm tra chéo kết quả...";
+            if (_aiImagePath.Length == 0)
+                throw new InvalidOperationException("Chọn một ảnh lịch nhập/xuất trước.");
+            var geminiKey = new GeminiCredentialStore().ReadKey();
+            if (string.IsNullOrWhiteSpace(geminiKey))
+                throw new InvalidOperationException("Chưa lưu Gemini API Key. Vào Cấu hình & sao lưu → Gemini AI để nhập khóa.");
+            status.Text = "Đang phân tích ảnh bằng Gemini...";
             try
             {
-                _aiDocument = await AiScheduleReader.AnalyzeAsync(_aiImagePath, _aiOpenAiKey, _aiGeminiKey);
+                _aiDocument = await AiScheduleReader.AnalyzeAsync(_aiImagePath, geminiKey);
                 _aiApproved = false;
                 ShowAiSchedules();
             }
             catch (Exception ex)
             {
-                // Preserve the provider-specific reason on screen after the dialog is closed.
-                // AnalyzeAsync returns only sanitized, non-secret API diagnostic messages.
+                // Provider errors are normalized and never include API keys.
                 status.Text = ex.Message;
+                status.Foreground = Brush("#AA4D39");
                 throw;
             }
-        });
+        }, true);
         var top = Card(Stack(
-            T("Đọc ảnh lịch kho bằng AI", 18, true),
-            T("Nhập ảnh đã lưu từ Zalo. Hai phần nhập kho / xuất kho sẽ được tách riêng. Chưa tự ghi vào sổ Excel hay đánh dấu đã xuất hàng.", 12, false, Muted),
-            T("API Key là khóa dịch vụ API (khác với tài khoản ChatGPT Plus). Có thể thử từng nhà cung cấp bằng cách chỉ nhập một khóa. Nếu lỗi, xem HTTP 401/403/404/429 và hướng dẫn hiển thị ngay bên dưới.", 11, false, Muted),
+            T("GEMINI AI  /  TRỢ LÝ ĐỌC LỊCH XUẤT HÀNG", 18, true),
+            T("① Chọn ảnh Zalo     →     ② Gemini đọc bảng     →     ③ Kiểm tra, duyệt     →     ④ Nạp kế hoạch", 13, true, Brush("#177E89")),
+            T("HISA tách riêng lịch container dự kiến về Hưng Yên và lịch xuất kho ngày mai. Không tự nhập kho hay tạo phiếu Đã xuất.", 12, false, Muted),
+            status,
             Row(choose, upload),
-            Row(Field("OpenAI API Key (GPT)", gptKey), Field("Gemini API Key", geminiKey)),
-            Row(analyze),
-            status
+            Row(analyze, B("⚙  Cấu hình Gemini", () => Navigate("settings"))),
+            T("Bảo mật: khóa chỉ đọc từ Windows khi phân tích. Ảnh chỉ gửi đến Gemini sau khi anh bấm Phân tích.", 11, false, Muted)
         ));
         var panel = Stack();
         if (_aiDocument == null)
         {
-            panel.Children.Add(Alert("Sau khi phân tích, xem và sửa từng dòng, kiểm tra cảnh báo, rồi bấm Lưu kế hoạch đã duyệt. Không có API Key nào được đóng gói trong EXE."));
-            SetPage("AI lịch nhập – xuất kho", "Đọc ảnh từ Zalo · GPT + Gemini · duyệt thủ công trước khi lưu", Layout(top,
+            panel.Children.Add(Alert("Sau khi Gemini phân tích, anh xem, sửa và duyệt từng dòng rồi lưu lịch. Khóa Gemini không nằm trong bộ cài và vẫn giữ khi cập nhật HISA."));
+            SetPage("AI lịch nhập – xuất kho", "Đọc ảnh từ Zalo · Gemini AI · duyệt thủ công trước khi lưu", Layout(top,
                 new ScrollViewer { Content = panel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }));
             return;
         }
@@ -250,6 +247,18 @@ public partial class MainWindow
             })),
             saved
         ));
+        var kpis = Row(
+            Card(Stack(T("CONT DỰ KIẾN VỀ", 11, true, Muted),
+                T(doc.Arrivals.Count.ToString("N0") + " hợp đồng", 22, true),
+                T("Chưa tính là đã nhập kho", 11, false, Muted)), new Thickness(14)),
+            Card(Stack(T("KẾ HOẠCH XUẤT", 11, true, Muted),
+                T(doc.Dispatches.Count.ToString("N0") + " hợp đồng", 22, true),
+                T("Chờ phê duyệt trước khi lưu", 11, false, Muted)), new Thickness(14)),
+            Card(Stack(T("CẦN XÁC MINH", 11, true, Muted),
+                T(doc.Arrivals.Concat(doc.Dispatches).Count(x => x.NeedsReview).ToString("N0") + " dòng", 22, true),
+                T("Đối chiếu ảnh Zalo gốc", 11, false, Muted)), new Thickness(14))
+        );
+        panel.Children.Add(kpis);
         panel.Children.Add(tools);
         panel.Children.Add(T("Nguồn nhận dạng: " + doc.AnalyzedBy + " · Bản ghi cần xem thủ công: " +
             doc.Arrivals.Concat(doc.Dispatches).Count(x => x.NeedsReview), 12, true));
@@ -259,7 +268,7 @@ public partial class MainWindow
         panel.Children.Add(Card(incomingBody));
         panel.Children.Add(T("PHẦN 2 · XUẤT KHO", 16, true));
         panel.Children.Add(Card(outgoingBody));
-        SetPage("AI lịch nhập – xuất kho", "Kiểm tra chéo · sửa bảng · duyệt kế hoạch trước khi lưu", Layout(top,
+        SetPage("AI lịch nhập – xuất kho", "Gemini AI · sửa bảng · duyệt kế hoạch trước khi lưu", Layout(top,
             new ScrollViewer { Content = panel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }));
     }
 }
