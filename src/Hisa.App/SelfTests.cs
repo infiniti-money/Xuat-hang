@@ -152,6 +152,7 @@ public static class SelfTests
             result.Checks.AddRange(await UiWorkflowDiagnostics.RunAsync());
             result.Checks.AddRange(await MotorSerialDiagnostics.RunAsync());
             result.Checks.AddRange(LogoDiagnostics.Run());
+            result.Checks.AddRange(AiScheduleDiagnostics.Run());
             result.Checks.AddRange(await AuditUiDiagnostics.RunAsync());
             result.Checks.AddRange(await AuditExcelDiagnostics.RunAsync());
             result.Checks.AddRange(AuditPrintDiagnostics.Run());
