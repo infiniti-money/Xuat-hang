@@ -39,23 +39,16 @@ public partial class MainWindow : Window
         Title = SoftwareInfo.DisplayName;
         VersionText.Text="Phiên bản "+SoftwareInfo.Version;
         TodayText.Text=DateTime.Now.ToString("dddd, dd/MM/yyyy",CultureInfo.GetCultureInfo("vi-VN"));
-        AddNav("dashboard", "▦", "Tổng quan kho");
+        NavCaption("CÔNG VIỆC HÔM NAY");
+        AddNav("dashboard", "▦", "Tổng quan / việc cần làm");
+        AddNav("dispatch-hub", "▤", "Điều hành xuất hàng");
+        AddNav("arrival-hub", "↓", "Cont & kiện Hưng Yên");
+        NavCaption("TRA CỨU & HỖ TRỢ");
         AddNav("lookup", "⌕", "Tra cứu hợp đồng");
-        AddNav("packages", "▣", "Kiện Hưng Yên");
-        NavCaption("XUẤT HÀNG & BÀN GIAO");
-        AddNav("create", "+", "Kế hoạch / tạo phiếu");
-        AddNav("readiness", "✓", "Sẵn sàng xuất hàng");
-        AddNav("slips", "▤", "Phiếu bàn giao");
-        AddNav("daily", "▥", "Báo cáo theo ngày");
-        NavCaption("NHẬP KHO & THIẾT LẬP");
-        AddNav("gemini-chat", "✧", "Trợ lý Gemini AI");
-        AddNav("ai-schedule", "✦", "AI lịch nhập – xuất kho");
-        AddNav("planned-arrivals", "▣", "Cont đã về kho (AI)");
-        AddNav("arrival", "↓", "Nhập cont về kho");
-        AddNav("arrival-packages", "▣", "Quản lý kiện cont về");
-        AddNav("templates", "▧", "Mẫu phiếu in");
+        AddNav("ai-hub", "✧", "Trung tâm Gemini AI");
+        NavCaption("QUẢN TRỊ & TIỆN ÍCH");
+        AddNav("reports-hub", "▥", "Báo cáo & tiện ích");
         AddNav("settings", "⚙", "Cấu hình & sao lưu");
-        AddNav("information", "ⓘ", "Thông tin phần mềm");
         _service.Progress += message => Dispatcher.BeginInvoke(()=>StatusText.Text = message);
         _service.Changed += (_,_) => Dispatcher.BeginInvoke(()=>
         {
@@ -74,6 +67,10 @@ public partial class MainWindow : Window
         {
             if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.F) { Navigate("lookup"); e.Handled=true; }
             if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.N) { _draft=null;_draftReport=null;_createPlanMode=false; Navigate("create"); e.Handled=true; }
+            if (Keyboard.Modifiers==ModifierKeys.Control && e.Key==Key.D1) { Navigate("dashboard");e.Handled=true; }
+            if (Keyboard.Modifiers==ModifierKeys.Control && e.Key==Key.D2) { Navigate("dispatch-hub");e.Handled=true; }
+            if (Keyboard.Modifiers==ModifierKeys.Control && e.Key==Key.D3) { Navigate("arrival-hub");e.Handled=true; }
+            if (Keyboard.Modifiers==ModifierKeys.Control && e.Key==Key.D4) { Navigate("ai-hub");e.Handled=true; }
             if (e.Key==Key.F5) { _ = Run(()=>_service.RefreshAsync(true)); e.Handled=true; }
         };
     }
@@ -96,6 +93,11 @@ public partial class MainWindow : Window
         switch(page)
         {
             case "dashboard":ShowDashboard();break;
+            case "dispatch-hub":ShowDispatchHub();break;
+            case "arrival-hub":ShowArrivalHub();break;
+            case "ai-hub":ShowAiHub();break;
+            case "reports-hub":ShowReportsHub();break;
+            case "duplicate-review":ShowDuplicateReview();break;
             case "lookup":ShowLookup();break;
             case "packages":ShowPackages();break;
             case "create":ShowCreate(_createPlanMode);break;
@@ -113,14 +115,25 @@ public partial class MainWindow : Window
             case "information":ShowInformation();break;
         }
     }
+    internal static string NavigationGroup(string page) => page switch
+    {
+        "create" or "plan" or "readiness" or "slips" => "dispatch-hub",
+        "arrival" or "planned-arrivals" or "arrival-packages" or "packages" or
+        "duplicate-review" => "arrival-hub",
+        "gemini-chat" or "ai-schedule" => "ai-hub",
+        "daily" or "templates" or "information" => "reports-hub",
+        _ => page
+    };
+
     private void HighlightNavigation(string page)
     {
-        foreach (var pair in _nav)
+        var group=NavigationGroup(page);
+        foreach(var pair in _nav)
         {
-            var active = pair.Key == (page == "plan" ? "create" : page);
-            pair.Value.Background = active ? Brush("#24445B") : Brushes.Transparent;
-            pair.Value.BorderBrush = active ? Brush("#52D4C5") : Brushes.Transparent;
-            pair.Value.Foreground = active ? Brushes.White : Brush("#ADC3D5");
+            var active=pair.Key==group;
+            pair.Value.Background=active?Brush("#24445B"):Brushes.Transparent;
+            pair.Value.BorderBrush=active?Brush("#52D4C5"):Brushes.Transparent;
+            pair.Value.Foreground=active?Brushes.White:Brush("#ADC3D5");
         }
     }
     private void SetPage(string title,string subtitle,FrameworkElement content)
@@ -231,43 +244,35 @@ public partial class MainWindow : Window
             var readinessState = readinessStore.Load();
             var tomorrow = DateTime.Today.AddDays(1).ToString("yyyy-MM-dd");
             var today = DateTime.Today.ToString("yyyy-MM-dd");
-            var visibleDay = readinessState.Plans.Any(p => p.Day == today) &&
-                !readinessState.Plans.Any(p => p.Day == tomorrow) ? today : tomorrow;
-            var currentPlans = DispatchReadinessStore.Evaluate(readinessState, _service.Snapshot, visibleDay);
-            p.Children.Add(DashboardPlanCard(currentPlans,visibleDay));
+            // Work due today is always visible; when today's plan exists, also show tomorrow.
+            // Both are independent forecasts, never confirmation goods have shipped.
+            var todayPlans = DispatchReadinessStore.Evaluate(readinessState, _service.Snapshot, today);
+            var tomorrowPlans = DispatchReadinessStore.Evaluate(readinessState, _service.Snapshot, tomorrow);
+            if (todayPlans.Count>0)
+            {
+                p.Children.Add(DashboardPlanCard(todayPlans,today));
+                p.Children.Add(DashboardPlanCard(tomorrowPlans,tomorrow));
+            }
+            else p.Children.Add(DashboardPlanCard(tomorrowPlans,tomorrow));
         }
         catch (Exception ex)
         {
             p.Children.Add(Alert("Không đọc được kế hoạch chuẩn bị. File gốc được giữ nguyên: " + ex.Message, true));
         }
+        p.Children.Add(DashboardInboundSummary());
         p.Children.Add(StyledDashboardPanel(Stack(
-            T("THAO TÁC NHANH", 12, true, Brush("#658296")),
-            Row(B("+  Tạo phiếu bàn giao",()=>{_draft=null;_draftReport=null;_createPlanMode=false;Navigate("create");},true),
-                B("↓  Nhập cont về kho",()=>Navigate("arrival")),
-                B("▥  Báo cáo hôm nay",()=>Navigate("daily")),
-                B("⌕  Tra cứu hợp đồng",()=>Navigate("lookup"))))));
+            T("MỞ NHANH THEO CÔNG VIỆC", 12, true, Brush("#658296")),
+            Row(B("▤  Điều hành xuất hàng",()=>Navigate("dispatch-hub"),true),
+                B("↓  Cont & kiện về kho",()=>Navigate("arrival-hub")),
+                B("✧  Trợ lý Gemini AI",()=>Navigate("ai-hub")),
+                B("⌕  Tra cứu hợp đồng",()=>Navigate("lookup"))),
+            T("① Kiểm tra lịch xuất  →  ② Chuẩn bị vật tư  →  ③ Lập phiếu chờ  →  ④ Duyệt bàn giao",
+                11,false,Muted))));
         var kpis=new UniformGrid{Columns=3,Margin=new Thickness(0,12,0,12)};
         Kpi(kpis,"KIỆN HƯNG YÊN",_service.Snapshot.Packages.Count,"Mở danh sách kiện, xem đầy đủ vật tư",()=>Navigate("packages"));
         Kpi(kpis,"SỐ HỢP ĐỒNG",report.ContractCount,"Tách riêng từng công trình cùng số HĐ",()=>Navigate("lookup"));
         Kpi(kpis,"DÒNG VẬT TƯ",_service.Snapshot.Packages.Sum(x=>x.Items.Count),"Dữ liệu chính từ Tổng hợp.xlsx",()=>Navigate("lookup"));
         p.Children.Add(kpis);
-        var duplicateQuery=Input();duplicateQuery.Width=340;
-        var duplicatePackages=PackageGrid([]);duplicatePackages.Height=260;var duplicateCount=T("Đang quét hợp đồng trùng…",12,true,Muted);
-        void loadDuplicateGroups()
-        {
-            var key=Rules.Contract(duplicateQuery.Text);var all=_service.Snapshot.ContPackages;
-            var groups=all.GroupBy(x=>Rules.Contract(x.Contract)).Where(g=>g.Count()>1).ToList();
-            var repeated=groups.Where(g=>g.Key.Contains(key)).SelectMany(g=>g).OrderBy(x=>x.Contract).ThenBy(x=>x.Project).ThenBy(x=>x.PackageNo).ToList();
-            duplicatePackages.ItemsSource=repeated;
-            duplicateCount.Text=$"Tìm thấy {groups.Count:N0} số hợp đồng có nhiều kiện · hiển thị {repeated.Count:N0} kiện trùng. Danh sách tự nạp khi mở Tổng quan.";
-        }
-        var duplicateTools=Card(Stack(T("Kiện Hưng Yên có cùng số hợp đồng",16,true),T("Ứng dụng tự tìm và liệt kê tất cả kiện thuộc số hợp đồng xuất hiện nhiều lần. Kiểm tra công trình trước khi xóa: tên có ngoặc, Thang 1/2 hoặc T1/T2 có thể là công trình riêng.",12,false,Muted),Row(Field("Lọc số hợp đồng",duplicateQuery),B("⌕  Lọc",loadDuplicateGroups,true),A("⌫  Xóa kiện đã chọn khỏi Tổng hợp.xlsx",async()=>{if(duplicatePackages.SelectedItem is not Package selected)throw new InvalidOperationException("Chọn kiện cần xóa.");if(!Ask($"HĐ {selected.Contract} có nhiều kiện. Kiện {selected.PackageNo} · {selected.Project} có phải bản ghi trùng cần xóa không?\n\nNếu đây là công trình/kiện riêng (kể cả tên có ngoặc, Thang 1/2, T1/T2), chọn Không và giữ lại.\n\nXóa chỉ tác động trang Cont đi Hưng Yên trong Tổng hợp.xlsx."))return;var n=await _service.DeleteContPackageAsync(selected);Notify($"Đã xóa kiện trùng ({n} dòng) khỏi Tổng hợp.xlsx.");loadDuplicateGroups();},false,true)),duplicateCount,duplicatePackages));
-        duplicateQuery.TextChanged+=(_,_)=>loadDuplicateGroups();loadDuplicateGroups();
-        p.Children.Add(new Expander
-        {
-            Header="KIỂM TRA NÂNG CAO  /  KIỆN CÙNG SỐ HỢP ĐỒNG (bấm để mở)",
-            Content=duplicateTools, IsExpanded=false
-        });
         var groupPanel=new UniformGrid {Columns=3};
         foreach(var stat in report.Categories)
         {
@@ -276,11 +281,20 @@ public partial class MainWindow : Window
             var cat=stat.Category;
             var button=B("",()=>{_lookupFilter=new SearchFilter{Categories=[cat]};_lastReport=null;Navigate("lookup");});button.Content=inner;button.HorizontalContentAlignment=HorizontalAlignment.Stretch;button.Padding=new Thickness(18);button.Margin=new Thickness(0,0,12,12);groupPanel.Children.Add(button);
         }
-        p.Children.Add(Card(Stack(T("Vật tư theo sáu nhóm bàn giao",16,true),T("Bấm vào nhóm để tra cứu hợp đồng và danh mục vật tư.",12,false,Muted),groupPanel)));
+        p.Children.Add(new Expander{
+            Header="XEM NHÓM VẬT TƯ  /  BẤM ĐỂ MỞ",
+            Content=Card(Stack(T("Vật tư theo sáu nhóm bàn giao",16,true),
+                T("Bấm vào nhóm để tra cứu hợp đồng và danh mục vật tư.",12,false,Muted),groupPanel)),
+            IsExpanded=false
+        });
         var pending=_service.Slips.Count(x=>x.Status=="planned");var delayed=_service.Slips.Count(x=>x.Status=="delayed");var delivered=_service.Slips.Count(x=>x.Status=="delivered");
         p.Children.Add(Row(B($"Chờ xuất  {pending:N0}",()=>{_slipStatus="planned";Navigate("slips");}),B($"Hoãn chờ xuất  {delayed:N0}",()=>{_slipStatus="delayed";Navigate("slips");}),B($"Đã xuất  {delivered:N0}",()=>{_slipStatus="delivered";Navigate("slips");})));
         var recent=Table(_service.Slips.OrderByDescending(x=>x.UpdatedAt).Take(12).ToList(),("Mã phiếu","SlipCode",235),("Ngày xuất","DateLabel",110),("Số hợp đồng","ContractLabel",-1),("Trạng thái","StatusLabel",150),("Dòng VT","LineCount",80));recent.Height=255;recent.MouseDoubleClick+=(_,_)=>{if(recent.SelectedItem is Slip s)EditSlip(s);};
-        p.Children.Add(Card(Stack(T("Phiếu gần đây",16,true),recent)));
+        p.Children.Add(new Expander{
+            Header="12 PHIẾU GẦN ĐÂY  /  BẤM ĐỂ XEM",
+            Content=Card(Stack(T("Phiếu gần đây",16,true),recent)),
+            IsExpanded=false
+        });
         if(_service.Warnings.Count>0)p.Children.Add(new Expander{Header=$"{_service.Warnings.Count} thông báo cần đối chiếu",Content=Alert(string.Join("\n",_service.Warnings),true),IsExpanded=false});
         SetPage("Tổng quan kho","Hưng Yên · hợp đồng, kiện hàng và tiến độ xuất kho",new ScrollViewer{Content=p,VerticalScrollBarVisibility=ScrollBarVisibility.Auto});
     }
