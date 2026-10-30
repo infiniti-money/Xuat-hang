@@ -13,6 +13,9 @@ namespace Hisa.App;
 public sealed class ExcelStore
 {
     public string LastReadProfile { get; private set; } = "";
+    /// <summary>Automatic pre-write Excel snapshots; configured by WarehouseService.</summary>
+    public string BackupDirectory { get; set; } =
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "HISA Kho Vat Tu", "Backups", "Excel");
     private const string ContSheet = "Cont đi Hưng Yên";
     private readonly object gate = new();
     private readonly Dictionary<string, (string Stamp, List<Package> Packages, List<string> Warnings)> sourceCache = new(StringComparer.OrdinalIgnoreCase);
@@ -495,7 +498,7 @@ public sealed class ExcelStore
         else cell.Value=day;
         cell.Style.NumberFormat.Format="dd/MM/yyyy";
     }
-    private static void AtomicSave(XLWorkbook workbook,string path)
+    private void AtomicSave(XLWorkbook workbook,string path)
     {
         var directory=Path.GetDirectoryName(Path.GetFullPath(path))!;
         Directory.CreateDirectory(directory);
@@ -506,8 +509,10 @@ public sealed class ExcelStore
             {
                 // Test write access before doing any expensive serialization or changing the original.
                 using(var check=new FileStream(path,FileMode.Open,FileAccess.ReadWrite,FileShare.None)) { }
-                var backups=Path.Combine(directory,"HISA backups");Directory.CreateDirectory(backups);
-                var backup=Path.Combine(backups,Path.GetFileNameWithoutExtension(path)+"-"+DateTime.Now.ToString("yyyyMMdd-HHmmss-fff")+".xlsx");
+                // Keep pre-write copies in Documents, separate from editable Excel sources.
+                Directory.CreateDirectory(BackupDirectory);
+                var backup=Path.Combine(BackupDirectory,
+                    Path.GetFileNameWithoutExtension(path)+"-"+DateTime.Now.ToString("yyyyMMdd-HHmmss-fff")+"-"+Guid.NewGuid().ToString("N")[..8]+".xlsx");
                 File.Copy(path,backup,false);
             }
             workbook.SaveAs(temp,new ClosedXML.Excel.SaveOptions { EvaluateFormulasBeforeSaving=false,GenerateCalculationChain=false });
