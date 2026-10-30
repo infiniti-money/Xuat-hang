@@ -18,91 +18,121 @@ public sealed class PlannedArrivalRow
     public string PlannedDate { get; set; } = "";
     public string Status { get; set; } = "";
     public string Notes { get; set; } = "";
+    public string SourcePackageId { get; set; } = "";
+    public string SourceContDay { get; set; } = "";
+    public string MaterialSummary { get; set; } = "";
+    public int PackageNo { get; set; }
     public int PackageCount { get; set; }
     public int MaterialCount { get; set; }
     public List<string> SourceIds { get; set; } = [];
-    public string Key => Container + "|" + Rules.Identity(Contract, Project, Company);
+    public string Key => Rules.Code(Container) + "|" + Rules.Identity(Contract, Project, Company) + "|" + SourcePackageId;
 }
 
 public static class PlannedArrivalWorkflow
 {
+    // Identity: contract + project markers (T1/T2/parentheses) + company.
+    // Physical package: source ID, container and complete material/quantity signature.
+    public static string MaterialFingerprint(Package package) =>
+        string.Join(";", package.Items
+            .Select(x => Rules.Code(x.Material) + "|" + Rules.Code(x.Unit) + "|" +
+                (x.Quantity?.ToString("0.################", CultureInfo.InvariantCulture) ?? "?"))
+            .Order(StringComparer.Ordinal));
+
     public static List<PlannedArrivalRow> Preview(AiScheduleDocument schedule,
         WorkbookSnapshot snapshot, string actualDay)
     {
         if (string.IsNullOrWhiteSpace(schedule.ApprovedAt))
-            throw new InvalidOperationException("Lịch AI chưa được duyệt. Vui lòng duyệt và lưu lịch trước.");
+            throw new InvalidOperationException("Lịch Gemini chưa được duyệt.");
         if (!DateTime.TryParseExact(actualDay, "yyyy-MM-dd", CultureInfo.InvariantCulture,
             DateTimeStyles.None, out _))
             throw new InvalidOperationException("Chọn ngày container thực tế về kho.");
+        var rows=new List<PlannedArrivalRow>();
+        var arrivals=schedule.Arrivals ?? [];
+        var imported= snapshot.DetailPackages
+            .Where(x=>x.OriginPackageId.Length>0)
+            .Select(x=>x.OriginPackageId).ToHashSet(StringComparer.Ordinal);
+        var duplicateSchedule=arrivals
+            .GroupBy(x=>Rules.Identity(x.Contract,x.Project,x.Company))
+            .Where(g=>g.Select(x=>Rules.Code(x.Container)).Distinct().Count()>1)
+            .Select(g=>g.Key).ToHashSet();
 
-        // No assumptions based on planned dates, only actual source packages and explicit user selection.
-        var existing = snapshot.DetailPackages
-            .Where(x => x.ArrivalDate == actualDay).ToList();
-        var rows = new List<PlannedArrivalRow>();
-        var arrivals = schedule.Arrivals ?? [];
-        var collisions = arrivals
-            .Where(x => Rules.Contract(x.Contract).Length > 0)
-            .GroupBy(x => Rules.Identity(x.Contract, x.Project, x.Company))
-            .Where(g => g.Select(x => Rules.Code(x.Container)).Distinct().Count() > 1)
-            .Select(g => g.Key).ToHashSet();
-
-        foreach (var ai in arrivals)
+        foreach(var ai in arrivals)
         {
-            var row = new PlannedArrivalRow
-            {
-                Container = ai.Container.Trim(),
-                Contract = ai.Contract.Trim(),
-                Project = ai.Project.Trim(),
-                Company = ai.Company.Trim(),
-                PlannedDate = ai.PlannedDate,
-                Status = "Chưa đối chiếu"
-            };
-            var identity = Rules.Identity(row.Contract, row.Project, row.Company);
-            var sources = snapshot.ContPackages
-                .Where(x => x.Identity == identity)
+            var identity=Rules.Identity(ai.Contract,ai.Project,ai.Company);
+            var candidates=snapshot.ContPackages.Where(x=>x.Identity==identity).ToList();
+            // If a contract appears in different containers, only a matching source
+            // container number or distinct confirmed departure date is evidence.
+            var competing=duplicateSchedule.Contains(identity);
+            var candidatesForCont=candidates.Where(x =>
+                x.ContainerNumber.Length>0
+                    ? Rules.Code(x.ContainerNumber)==Rules.Code(ai.Container)
+                    : ai.ContainerExportDate.Length>0 && x.SourceDate==ai.ContainerExportDate)
                 .ToList();
-            row.SourceIds = sources.Select(x => x.Id).Distinct().ToList();
-            row.PackageCount = sources.Count;
-            row.MaterialCount = sources.Sum(x => x.Items.Count);
+            var ambiguous=competing &&
+                (candidatesForCont.Count==0 ||
+                 candidatesForCont.Any(x=>x.SourceDate.Length==0 && x.ContainerNumber.Length==0) ||
+                 arrivals.Where(x=>Rules.Identity(x.Contract,x.Project,x.Company)==identity)
+                     .Any(x=>x!=ai && Rules.Code(x.Container)!=Rules.Code(ai.Container) &&
+                         (x.ContainerExportDate==ai.ContainerExportDate || x.ContainerExportDate.Length==0)));
+            var matched=competing ? (ambiguous ? new List<Package>() : candidatesForCont) :
+                (candidatesForCont.Count>0 ? candidatesForCont : candidates);
+            if(matched.Count==0) matched=[new Package {
+                Contract=ai.Contract,Project=ai.Project,Company=ai.Company}];
 
-            if (Rules.Contract(row.Contract).Length == 0 ||
-                row.Project.Length == 0 || row.Company.Length == 0 ||
-                row.Container.Length == 0)
+            foreach(var package in matched)
             {
-                row.Status = "Thiếu dữ liệu nhận diện";
-                row.Notes = "Bổ sung đúng số HĐ, công trình, công ty và container trong lịch AI.";
+                var row=new PlannedArrivalRow {
+                    Container=ai.Container.Trim(),Contract=ai.Contract.Trim(),
+                    Project=package.Id.Length>0 ? package.Project : ai.Project.Trim(),
+                    Company=package.Id.Length>0 ? package.Company : ai.Company.Trim(),
+                    PlannedDate=ai.PlannedDate, SourcePackageId=package.Id,
+                    SourceContDay=package.SourceDate, PackageNo=package.PackageNo,
+                    PackageCount=package.Id.Length>0?1:0,
+                    MaterialCount=package.Items.Count,
+                    MaterialSummary=string.Join(" · ",package.Items.Take(3).Select(x=>
+                        x.Material+" × "+(x.Quantity?.ToString(CultureInfo.GetCultureInfo("vi-VN"))??"?"))),
+                    SourceIds=package.Id.Length>0?[package.Id]:[]
+                };
+                if (Rules.Contract(row.Contract).Length==0 || row.Project.Length==0 ||
+                    row.Company.Length==0 || row.Container.Length==0)
+                {
+                    row.Status="Thiếu dữ liệu nhận diện";
+                    row.Notes="Cần số HĐ, công trình, công ty và container trước khi nhập.";
+                }
+                else if (ai.NeedsReview)
+                {
+                    row.Status="Cần duyệt lại từ ảnh";row.Notes=ai.ReviewNote;
+                }
+                else if (ambiguous)
+                {
+                    row.Status="Cùng HĐ ở nhiều container";
+                    row.Notes="Không xác định được kiện thuộc cont nào. Cần số cont nguồn hoặc ngày cont đi khác nhau.";
+                }
+                else if (package.Id.Length==0)
+                {
+                    row.Status="Chưa có kiện trong Tổng hợp";
+                    row.Notes="Thiếu nguồn kiện đúng HĐ + công trình/T1/T2 + công ty. Không tự tạo vật tư.";
+                }
+                else if (imported.Contains(package.Id))
+                {
+                    row.Status="Đã nhập kiện này";
+                    row.Notes="Kiện nguồn đã ghi vào Tổng hợp.xlsx (không ghi trùng).";
+                }
+                else if (snapshot.DetailPackages.Any(x=>x.OriginPackageId.Length==0 &&
+                    x.Identity==package.Identity && x.ArrivalDate==actualDay &&
+                    MaterialFingerprint(x)==MaterialFingerprint(package)))
+                {
+                    row.Status="Cần kiểm tra kiện nhập cũ";
+                    row.Notes="Tổng hợp đã có kiện cùng vật tư/số lượng nhưng chưa có mã cont để xác minh.";
+                }
+                else
+                {
+                    row.Status="Đủ nguồn · chờ xác nhận đã về";
+                    row.Notes="Kiện "+package.PackageNo+" · ngày cont đi "+
+                        Rules.Day(package.SourceDate)+" · "+package.Items.Count+" dòng vật tư";
+                }
+                rows.Add(row);
             }
-            else if (ai.NeedsReview)
-            {
-                row.Status = "Cần duyệt lại từ ảnh";
-                row.Notes = ai.ReviewNote;
-            }
-            else if (collisions.Contains(identity))
-            {
-                row.Status = "Cùng HĐ ở nhiều container";
-                row.Notes = "Không tự phân biệt kiện theo container khi dữ liệu nguồn chưa có mã cont.";
-            }
-            else if (sources.Count == 0)
-            {
-                row.Status = "Chưa có kiện trong Tổng hợp";
-                row.Notes = "Cần nhập kiện Hưng Yên từ file cont nguồn trước. Không tạo vật tư giả.";
-            }
-            else if (sources.Any(x => x.Id.Length == 0))
-            {
-                row.Status = "Kiện nguồn không có ID";
-                row.Notes = "Làm mới dữ liệu Excel trước khi nhập.";
-            }
-            else if (existing.Any(x => x.Identity == identity))
-            {
-                row.Status = "Đã có hàng nhập ngày này";
-                row.Notes = "Đã tồn tại kiện cùng HĐ/công trình/công ty trong chi tiết. Không ghi trùng.";
-            }
-            else
-            {
-                row.Status = "Đủ nguồn · chờ xác nhận đã về";
-                row.Notes = sources.Count + " kiện · " + row.MaterialCount + " dòng vật tư từ Cont đi Hưng Yên";
-            }
-            rows.Add(row);
         }
         return rows;
     }
@@ -110,27 +140,31 @@ public static class PlannedArrivalWorkflow
     public static List<Package> SelectVerified(IReadOnlyList<PlannedArrivalRow> selected,
         AiScheduleDocument approved, WorkbookSnapshot freshSnapshot, string actualDay)
     {
-        if (selected.Count == 0)
-            throw new InvalidOperationException("Chọn ít nhất một container thực tế đã về kho.");
-        var latest = Preview(approved, freshSnapshot, actualDay);
-        var verified = new List<Package>();
-        var sourceIds = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var row in selected)
+        if(selected.Count==0)throw new InvalidOperationException("Chọn ít nhất một kiện hàng thực tế đã về.");
+        var latest=Preview(approved,freshSnapshot,actualDay);
+        var verified=new List<Package>();
+        var ids=new HashSet<string>(StringComparer.Ordinal);
+        foreach(var row in selected)
         {
-            var matches = latest.Where(x => x.Key == row.Key).ToList();
-            if (matches.Count != 1 || matches[0].Status != "Đủ nguồn · chờ xác nhận đã về")
-                throw new InvalidOperationException("HĐ " + row.Contract + " · container " + row.Container +
-                    " chưa đủ điều kiện nhập. Kiểm tra hợp đồng/công trình/kiện nguồn hoặc trạng thái đã nhập.");
-            if (!matches[0].SourceIds.Order().SequenceEqual(row.SourceIds.Order()))
-                throw new InvalidOperationException("Nguồn Excel đã thay đổi; tải lại và kiểm tra kế hoạch trước khi nhập.");
-            foreach (var id in matches[0].SourceIds)
-            {
-                if (!sourceIds.Add(id))
-                    throw new InvalidOperationException("Một kiện nguồn đang được chọn ở nhiều container. Chưa ghi dữ liệu.");
-                var package = freshSnapshot.ContPackages.SingleOrDefault(x => x.Id == id);
-                if (package is null) throw new InvalidOperationException("Không tìm thấy kiện nguồn. Cập nhật dữ liệu lại.");
-                verified.Add(package);
-            }
+            var matches=latest.Where(x=>x.Key==row.Key).ToList();
+            if(matches.Count!=1 || matches[0].Status!="Đủ nguồn · chờ xác nhận đã về" ||
+                matches[0].SourcePackageId.Length==0)
+                throw new InvalidOperationException("Kiện HĐ "+row.Contract+" · cont "+row.Container+
+                    " chưa được đối chiếu hoặc đã nhập. Làm mới rồi kiểm tra lại.");
+            var fresh=matches[0];
+            if(fresh.MaterialSummary!=row.MaterialSummary ||
+                fresh.SourceContDay!=row.SourceContDay ||
+                fresh.SourcePackageId!=row.SourcePackageId)
+                throw new InvalidOperationException("Danh sách vật tư của kiện đã thay đổi. Đối chiếu lại.");
+            if(!ids.Add(fresh.SourcePackageId))
+                throw new InvalidOperationException("Một kiện nguồn đang bị chọn hai lần; chưa ghi kho.");
+            var source=freshSnapshot.ContPackages.SingleOrDefault(x=>x.Id==fresh.SourcePackageId)
+                ?? throw new InvalidOperationException("Không còn kiện nguồn.");
+            // Clone to keep shared read-only snapshot and cache unchanged.
+            var copy=WarehouseService.Clone(source);
+            copy.ContainerNumber=fresh.Container;
+            copy.OriginPackageId=source.Id;
+            verified.Add(copy);
         }
         return verified;
     }
