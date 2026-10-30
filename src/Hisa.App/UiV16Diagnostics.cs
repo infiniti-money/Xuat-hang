@@ -85,6 +85,13 @@ public static class UiV16Diagnostics
             .All(x => x.Status == "Cùng HĐ ở nhiều container"),
             "Same source packages in multiple containers cannot be assigned by guess");
 
+        // Reset schedule after intentional collision fixture, before testing quantity variants.
+        doc.Arrivals=[
+            new AiScheduleLine {Contract=pkgA.Contract,Project=pkgA.Project,Company=pkgA.Company,
+                Container="CONT-01",PlannedDate=day},
+            new AiScheduleLine {Contract=pkgB.Contract,Project=pkgB.Project,Company=pkgB.Company,
+                Container="CONT-02",PlannedDate=day}
+        ];
         // Same contract, same project but different material quantities: two physical packages.
         snapshot.DetailPackages=[];
         var manyA=new Package {
