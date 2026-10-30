@@ -115,7 +115,7 @@ public partial class MainWindow : Window
             case "information":ShowInformation();break;
         }
     }
-    private static string NavigationGroup(string page) => page switch
+    internal static string NavigationGroup(string page) => page switch
     {
         "create" or "plan" or "readiness" or "slips" => "dispatch-hub",
         "arrival" or "planned-arrivals" or "arrival-packages" or "packages" or
