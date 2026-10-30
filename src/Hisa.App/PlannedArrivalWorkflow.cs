@@ -113,6 +113,12 @@ public static class PlannedArrivalWorkflow
                     row.Status="Chưa có kiện trong Tổng hợp";
                     row.Notes="Thiếu nguồn kiện đúng HĐ + công trình/T1/T2 + công ty. Không tự tạo vật tư.";
                 }
+                else if (!DateTime.TryParseExact(package.SourceDate,"yyyy-MM-dd",
+                    CultureInfo.InvariantCulture,DateTimeStyles.None,out _))
+                {
+                    row.Status="Thiếu ngày cont đi";
+                    row.Notes="Cần xác định ngày cont đi từ file nguồn; không được gộp kiện khác ngày.";
+                }
                 else if (imported.Contains(package.Id))
                 {
                     row.Status="Đã nhập kiện này";

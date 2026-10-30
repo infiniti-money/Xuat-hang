@@ -1,3 +1,16 @@
+# HISA Quản lý kho — v1.6.1 (Windows 64-bit)
+
+## Kiện Hưng Yên theo ngày cont đi
+- **Cùng số hợp đồng nhưng ngày cont đi khác nhau = hai kiện khác nhau**, kể cả khi tên công trình, loại vật tư và số lượng giống nhau.
+- Khi xác nhận cont đã về hoặc nhập cont thủ công, thêm hậu tố ngày ngắn **(dd.MM)** sau tên công trình vào trang `chi tiết` của `Tổng hợp.xlsx`. Ví dụ `Công trình A T1 (26.10)` và `Công trình A T1 (27.10)`. Không sửa tên công trình gốc ở nguồn.
+- Giữ nguyên T1/T2, Thang 1/2, (1)/(2) trong tên, không lấy ngày gắn thêm làm mã công trình khi đối chiếu. Không thêm hậu tố ngày hai lần.
+- Giữ số cont (AA), ID kiện gốc (AB), **ngày cont đi đầy đủ** (AC) dưới dạng cột ẩn trong trang chi tiết, không ghi đè cột đã có dữ liệu khác.
+- Nhập kho AI theo từng kiện cần xác nhận cont thực tế đã về; dữ liệu thiếu ngày cont đi được cảnh báo và không được tự nhập. Nhập kho thủ công giữ nguyên kiện cùng HĐ thuộc các ngày cont đi khác nhau, không xóa / thay thế kiện trước đó.
+- Kiện đã nhập theo ID nguồn được bỏ qua khi nhập thủ công lại, hoặc từ chối khi thao tác nhập AI; tránh nhập trùng. Dữ liệu cũ chưa có ID/cont nguồn được cảnh báo để đối chiếu trước khi ghi.
+- Bộ kiểm thử Excel cô lập xác minh hai ngày 26.10, 27.10, cùng HĐ/cùng số lượng, T1/T2, nhập bằng AI và nhập thủ công, giữ toàn bộ kiện và dữ liệu gốc.
+
+---
+
 # HISA Quản lý kho — v1.6.0 · Giao diện chuyên nghiệp & AI nhập/xuất
 
 ## Giao diện Windows mới
@@ -19,6 +32,10 @@
 - Mỗi lần ghi đối chiếu lại dữ liệu hiện tại; không ghi nếu kiện đã nhập trong cùng ngày. Các container không chọn vẫn ở trạng thái dự kiến.
 
 ## Quy tắc bổ sung: nhiều kiện cùng số hợp đồng
+- **Cùng số HĐ nhưng ngày cont đi khác nhau = hai kiện Hưng Yên riêng**, bất kể vật tư/số lượng có giống nhau hay không.
+- Khi xác nhận cont đã về, HISA ghi tên công trình trong `Tổng hợp.xlsx` như `Công trình A (26.10)` hoặc `Công trình A (27.10)`, giữ T1/T2, Thang 1/2 và các phần trong ngoặc trước đó.
+- Ngày cont đi ISO được lưu ở cột ẩn AC, bên cạnh container (AA) và ID kiện nguồn (AB). Đọc lại Excel không biến hậu tố ngày thành công trình khác; ngăn nhập trùng ID kiện.
+
 - Hai kiện cùng HĐ nhưng vật tư hoặc số lượng khác nhau phải ghi thành **hai kiện riêng**.
 - Các tên công trình có T1/T2, Thang 1/Thang 2, (1)/(2) không được gộp kể cả số lượng giống nhau.
 - Một HĐ đi hai container được quản lý riêng theo **cont đi + ID kiện nguồn**, không cộng dồn hoặc thay thế kiện còn lại.

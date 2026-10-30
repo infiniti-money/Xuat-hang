@@ -175,7 +175,7 @@ public sealed class ExcelStore
     {
         if (!File.Exists(path)) throw new FileNotFoundException("Không tìm thấy Tổng hợp.xlsx.",path);
         var timer=System.Diagnostics.Stopwatch.StartNew();
-        var sheets = ReadSheets(path,[Rules.Code(ContSheet),"CHITIET"],28);
+        var sheets = ReadSheets(path,[Rules.Code(ContSheet),"CHITIET"],29);
         var xmlMs=timer.ElapsedMilliseconds;
         var cont = sheets.FirstOrDefault(x=>Rules.Code(x.Name)==Rules.Code(ContSheet));
         var detail = sheets.FirstOrDefault(x=>Rules.Code(x.Name)=="CHITIET");
@@ -210,6 +210,8 @@ public sealed class ExcelStore
             var material = sheet.Text(row,6+offset); var unit = sheet.Text(row,7+offset);
             if (contract.Length==0 || material.Length==0 || unit.Length==0) continue;
             var day = sheet.Day(row,1+offset);
+            var departureDay = detail && sheet.Day(row,29).Length>0
+                ? sheet.Day(row,29) : day;
             var project = sheet.Text(row,2+offset); var company = sheet.Text(row,3+offset);
             var identity = Rules.Identity(contract,project,company);
             var baseKey = identity+"|"+day;
@@ -217,7 +219,7 @@ public sealed class ExcelStore
             if (!output.TryGetValue(key,out var package))
             {
                 var ordinal=ordinals.GetValueOrDefault(baseKey)+1;ordinals[baseKey]=ordinal;
-                package = new Package { Id=sheet.Name+"|"+baseKey+"|"+ordinal, Contract=contract, Project=project, Company=company, SourceDate=day, ArrivalDate=detail?day:"", ContDate=detail?"":day, SourceFile=Path.GetFileName(path),SourcePath=path,SourceSheet=sheet.Name,PackageNo=ordinal,SourceRowStart=row,SourceRowEnd=row,
+                package = new Package { Id=sheet.Name+"|"+baseKey+"|"+ordinal, Contract=contract, Project=project, Company=company, SourceDate=departureDay, ArrivalDate=detail?day:"", ContDate=departureDay, SourceFile=Path.GetFileName(path),SourcePath=path,SourceSheet=sheet.Name,PackageNo=ordinal,SourceRowStart=row,SourceRowEnd=row,
                     ContainerNumber=detail?sheet.Text(row,27):"",OriginPackageId=detail?sheet.Text(row,28):"" };
                 output[key] = package;
             }
@@ -574,7 +576,7 @@ public sealed class ExcelStore
                 int start=row;
                 foreach(var item in package.Items.Where(x=>x.IsHungYen))
                 {
-                    SetDate(ws.Cell(row,1),package.SourceDate);ws.Cell(row,2).Value=package.Project;ws.Cell(row,3).Value=package.Company;SetContract(ws.Cell(row,4),package.Contract);
+                    SetDate(ws.Cell(row,1),package.SourceDate);ws.Cell(row,2).Value=Rules.ProjectWithContDate(package.Project,package.SourceDate);ws.Cell(row,3).Value=package.Company;SetContract(ws.Cell(row,4),package.Contract);
                     if(row==start) ws.Cell(row,5).Value="HƯNG\nYÊN";
                     ws.Cell(row,6).Value=item.Material;ws.Cell(row,7).Value=item.Unit;
                     if(item.Quantity.HasValue) ws.Cell(row,8).Value=(double)item.Quantity.Value;
@@ -679,24 +681,30 @@ public sealed class ExcelStore
         foreach(var line in package.Items.Where(x=>x.IsHungYen))
         {
             if(first>3) sheet.Row(row).Style=sheet.Row(3).Style;
-            sheet.Cell(row,1).FormulaA1=$"E{row}";SetDate(sheet.Cell(row,2),day);sheet.Cell(row,3).Value=package.Project;sheet.Cell(row,4).Value=package.Company;SetContract(sheet.Cell(row,5),package.Contract);
+            sheet.Cell(row,1).FormulaA1=$"E{row}";SetDate(sheet.Cell(row,2),day);sheet.Cell(row,3).Value=Rules.ProjectWithContDate(package.Project,package.SourceDate);sheet.Cell(row,4).Value=package.Company;SetContract(sheet.Cell(row,5),package.Contract);
             sheet.Cell(row,6).Value=row==first?"HƯNG YÊN":"";sheet.Cell(row,7).Value=line.Material;sheet.Cell(row,8).Value=line.Unit;if(line.Quantity.HasValue)sheet.Cell(row,9).Value=(double)line.Quantity.Value;sheet.Cell(row,10).Value=line.Note;
             if (row==first && (package.ContainerNumber.Length>0 || package.OriginPackageId.Length>0))
             {
                 // Reserved, hidden metadata outside the user's visible template (A:J).
                 var reservedA=sheet.Cell(2,27).GetString();
                 var reservedB=sheet.Cell(2,28).GetString();
+                var reservedC=sheet.Cell(2,29).GetString();
                 if ((reservedA.Length>0 && reservedA!="HISA_CONTAINER") ||
                     (reservedB.Length>0 && reservedB!="HISA_SOURCE_PACKAGE") ||
+                    (reservedC.Length>0 && reservedC!="HISA_CONT_DEPARTURE") ||
                     (reservedA.Length==0 && sheet.Column(27).CellsUsed().Any()) ||
-                    (reservedB.Length==0 && sheet.Column(28).CellsUsed().Any()))
+                    (reservedB.Length==0 && sheet.Column(28).CellsUsed().Any()) ||
+                    (reservedC.Length==0 && sheet.Column(29).CellsUsed().Any()))
                     throw new InvalidOperationException("Cột AA/AB trong Tổng hợp.xlsx có dữ liệu khác; không ghi đè. Liên hệ quản trị để chọn vị trí lưu ID kiện.");
                 sheet.Cell(2,27).Value="HISA_CONTAINER";
                 sheet.Cell(2,28).Value="HISA_SOURCE_PACKAGE";
+                sheet.Cell(2,29).Value="HISA_CONT_DEPARTURE";
                 sheet.Cell(row,27).Value=package.ContainerNumber;
                 sheet.Cell(row,28).Value=package.OriginPackageId;
+                sheet.Cell(row,29).Value=package.SourceDate;
                 sheet.Column(27).Hide();
                 sheet.Column(28).Hide();
+                sheet.Column(29).Hide();
             }
             row++;
         }
@@ -704,43 +712,73 @@ public sealed class ExcelStore
         if(row>first) { sheet.Range(first,6,row-1,6).Style.Alignment.Vertical=XLAlignmentVerticalValues.Center;sheet.Range(first,6,row-1,6).Style.Alignment.Horizontal=XLAlignmentHorizontalValues.Center;sheet.Range(first,9,row-1,9).Style.NumberFormat.Format="0.00"; }
         return row-first;
     }
-    public RecordArrivalResult RecordArrival(string masterPath,string ktPath,IReadOnlyList<Package> selected,DateTime arrival,bool useKt=true)
+    public RecordArrivalResult RecordArrival(string masterPath,string ktPath,
+        IReadOnlyList<Package> selected,DateTime arrival,bool useKt=true)
     {
         lock(gate)
         {
-            if(selected.Count==0) throw new InvalidOperationException("Không có kiện Hưng Yên để nhập kho.");
-            var current=ReadMaster(masterPath);var day=arrival.ToString("yyyy-MM-dd");
-            var selectedIds=selected.Select(x=>x.Identity).ToHashSet();
+            if(selected.Count==0)throw new InvalidOperationException("Không có kiện Hưng Yên để nhập kho.");
             var packages=Clone(selected.ToList());
             var result=new RecordArrivalResult();
             if(useKt)
             {
                 if(File.Exists(ktPath))
                 {
-                    var kt=ReadKt(ktPath);var claimed=new HashSet<string>();
+                    var kt=ReadKt(ktPath);
+                    var claimed=new HashSet<string>();
                     foreach(var package in packages)
                     {
-                        var match=kt.Where(x=>x.Identity==package.Identity && !claimed.Contains(x.Id)).OrderByDescending(x=>Overlap(x,package)).ThenByDescending(x=>x.PackageNo==package.PackageNo).FirstOrDefault();
-                        if(match!=null) { package.Items=Clone(match.Items);claimed.Add(match.Id); }
-                        else result.Warnings.Add($"{package.Contract} · {package.Project}: không có kiện khớp trong KT; giữ vật tư cont đi.");
+                        // Match KT by identity AND material overlap, but preserve original
+                        // source package ID / departure day / container.
+                        var match=kt.Where(x=>x.Identity==package.Identity &&
+                            !claimed.Contains(x.Id))
+                            .OrderByDescending(x=>Overlap(x,package))
+                            .ThenByDescending(x=>x.PackageNo==package.PackageNo)
+                            .FirstOrDefault();
+                        if(match!=null){package.Items=Clone(match.Items);claimed.Add(match.Id);}
+                        else result.Warnings.Add(package.Contract+" · "+package.Project+
+                            ": không có kiện khớp trong KT; giữ vật tư cont đi.");
                     }
                 }
                 else result.Warnings.Add("Chưa có KT tổng hợp.xlsx; sử dụng vật tư từ cont đi Hưng Yên.");
             }
-            var existing=current.DetailPackages.Where(x=>selectedIds.Contains(x.Identity)&&x.ArrivalDate==day).ToList();
-            // Replacing only selected identity/day keeps other arrival shipments and makes repeated entry idempotent.
-            using var wb=new XLWorkbook(masterPath);var ws=wb.Worksheets.FirstOrDefault(x=>Rules.Code(x.Name)=="CHITIET")??wb.AddWorksheet("chi tiết");
-            RemovePackageRows(ws,existing);ws.Cell(2,2).Value="Ngày cont về";
-            foreach(var package in packages) result.Lines+=AppendDetailPackage(ws,package,day);
-            result.Contracts=packages.Select(x=>Rules.Contract(x.Contract)).Distinct().Count();result.Packages=packages.Count;
-            AtomicSave(wb,masterPath);
+            var imported=ReadMaster(masterPath).DetailPackages
+                .Where(x=>x.OriginPackageId.Length>0)
+                .Select(x=>x.OriginPackageId).ToHashSet(StringComparer.Ordinal);
+            var toWrite=new List<Package>();
+            foreach(var package in packages)
+            {
+                if(package.Id.Length==0)
+                    throw new InvalidOperationException("Kiện Hưng Yên chưa có mã nguồn; làm mới Excel.");
+                if(!DateTime.TryParseExact(package.SourceDate,"yyyy-MM-dd",
+                    CultureInfo.InvariantCulture,DateTimeStyles.None,out _))
+                    throw new InvalidOperationException("Kiện HĐ "+package.Contract+
+                        " chưa có ngày cont đi. Không gộp hoặc ghi thiếu ngày.");
+                if(imported.Contains(package.Id))
+                {
+                    result.Warnings.Add("Đã nhập trước đây: "+package.Contract+
+                        " · "+package.Project+" · cont đi "+Rules.Day(package.SourceDate)+
+                        "; giữ nguyên kiện cũ.");
+                    continue;
+                }
+                package.OriginPackageId=package.Id;
+                toWrite.Add(package);
+            }
+            if(toWrite.Count==0)return result;
+            // The same contract in two different departure days or separate blocks is
+            // appended as distinct packages; never remove other rows by identity/day.
+            var written=RecordSelectedArrival(masterPath,toWrite,arrival,requireContainer:false);
+            result.Contracts=written.Contracts;
+            result.Packages=written.Packages;
+            result.Lines=written.Lines;
+            result.Warnings.AddRange(written.Warnings);
             return result;
         }
     }
     // Incremental, verified AI arrival import. Never replace all packages of an identity/day.
     // A package remains distinct by original source ID even if contract, project and quantity are equal.
     public RecordArrivalResult RecordSelectedArrival(string masterPath,
-        IReadOnlyList<Package> selected, DateTime arrival)
+        IReadOnlyList<Package> selected, DateTime arrival, bool requireContainer=true)
     {
         lock (gate)
         {
@@ -754,8 +792,12 @@ public sealed class ExcelStore
             {
                 if (incoming.Id.Length==0 || !ids.Add(incoming.Id))
                     throw new InvalidOperationException("Thiếu hoặc trùng ID kiện nguồn.");
-                if (incoming.ContainerNumber.Length==0)
+                if (requireContainer && incoming.ContainerNumber.Length==0)
                     throw new InvalidOperationException("Thiếu số container cho kiện " + incoming.Contract + ".");
+                if (!DateTime.TryParseExact(incoming.SourceDate,"yyyy-MM-dd",
+                    CultureInfo.InvariantCulture,DateTimeStyles.None,out _))
+                    throw new InvalidOperationException("Thiếu hoặc sai ngày cont đi cho kiện " +
+                        incoming.Contract + ". Phải đối chiếu ngày cont đi trước khi ghi Tổng hợp.xlsx.");
                 if (already.Contains(incoming.Id))
                     throw new InvalidOperationException("Kiện " + incoming.Contract + " (" + incoming.Id +
                         ") đã được nhập vào Tổng hợp.xlsx; không nhập lại.");
