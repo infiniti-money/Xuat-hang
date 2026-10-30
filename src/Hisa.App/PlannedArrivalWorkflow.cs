@@ -131,6 +131,11 @@ public static class PlannedArrivalWorkflow
                     row.Status="Chưa có kiện trong Tổng hợp";
                     row.Notes="Thiếu nguồn kiện đúng HĐ + công trình/T1/T2 + công ty. Không tự tạo vật tư.";
                 }
+                else if (package.Items==null || !package.Items.Any(x=>x.IsHungYen))
+                {
+                    row.Status="Chưa có vật tư nguồn";
+                    row.Notes="Kiện chưa có dòng vật tư Hưng Yên hợp lệ; không được ghi nhận đã nhập kho.";
+                }
                 else if (!DateTime.TryParseExact(package.SourceDate,"yyyy-MM-dd",
                     CultureInfo.InvariantCulture,DateTimeStyles.None,out _))
                 {
