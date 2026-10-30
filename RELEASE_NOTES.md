@@ -1,3 +1,14 @@
+# HISA Quản lý kho v1.5.2 – Gemini AI
+
+- Bỏ kết nối GPT. Chỉ dùng Gemini để phân tích ảnh Zalo và lập lịch dự kiến nhập/xuất kho.
+- Chuyển quản lý Gemini API Key vào Cấu hình & sao lưu: Lưu/thay khóa và Xóa khóa (cần xác nhận).
+- Lưu khóa bằng Windows Credential Manager, tách khỏi thư mục ứng dụng, giữ khi nâng cấp trên cùng tài khoản Windows.
+- Không lưu API Key trong Excel, JSON, bản sao lưu hoặc bộ cài; không tự ghi hàng xuất hay nhập kho từ AI.
+- Nâng giao diện màn AI, màn Cấu hình, bổ sung trạng thái kết nối, hướng dẫn theo bước và thẻ số liệu.
+- Kiểm thử độc lập lưu/đọc/thay/xóa khóa trên Windows và nghiệp vụ Gemini.
+
+---
+
 # HISA Quản lý kho — v1.5.1 (Windows x64 · sửa kết nối AI)
 
 ## Khắc phục lỗi GPT / Gemini
