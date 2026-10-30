@@ -25,7 +25,7 @@ public partial class MainWindow
             return;
         }
         var date = DateInput(DateTime.Today.ToString("yyyy-MM-dd"));
-        var useKt = new CheckBox { Content = "Ưu tiên vật tư KT nếu đối chiếu đúng công trình", IsChecked = true };
+
         var feedback = T("Chọn đúng ngày cont THỰC TẾ đã về và các dòng cần nhập kho.", 12, false, Muted);
         var rows = new List<PlannedArrivalRow>();
         var grid = Table(rows,
@@ -33,10 +33,11 @@ public partial class MainWindow
             ("Số hợp đồng", "Contract", 130),
             ("Công trình", "Project", -1),
             ("Công ty", "Company", 165),
-            ("Kiện nguồn", "PackageCount", 88),
-            ("Ngày dự kiến", "PlannedDate", 125),
-            ("Trạng thái đối chiếu", "Status", 235),
-            ("Chi tiết", "Notes", 270));
+            ("Kiện số", "PackageNo", 80),
+            ("Ngày cont đi", "SourceContDay", 125),
+            ("Tên vật tư · số lượng", "MaterialSummary", 290),
+            ("Trạng thái đối chiếu", "Status", 230),
+            ("Chi tiết", "Notes", 245));
         grid.IsReadOnly = false;
         grid.CanUserAddRows = false;
         grid.Columns.Insert(0, new DataGridCheckBoxColumn
@@ -59,8 +60,8 @@ public partial class MainWindow
             rows = PlannedArrivalWorkflow.Preview(approved, _service.Snapshot, Day(date));
             grid.ItemsSource = rows;
             var ready = rows.Count(x => x.Status == "Đủ nguồn · chờ xác nhận đã về");
-            feedback.Text = $"{rows.Count} dòng cont trong lịch AI đã duyệt · {ready} dòng đủ kiện nguồn · " +
-                $"{rows.Count - ready} dòng cần kiểm tra. Chỉ tích những dòng đã về THỰC TẾ.";
+            feedback.Text = $"{rows.Count} kiện từ lịch Gemini · {ready} kiện đủ nguồn · " +
+                $"{rows.Count - ready} kiện cần kiểm tra. Tích riêng từng KIỆN đã về THỰC TẾ (dù trùng số hợp đồng).";
         }
         date.SelectedDateChanged += (_, _) => preview();
         var actions = Row(
@@ -89,13 +90,13 @@ public partial class MainWindow
                 if (!Ask("XÁC NHẬN HÀNG ĐÃ VỀ KHO HƯNG YÊN\n\n" +
                     "Ngày thực tế: " + Rules.Day(Day(date)) + "\n" +
                     "Container: " + string.Join(", ", marked.Select(x => x.Container).Distinct()) + "\n" +
-                    "Hợp đồng: " + marked.Count + "\n" +
+                    "Hợp đồng: " + marked.Select(x=>Rules.Contract(x.Contract)).Distinct().Count() + "\n" +
                     "Kiện Hưng Yên: " + selected.Count + "\n" +
                     "Dòng vật tư nguồn: " + selected.Sum(x => x.Items.Count) + "\n\n" +
                     "Ghi vào trang chi tiết của Tổng hợp.xlsx (sao lưu trước khi ghi). " +
                     "Những hợp đồng chưa tích không được nhập. Tiếp tục?")) return;
                 var output = await _service.RecordVerifiedArrivalAsync(selected,
-                    date.SelectedDate.Value, useKt.IsChecked == true);
+                    date.SelectedDate.Value, false);
                 Notify($"Đã nhập {output.Contracts} HĐ · {output.Packages} kiện · " +
                        $"{output.Lines} dòng vào Tổng hợp.xlsx.\n" +
                        string.Join("\n", output.Warnings));
@@ -104,10 +105,11 @@ public partial class MainWindow
         );
         var explanation = Card(Stack(
             T("CONT HÀNG ĐÃ VỀ KHO", 18, true),
-            T("Lịch Gemini chỉ dự báo container. Khi xe đã về kho thực tế, tích đúng container rồi " +
-              "xác nhận để cập nhật trang chi tiết của Tổng hợp.xlsx. Không ghi nhập chỉ vì có lịch.",
+            T("Lịch Gemini chỉ dự báo container. Khi hàng thực tế về kho, tích riêng từng KIỆN (không chỉ từng số HĐ) rồi " +
+              "xác nhận để ghi trang chi tiết của Tổng hợp.xlsx. Không ghi chỉ vì có lịch.",
                 12, false, Muted),
-            Row(Field("Ngày cont thực tế về", date), useKt),
+            Row(Field("Ngày cont thực tế về", date),
+                T("Mỗi kiện có ID riêng · không gộp T1/T2, số lượng hay cont đi khác nhau", 12, true, Brush("#21847D"))),
             feedback,
             actions
         ));
