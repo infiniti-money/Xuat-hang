@@ -30,7 +30,7 @@ VersionInfoVersion={#AppVersion}
 VersionInfoDescription=Trình cài đặt HISA Quản lý kho
 
 [Languages]
-Name: "vietnamese"; MessagesFile: "Vietnamese.isl"
+Name: "vietnamese"; MessagesFile: "compiler:Languages\\Vietnamese.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "Tạo biểu tượng ngoài màn hình Desktop"; GroupDescription: "Tùy chọn:"; Flags: checkedonce
