@@ -81,7 +81,16 @@ public static class AuditExcelDiagnostics
         }
         store.RecordArrival(interleavedDates,kt,store.ReadMaster(interleavedDates).ContPackages,new DateTime(2026,10,16),false);
         var keptDates=store.ReadMaster(interleavedDates).DetailPackages;
-        Check(keptDates.Count==2&&keptDates.Single(x=>x.ArrivalDate=="2026-10-17").Items.Single().Material=="Ray ngày 17 cần giữ","Re-entering one arrival day preserves interleaved rows of another day for the same contract");
+        // New source-package identity semantics: a differently sourced physical package
+        // is appended, not used to delete a legacy packet with the same contract/day.
+        // Interleaved historical rows (including the other arrival day) must remain intact.
+        Check(keptDates.Count==3 &&
+            keptDates.Single(x=>x.ArrivalDate=="2026-10-17").Items.Single().Material=="Ray ngày 17 cần giữ" &&
+            keptDates.Any(x=>x.ArrivalDate=="2026-10-16" &&
+                x.Items.Count==2 && x.Items.Any(y=>y.Material=="Ray ngày 16 A2")) &&
+            keptDates.Any(x=>x.ArrivalDate=="2026-10-16" &&
+                x.Items.Any(y=>y.Material=="Ray thay cho ngày 16")),
+            "Importing an independent packet never deletes legacy interleaved rows or another arrival day");
 
         var exportRoot=SelfTests.CreateDemoWorkspace();var settings=new AppSettings{MasterPath=Path.Combine(exportRoot,"Tổng hợp.xlsx"),ProductExportPath=Path.Combine(exportRoot,"Thành phẩm xuất kho.xlsx")};
         var a=new MaterialLine{Contract="1012026",Project="Công trình A",Company="Cty",Material="Ray dẫn hướng A",Unit="mét",Quantity=1,Include=false};
