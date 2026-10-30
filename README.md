@@ -15,6 +15,11 @@
 
 
 ### Quy tắc phân biệt kiện Hưng Yên khi ghi Tổng hợp.xlsx
+- **Ngày cont đi khác nhau luôn là hai kiện riêng**, kể cả khi cùng số hợp đồng, công trình, chủng loại và số lượng vật tư.
+- Khi ghi vào trang `chi tiết` của `Tổng hợp.xlsx`, giữ nguyên tên công trình và nối ngày cont đi dạng ngắn trong ngoặc: `Công trình A T1 (26.10)`, `Công trình A T1 (27.10)`. Không ghi lặp ngày nếu tên đã có đúng hậu tố đó.
+- Hai cột ẩn AA/AB ghi số cont và mã kiện nguồn; cột ẩn **AC ghi ngày cont đi đầy đủ yyyy-MM-dd** để phân biệt cả khác năm có cùng ngày/tháng. Ba cột đều kiểm tra trước khi ghi, không ghi đè dữ liệu người dùng.
+- Ngày cont về và ngày cont đi được quản lý riêng; không tự chuyển hàng dự kiến về thành hàng đã về.
+
 
 **Mỗi kiện vật lý là một bản ghi riêng**, không gộp theo số hợp đồng:
 - Cùng số HĐ nhưng **khác số lượng hoặc danh mục vật tư** → giữ các kiện riêng.
