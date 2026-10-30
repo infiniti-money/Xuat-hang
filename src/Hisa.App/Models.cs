@@ -53,7 +53,7 @@ public static class Rules
     // It is a visual departure-date label, not part of the real project identity.
     // Original tower markers (T1/T2, Thang 1/2 and numbered parentheses) remain significant.
     private static readonly Regex DepartureSuffix = new(
-        @"\\s*\\((?:0?[1-9]|[12]\\d|3[01])\\.(?:0?[1-9]|1[0-2])\\)\\s*$",
+        @"\s*\((?:0?[1-9]|[12]\d|3[01])\.(?:0?[1-9]|1[0-2])\)\s*$",
         RegexOptions.Compiled);
 
     public static string ProjectWithContDate(string? project,string? sourceDay)
