@@ -9,7 +9,7 @@ public static class ExcelDiagnostics
     public static List<string> Run(string testRoot)
     {
         var root=Path.Combine(Path.GetFullPath(testRoot),"excel-fixtures-"+Guid.NewGuid().ToString("N"));Directory.CreateDirectory(root);
-        var evidence=new List<string>();var store=new ExcelStore();var master=Path.Combine(root,"Tổng hợp.xlsx");var kt=Path.Combine(root,"KT tổng hợp.xlsx");
+        var evidence=new List<string>();var store=new ExcelStore { BackupDirectory=Path.Combine(root,"Backups","Excel") };var master=Path.Combine(root,"Tổng hợp.xlsx");var kt=Path.Combine(root,"KT tổng hợp.xlsx");
         using(var wb=new XLWorkbook())
         {
             var cont=wb.AddWorksheet("Cont đi Hưng Yên");Headers(cont,1,["Ngày cont đi","Công trình","Công ty","Số HĐ","Kiện","Tên vật tư","ĐVT","Số lượng","Ghi chú"]);
@@ -64,7 +64,7 @@ public static class ExcelDiagnostics
         Check(after.DetailPackages.Count==5&&after.DetailPackages.Count(x=>x.ArrivalDate=="2026-10-27")==2,"Nhập kho giữ nguyên các ngày cont về trước",evidence);
         store.RecordArrival(master,kt,snap.ContPackages,new DateTime(2026,10,27),false);
         Check(store.ReadMaster(master).DetailPackages.Count==5,"Nhập lại cùng ngày không tạo kiện trùng",evidence);
-        Check(Directory.EnumerateFiles(Path.Combine(root,"HISA backups"),"*.xlsx").Any(),"Tạo sao lưu trước khi cập nhật Excel",evidence);
+        Check(Directory.Exists(store.BackupDirectory)&&Directory.EnumerateFiles(store.BackupDirectory,"*.xlsx").Any()&&!Directory.Exists(Path.Combine(root,"HISA backups")),"Tạo sao lưu Excel trong thư mục Backups riêng, không ghi cạnh nguồn",evidence);
         store.ApplyKt(master,kt);
         after=store.ReadMaster(master);
         Check(after.DetailPackages.Count==6&&after.DetailPackages.Any(x=>x.ArrivalDate=="2026-10-20"&&x.Items.Any(i=>i.Quantity==5))&&after.DetailPackages.Any(x=>x.ArrivalDate=="2026-10-16"),"KT chỉ bổ sung kiện còn thiếu, giữ nguyên dữ liệu cont đã nhập và ngày/số lượng của KT",evidence);
