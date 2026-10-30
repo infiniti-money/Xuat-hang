@@ -10,7 +10,7 @@ public partial class MainWindow
     {
         _page = "planned-arrivals";
         // A changed but unapproved on-screen schedule must never be used to record real arrivals.
-        var approved = _aiApproved && _aiDocument is { ApprovedAt.Length: > 0 }
+        var approved = _aiApproved && _aiDocument is { ApprovedAt: { Length: > 0 } }
             ? _aiDocument : PlannedArrivalWorkflow.LoadLatestApproved(_service.DataDirectory);
         if (approved is null)
         {
