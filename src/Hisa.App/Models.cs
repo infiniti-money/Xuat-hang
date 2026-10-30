@@ -65,7 +65,11 @@ public static class Rules
             CultureInfo.InvariantCulture,DateTimeStyles.None,out var parsed))
             return original;
         var suffix=" ("+parsed.ToString("dd.MM",CultureInfo.InvariantCulture)+")";
-        return original.EndsWith(suffix,StringComparison.Ordinal) ? original : original+suffix;
+        // A package can be reopened from an already-imported worksheet. Never turn
+        // "Công trình A (26.10)" into "Công trình A (26.10) (27.10)".
+        // Preserve any real tower marker, including (1), (2), T1 or Thang 2.
+        var originalWithoutOldDate=DepartureSuffix.Replace(original,"").TrimEnd();
+        return originalWithoutOldDate+suffix;
     }
     public static string ProjectCode(string? project)
     {

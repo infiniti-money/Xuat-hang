@@ -156,10 +156,23 @@ public partial class MainWindow
         dayDispatch.Width = 150;
         var incoming = ScheduleEditor(doc.Arrivals, true);
         var outgoing = ScheduleEditor(doc.Dispatches, false);
-        incoming.CellEditEnding += (_, _) => _aiApproved = false;
+        var saved = T(_aiApproved ? "Kế hoạch đã được duyệt trong phiên này." :
+            "Chưa duyệt. Mọi dòng có thể chỉnh sửa trước khi lưu.", 12, true);
+        // An approved snapshot is immutable. Changing even just the header date
+        // invalidates approval, otherwise a new unsaved arrival/dispatch date could
+        // be used to create handover slips from the previously approved schedule.
+        void InvalidateApproval()
+        {
+            _aiApproved = false;
+            doc.ApprovedAt = "";
+            saved.Text = "Lịch đã thay đổi sau lần duyệt. Kiểm tra và lưu duyệt lại trước khi lập phiếu hoặc nhập kho.";
+        }
+        dayArrival.TextChanged += (_, _) => InvalidateApproval();
+        dayDispatch.TextChanged += (_, _) => InvalidateApproval();
+        incoming.CellEditEnding += (_, _) => InvalidateApproval();
         outgoing.CellEditEnding += (_, e) =>
         {
-            if (e.Column.Header?.ToString() != "Làm phiếu") _aiApproved = false;
+            if (e.Column.Header?.ToString() != "Làm phiếu") InvalidateApproval();
         };
 
         var incomingCount = T(doc.Arrivals.Count + " công trình · hàng dự kiến nhập kho", 14, true);
@@ -180,7 +193,7 @@ public partial class MainWindow
                 true => false,
                 false => null
             };
-            _aiApproved = false;
+            InvalidateApproval();
             grid.Items.Refresh();
         }
         incomingBody.Children.Add(Row(
@@ -214,7 +227,6 @@ public partial class MainWindow
                 : string.Join("\n", warnings.Take(60)) + (warnings.Count > 60 ? "\n... còn " + (warnings.Count - 60) + " cảnh báo." : "");
         }
         RefreshWarnings();
-        var saved = T(_aiApproved ? "Kế hoạch đã được duyệt trong phiên này." : "Chưa duyệt. Mọi dòng có thể chỉnh sửa trước khi lưu.", 12, true);
         var save = B("Lưu kế hoạch đã duyệt", () =>
         {
             RefreshWarnings();

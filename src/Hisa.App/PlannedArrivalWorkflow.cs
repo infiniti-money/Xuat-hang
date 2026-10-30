@@ -65,17 +65,29 @@ public static class PlannedArrivalWorkflow
             var competing=duplicateSchedule.Contains(identity);
             var candidatesForCont=candidates.Where(x =>
                 x.ContainerNumber.Length>0
-                    ? Rules.Code(x.ContainerNumber)==Rules.Code(ai.Container)
+                    ? Rules.Code(x.ContainerNumber)==Rules.Code(ai.Container) &&
+                      (ai.ContainerExportDate.Length==0 ||
+                       x.SourceDate==ai.ContainerExportDate)
                     : ai.ContainerExportDate.Length>0 && x.SourceDate==ai.ContainerExportDate)
                 .ToList();
-            var ambiguous=competing &&
+            // Even a matching container number is not enough if this physical
+            // container carried the contract on multiple factory departure days.
+            var multipleDeparturesWithoutDate =
+                ai.ContainerExportDate.Length==0 &&
+                candidatesForCont.Select(x=>x.SourceDate).Distinct().Count()>1;
+            var ambiguous=multipleDeparturesWithoutDate || (competing &&
                 (candidatesForCont.Count==0 ||
                  candidatesForCont.Any(x=>x.SourceDate.Length==0 && x.ContainerNumber.Length==0) ||
                  arrivals.Where(x=>Rules.Identity(x.Contract,x.Project,x.Company)==identity)
                      .Any(x=>x!=ai && Rules.Code(x.Container)!=Rules.Code(ai.Container) &&
-                         (x.ContainerExportDate==ai.ContainerExportDate || x.ContainerExportDate.Length==0)));
-            var matched=competing ? (ambiguous ? new List<Package>() : candidatesForCont) :
-                (candidatesForCont.Count>0 ? candidatesForCont : candidates);
+                         (x.ContainerExportDate==ai.ContainerExportDate || x.ContainerExportDate.Length==0))));
+            // CRITICAL: even if this contract appears only once in the Zalo screenshot,
+            // do not silently assign an unrelated Cont đi source package to that container.
+            // The source must identify this exact container, or at least the verified
+            // factory departure date when its physical container ID is not recorded.
+            var unmatchedSource = candidates.Count>0 && candidatesForCont.Count==0;
+            var matched = ambiguous || unmatchedSource
+                ? new List<Package>() : candidatesForCont;
             if(matched.Count==0) matched=[new Package {
                 Contract=ai.Contract,Project=ai.Project,Company=ai.Company}];
 
@@ -105,13 +117,24 @@ public static class PlannedArrivalWorkflow
                 }
                 else if (ambiguous)
                 {
-                    row.Status="Cùng HĐ ở nhiều container";
-                    row.Notes="Không xác định được kiện thuộc cont nào. Cần số cont nguồn hoặc ngày cont đi khác nhau.";
+                    row.Status=multipleDeparturesWithoutDate
+                        ? "Chưa xác minh ngày cont đi" : "Cùng HĐ ở nhiều container";
+                    row.Notes="Có nhiều đợt hàng trùng HĐ hoặc cont. Cần đối chiếu đúng ngày cont đi và kiện nguồn trước khi nhập.";
+                }
+                else if (unmatchedSource)
+                {
+                    row.Status="Chưa xác minh kiện theo cont đi";
+                    row.Notes="Hợp đồng có kiện nguồn nhưng không khớp số cont hoặc ngày cont đi. Không được nhập tất cả kiện theo số HĐ; hãy xác minh nguồn và cập nhật lịch.";
                 }
                 else if (package.Id.Length==0)
                 {
                     row.Status="Chưa có kiện trong Tổng hợp";
                     row.Notes="Thiếu nguồn kiện đúng HĐ + công trình/T1/T2 + công ty. Không tự tạo vật tư.";
+                }
+                else if (package.Items==null || !package.Items.Any(x=>x.IsHungYen))
+                {
+                    row.Status="Chưa có vật tư nguồn";
+                    row.Notes="Kiện chưa có dòng vật tư Hưng Yên hợp lệ; không được ghi nhận đã nhập kho.";
                 }
                 else if (!DateTime.TryParseExact(package.SourceDate,"yyyy-MM-dd",
                     CultureInfo.InvariantCulture,DateTimeStyles.None,out _))

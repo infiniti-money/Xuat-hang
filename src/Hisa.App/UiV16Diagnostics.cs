@@ -20,9 +20,9 @@ public static class UiV16Diagnostics
             Arrivals =
             [
                 new AiScheduleLine { Contract = "123(1)", Project = "Công trình A",
-                    Company = "HISA", Container = "CONT-01", PlannedDate = day },
+                    Company = "HISA", Container = "CONT-01", ContainerExportDate="2026-10-26", PlannedDate = day },
                 new AiScheduleLine { Contract = "123(2)", Project = "Công trình B",
-                    Company = "HISA", Container = "CONT-02", PlannedDate = day }
+                    Company = "HISA", Container = "CONT-02", ContainerExportDate="2026-10-27", PlannedDate = day }
             ],
             Dispatches =
             [
@@ -77,6 +77,7 @@ public static class UiV16Diagnostics
             "Different project/contract in one container remains separate");
         doc.Arrivals[1].Contract = pkgA.Contract;
         doc.Arrivals[1].Project = pkgA.Project;
+        doc.Arrivals[1].ContainerExportDate = "2026-10-26";
         var collision = PlannedArrivalWorkflow.Preview(doc, snapshot, day);
         Check(collision[0].Status == "Đủ nguồn · chờ xác nhận đã về",
             "Same contract/identity in same container is possible; not automatically imported");
@@ -88,15 +89,15 @@ public static class UiV16Diagnostics
         // Reset schedule after intentional collision fixture, before testing quantity variants.
         doc.Arrivals=[
             new AiScheduleLine {Contract=pkgA.Contract,Project=pkgA.Project,Company=pkgA.Company,
-                Container="CONT-01",PlannedDate=day},
+                Container="CONT-01",ContainerExportDate="2026-10-26",PlannedDate=day},
             new AiScheduleLine {Contract=pkgB.Contract,Project=pkgB.Project,Company=pkgB.Company,
-                Container="CONT-02",PlannedDate=day}
+                Container="CONT-02",ContainerExportDate="2026-10-27",PlannedDate=day}
         ];
         // Same contract, same project but different material quantities: two physical packages.
         snapshot.DetailPackages=[];
         var manyA=new Package {
             Id="source-different-qty", Contract=pkgA.Contract, Project=pkgA.Project,
-            Company=pkgA.Company, SourceDate="2026-10-25",
+            Company=pkgA.Company, SourceDate="2026-10-26",
             Items=[new MaterialLine {Material="Đầu cửa tầng 700",Unit="Bộ",Quantity=3}]
         };
         snapshot.ContPackages=[pkgA,manyA,pkgB];
@@ -142,10 +143,71 @@ public static class UiV16Diagnostics
             "Ambiguous identical departure dates are blocked instead of guessing");
         doc.Arrivals=[
             new AiScheduleLine {Contract="123(1)",Project="Công trình A",
-                Company="HISA",Container="CONT-01",PlannedDate=day},
+                Company="HISA",Container="CONT-01",ContainerExportDate="2026-10-26",PlannedDate=day},
             new AiScheduleLine {Contract="123(2)",Project="Công trình B",
-                Company="HISA",Container="CONT-02",PlannedDate=day}
+                Company="HISA",Container="CONT-02",ContainerExportDate="2026-10-27",PlannedDate=day}
         ];
+        snapshot.ContPackages=[pkgA,pkgB];
+
+        // CRITICAL regression: one contract, two departure days in the source.
+        // The Zalo row showing only 26.10 may import ONLY the 26.10 source.
+        var otherDeparture = new Package {
+            Id="source-other-day",Contract=pkgA.Contract,Project=pkgA.Project,
+            Company=pkgA.Company,SourceDate="2026-10-27",
+            Items=[new MaterialLine{Material="Đầu cửa tầng 700",Unit="Bộ",Quantity=1}]
+        };
+        snapshot.ContPackages=[pkgA,otherDeparture,pkgB];
+        var oneContPreview=PlannedArrivalWorkflow.Preview(doc,snapshot,day);
+        Check(oneContPreview.Count==2 &&
+              oneContPreview.Count(x=>x.Contract==pkgA.Contract)==1 &&
+              oneContPreview[0].SourcePackageId==pkgA.Id,
+            "One Zalo container on 26.10 must NOT import a second source package sent 27.10");
+        doc.Arrivals[0].ContainerExportDate="2026-10-28";
+        var mismatched=PlannedArrivalWorkflow.Preview(doc,snapshot,day);
+        Check(mismatched[0].Status=="Chưa xác minh kiện theo cont đi" &&
+              mismatched[0].SourcePackageId.Length==0,
+            "Single Zalo contract cannot import any source when departure date mismatches");
+        var refused=false;
+        try{PlannedArrivalWorkflow.SelectVerified([mismatched[0]],doc,snapshot,day);}
+        catch(InvalidOperationException){refused=true;}
+        Check(refused,"Actual receipt confirmation rejects unverified physical container");
+        doc.Arrivals[0].ContainerExportDate="";
+        Check(PlannedArrivalWorkflow.Preview(doc,snapshot,day)[0].Status==
+              "Chưa xác minh kiện theo cont đi",
+            "Missing departure date must not import every same-contract source package");
+        doc.Arrivals[0].ContainerExportDate="2026-10-26";
+        pkgA.ContainerNumber="CONT-01";
+        otherDeparture.ContainerNumber="CONT-01";
+        doc.Arrivals[0].ContainerExportDate="";
+        var sameContNoDate=PlannedArrivalWorkflow.Preview(doc,snapshot,day);
+        Check(sameContNoDate[0].Status=="Chưa xác minh ngày cont đi",
+            "Same physical container reused on different departure days needs a confirmed day");
+        doc.Arrivals[0].ContainerExportDate="2026-10-28";
+        Check(PlannedArrivalWorkflow.Preview(doc,snapshot,day)[0].Status==
+              "Chưa xác minh kiện theo cont đi",
+            "Matching container number cannot override an incorrect departure date");
+        doc.Arrivals[0].ContainerExportDate="2026-10-26";
+        var precise=PlannedArrivalWorkflow.Preview(doc,snapshot,day);
+        Check(precise.Count(x=>x.Contract==pkgA.Contract)==1 &&
+              precise[0].SourcePackageId==pkgA.Id &&
+              precise[0].Status.StartsWith("Đủ nguồn"),
+            "Exact container number and 26.10 source date identify only the intended package");
+        pkgA.ContainerNumber="";
+        snapshot.ContPackages=[pkgA,pkgB];
+
+        // A source package header without any Hưng Yên material is not a receipt.
+        var emptyPackage=new Package {
+            Id="source-empty",Contract=pkgA.Contract,Project=pkgA.Project,
+            Company=pkgA.Company,SourceDate="2026-10-26"
+        };
+        snapshot.ContPackages=[emptyPackage,pkgB];
+        var emptyPreview=PlannedArrivalWorkflow.Preview(doc,snapshot,day);
+        Check(emptyPreview[0].Status=="Chưa có vật tư nguồn",
+            "AI cannot mark a physically empty Hưng Yên package ready for receipt");
+        var refusedEmpty=false;
+        try{PlannedArrivalWorkflow.SelectVerified([emptyPreview[0]],doc,snapshot,day);}
+        catch(InvalidOperationException){refusedEmpty=true;}
+        Check(refusedEmpty,"Empty source package never reaches Excel import");
         snapshot.ContPackages=[pkgA,pkgB];
 
         // Handover is always based on Dispatches, never the Arrivals table.

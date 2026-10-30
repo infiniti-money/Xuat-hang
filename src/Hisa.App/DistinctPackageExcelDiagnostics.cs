@@ -107,6 +107,13 @@ public static class DistinctPackageExcelDiagnostics
                 Rules.Identity("55052026","Công trình B T1","HISA") !=
                 Rules.Identity("55052026","Công trình B T2 (29.10)","HISA"),
                 "generated departure date does not change project matching or merge tower names");
+            Check(Rules.ProjectWithContDate("Công trình B T1 (26.10)","2026-10-27") ==
+                "Công trình B T1 (27.10)" &&
+                Rules.ProjectWithContDate("Công trình B (Thang 1) (26.10)","2026-10-26") ==
+                "Công trình B (Thang 1) (26.10)" &&
+                Rules.ProjectCode("Công trình B T1 (27.10)") ==
+                Rules.ProjectCode("Công trình B T1"),
+                "re-saving an imported project replaces outdated (dd.MM) without duplicating labels");
             Check(Rules.ProjectWithContDate("Công trình B (Thang 1)","2026-10-26") ==
                 "Công trình B (Thang 1) (26.10)" &&
                 Rules.ProjectWithContDate("Công trình B (1)","2026-10-27") ==

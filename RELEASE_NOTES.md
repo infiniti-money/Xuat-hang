@@ -1,3 +1,28 @@
+# HISA Quản lý kho v1.8.1 – Sửa lỗi sau rà soát toàn diện
+
+## Các lỗi nghiệp vụ được khắc phục
+- **Không nhập nhầm kiện theo lịch AI**: nếu lịch Zalo có một dòng hợp đồng nhưng nguồn `Cont đi Hưng Yên` chứa nhiều kiện khác ngày xuất cont, HISA chỉ cho phép chọn kiện khớp chính xác **ngày cont đi hoặc mã container**. Không còn tự lấy tất cả kiện của hợp đồng khi không xác minh được nguồn.
+- **Đối chiếu cả số cont và ngày xuất tại nhà máy**: nếu đã biết cả hai, chúng phải nhất quán; số cont trùng nhưng lịch xuất tại nhà máy khác ngày sẽ bị chặn.
+- **Cùng số cont đi nhiều ngày**: nếu nguồn ghi nhiều đợt mà ảnh Zalo không có ngày cont đi, không cho nhập dựa trên phỏng đoán; thông báo **Chưa xác minh ngày cont đi**.
+- **Kiện nguồn không có vật tư Hưng Yên**: ngăn ghi nhận nhập kho hoặc báo đã nhập khi không có dòng vật tư phù hợp; phải cập nhật/đối chiếu nguồn trước.
+- **Chỉnh lịch AI sau phê duyệt**: sửa ngày dự kiến hoặc dữ liệu bảng sau khi duyệt sẽ hủy trạng thái duyệt ở phiên đang sửa. Không thể dùng nội dung thay đổi chưa được duyệt để chuẩn bị phiếu chờ hay ghi nhận cont thực tế.
+- **Ngày cont đi trong tên công trình**: cập nhật lại hậu tố ngày `(dd.MM)` sẽ **thay thế** hậu tố cũ, không lặp thành `(26.10) (27.10)`; vẫn bảo toàn T1/T2, Thang 1/2, (1)/(2).
+- **Trò chuyện Gemini có quyền xem dữ liệu**: trợ lý nhận trạng thái chuẩn bị được tính bởi quy tắc HISA thay vì tự suy luận hàng đã sẵn từ lịch dự kiến. Không gửi serial máy kéo hoặc file Excel gốc.
+
+## Phạm vi rà soát & xác minh
+- Kiểm tra mã nguồn WPF/.NET 10, luồng AI đọc ảnh – duyệt – nhập cont/phiếu chờ, quản lý Gemini API Key, file Excel, phân biệt kiện, bản phát hành tự cập nhật và các ca regression.
+- Bổ sung kiểm thử tự động cho lịch một HĐ nhưng nhiều ngày cont đi, số cont trùng hai ngày, số cont đúng nhưng ngày không khớp, thiếu ngày, đổi hậu tố trong tên công trình và trạng thái chuẩn bị trong Gemini Chat.
+- Các kiểm thử Excel chạy trên workbook tạm, không chỉnh sửa `Tổng hợp.xlsx` của người dùng.
+- GitHub CI phải biên dịch WPF trên Windows, chạy toàn bộ regression và tạo bộ cài EXE/ZIP trước khi phát hành.
+
+## Giới hạn còn cần thử nghiệm tại máy kho
+- Chưa có ảnh chụp giao diện thật trong phiên rà soát này và không thể xác minh thao tác chuột, tỷ lệ DPI/màn hình trên máy của người dùng chỉ bằng CI.
+- Chưa có file Excel máy kéo/đầu cửa cabin thực tế để xác minh cấu trúc, serial và quy tắc đối chiếu dữ liệu đó; không kết luận thiếu hàng nếu chưa nhập nguồn.
+- Gemini API cần thử bằng khóa riêng trên máy người dùng; CI không có khóa API và không gửi ảnh Zalo thật.
+- Hãy sao lưu `Tổng hợp.xlsx` và đối chiếu 2–3 hợp đồng mẫu (cùng số HĐ, khác cont/ngày, T1/T2) trên máy thật trước khi ghi hàng loạt.
+
+---
+
 # HISA Quản lý kho v1.8.0 – Giao diện tối ưu theo công việc kho Hưng Yên
 
 ## Gộp menu và loại bỏ thao tác trùng lặp

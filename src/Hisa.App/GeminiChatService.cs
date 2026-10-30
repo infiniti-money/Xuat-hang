@@ -76,13 +76,22 @@ Trả lời rõ ràng, ngắn gọn, có thể giải thích thêm theo yêu c�
                 ? codes.Contains(Rules.Contract(x.Contract))
                 : days.Contains(x.Day))
             .Take(60).ToList();
+        // Status is calculated by deterministic warehouse rules, not inferred by
+        // Gemini from the planned date or the presence of a source package.
+        var evaluated=shownPlans.Select(x=>x.Day).Distinct(StringComparer.Ordinal)
+            .SelectMany(day=>DispatchReadinessStore.Evaluate(readiness,snapshot,day))
+            .GroupBy(x=>x.Plan.Id,StringComparer.Ordinal)
+            .ToDictionary(x=>x.Key,x=>x.First().Status,StringComparer.Ordinal);
         context.AppendLine("KẾ HOẠCH XUẤT (chưa phải đã xuất): " + shownPlans.Count +
             " dòng trong phạm vi tra cứu, có thể là danh sách rút gọn.");
         foreach (var x in shownPlans)
             AppendCapped(context, "Lịch " + Safe(x.Day, 12) + ": HĐ " + Safe(x.Contract, 40) +
                 ", công trình " + Safe(x.Project, 95) +
                 ", đơn vị " + Safe(x.Company, 65) + ", ưu tiên=" + x.Urgent +
-                ", cần kiểm tra=" + x.NeedsReview + ", điểm đến=" + Safe(x.Destination, 45));
+                ", cần kiểm tra=" + x.NeedsReview +
+                ", TÌNH TRẠNG VẬT TƯ ĐÃ ĐỐI CHIẾU=" +
+                Safe(evaluated.GetValueOrDefault(x.Id) ?? "Chưa xác nhận",70) +
+                ", điểm đến=" + Safe(x.Destination, 45));
         if (codes.Count > 0)
         {
             var limited = candidates.Take(35).ToList();
