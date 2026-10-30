@@ -11,6 +11,9 @@ namespace Hisa.App;
 // AI is a proposal reader, not a warehouse ledger writer. No image or API key is persisted.
 public sealed class AiScheduleLine
 {
+    // Transient UI choice; never interpreted as authorization to deliver goods.
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool SelectedForHandover { get; set; }
     public string Project { get; set; } = "";
     public string Company { get; set; } = "";
     public string Contract { get; set; } = "";
