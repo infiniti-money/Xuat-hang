@@ -43,6 +43,8 @@ public sealed partial class WarehouseService : IDisposable
     private bool _historyCacheValid;
     public string Workspace { get; }
     public string DataDirectory => _data;
+    /// <summary>ZIP backups and automatic Excel snapshots live in the Documents library.</summary>
+    public string BackupDirectory { get; }
     public AppSettings Settings { get; private set; }
     public WorkbookSnapshot Snapshot { get { lock(_stateLock) return _snapshot; } }
     public List<Slip> Slips { get { lock(_stateLock) return [.._slips]; } }
@@ -65,7 +67,12 @@ public sealed partial class WarehouseService : IDisposable
         _data = workspace != null
             ? Path.Combine(workspace, "native_data")
             : Path.Combine(UserDocumentsHome(), "APP KHO", "data");
+        BackupDirectory = workspace != null
+            ? Path.Combine(workspace, "Backups")
+            : Path.Combine(UserDocumentsHome(), "Backups");
         Directory.CreateDirectory(_data);
+        Directory.CreateDirectory(BackupDirectory);
+        _excel.BackupDirectory=Path.Combine(BackupDirectory,"Excel");
         if(workspace==null)
         {
             MigrateNativeData(Path.Combine(Workspace,"APP KHO","data"),_data);
