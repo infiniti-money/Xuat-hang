@@ -687,7 +687,9 @@ public sealed class ExcelStore
                 var reservedA=sheet.Cell(2,27).GetString();
                 var reservedB=sheet.Cell(2,28).GetString();
                 if ((reservedA.Length>0 && reservedA!="HISA_CONTAINER") ||
-                    (reservedB.Length>0 && reservedB!="HISA_SOURCE_PACKAGE"))
+                    (reservedB.Length>0 && reservedB!="HISA_SOURCE_PACKAGE") ||
+                    (reservedA.Length==0 && sheet.Column(27).CellsUsed().Any(c=>c.Address.RowNumber!=row)) ||
+                    (reservedB.Length==0 && sheet.Column(28).CellsUsed().Any(c=>c.Address.RowNumber!=row)))
                     throw new InvalidOperationException("Cột AA/AB trong Tổng hợp.xlsx có dữ liệu khác; không ghi đè. Liên hệ quản trị để chọn vị trí lưu ID kiện.");
                 sheet.Cell(2,27).Value="HISA_CONTAINER";
                 sheet.Cell(2,28).Value="HISA_SOURCE_PACKAGE";
