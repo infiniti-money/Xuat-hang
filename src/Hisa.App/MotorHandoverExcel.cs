@@ -239,6 +239,9 @@ public static class MotorHandoverExcel
                 warnings.Add("Cột N đã bị sửa bên ngoài HISA. Không ghi đè: "+identity);
                 continue;
             }
+            // An already-matching value typed by the operator stays operator-owned.
+            // Claim ownership only when HISA actually changes the cell.
+            if(owned==null && existing==day)continue;
             actions.Add((candidates[0].SourceRow,day,identity,owned?.PreviousDate??existing));
             next[identity]=new Receipt{Identity=identity,Date=day,PreviousDate=owned?.PreviousDate??existing};
         }
