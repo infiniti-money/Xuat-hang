@@ -1,3 +1,25 @@
+## HISA v1.9.8 · Giữ các file Tủ điện, Máy kéo, Đầu cửa car ngoài thư mục Tổng hợp
+
+**Không để ba file sản xuất chung thư mục với `Tổng hợp.xlsx` hoặc trong `CONT ĐI`.** Mỗi file dùng đường dẫn đầy đủ riêng, không bắt buộc chung thư mục với nhau. Ví dụ:
+
+```text
+D:\KhoHISA\
+├── Kho chính\Tổng hợp.xlsx
+├── CONT ĐI\
+└── Danh sách sản xuất\
+    ├── TỦ ĐIỆN.xlsx
+    ├── MÁY KÉO.xlsx
+    └── Đầu cửa car T10.2026.xlsx
+```
+
+Ba danh sách sản xuất có thể nằm trong **bất kỳ thư mục độc lập nào** trên máy hoặc ổ mạng. Tại **Cấu hình nguồn dữ liệu → Danh sách thiết bị theo hợp đồng**, bấm **Chọn Excel** cho từng file, sau đó **Lưu cấu hình & tải lại**. Việc thay thư mục nguồn `CONT ĐI` hoặc đổi vị trí `Tổng hợp.xlsx` **không tự thay đường dẫn** của ba danh sách. HISA chỉ đọc file nguồn, không tự di chuyển/sao chép hay chỉnh sửa nội dung.
+
+- Khi lưu, nếu file thiết bị nằm cùng thư mục `Tổng hợp.xlsx`, trong `CONT ĐI`, hoặc dùng chung một file cho hai danh sách, HISA hiển thị lỗi rõ và yêu cầu chọn lại file ở thư mục độc lập.
+- Để tương thích cấu hình cũ, HISA vẫn có thể mở và hiển thị các file đã liên kết trước đó nhưng cảnh báo ở trang cấu hình; danh sách sản xuất bị đặt nhầm vào thư mục `CONT ĐI` không được đưa vào dữ liệu cont/nhập kho.
+- Cả ba nguồn vẫn dùng để tra cứu vật tư theo hợp đồng từ ảnh Gemini và màn hình theo dõi máy kéo gia công Hưng Yên. Danh sách sản xuất không tự xác nhận trạng thái thực nhận hoặc bàn giao.
+
+---
+
 ## HISA v1.9.7 · Theo dõi máy kéo gửi Hưng Yên gia công và bàn giao
 
 **Quy trình thao tác mới:** Mở **Máy kéo · gửi / làm / bàn giao** từ menu trái. HISA đọc các dòng của file **MÁY KÉO.xlsx** đã liên kết tại Cấu hình nguồn dữ liệu (file chỉ đọc). Mỗi dòng / máy / số seri được đối chiếu riêng với số HĐ, công trình, đơn vị và loại máy.
