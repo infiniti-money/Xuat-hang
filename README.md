@@ -1,3 +1,5 @@
+**HISA v1.9.22:** Gemini Chat có xác nhận thu micro trong HISA và xác nhận lần hai trước khi gửi WAV cho Gemini để chuyển tiếng Việt thành chữ qua Internet. Âm thanh không tự gửi hoặc lưu vào đĩa; không cần Windows Speech vi-VN. Nút Quyền micro Windows mở `ms-settings:privacy-microphone`. HISA là ứng dụng desktop nên không thể tự tạo hộp thoại quyền truy cập riêng của Windows.
+
 # HISA v1.9.21 — Nhập kho từ thư mục Container theo kiện Hưng Yên
 
 **Nguồn vật lý:** Chọn đúng thư mục gốc `Kho HISA`. Khi người dùng đọc ảnh Zalo hoặc tự nhập số hợp đồng rồi bấm **Tìm kiện**, HISA mới quét các Excel nằm trong `Kho HISA/Container` và các thư mục ngày (ví dụ `26.10`). Không quét Container lúc mở chương trình, ở nút Làm mới chung hoặc trong đồng bộ nền. Không dùng trang `Cont đi Hưng Yên` trong `Tổng hợp.xlsx` làm nguồn tra cứu hoặc nơi ghi dữ liệu nữa.
