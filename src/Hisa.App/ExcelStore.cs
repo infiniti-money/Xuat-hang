@@ -438,7 +438,7 @@ public sealed class ExcelStore
                         continue;
                     }
                     var fileWarnings=new List<string>();
-                    var packages=ParseSource(path,manifest,metadata,fileWarnings,roots);
+                    var packages=ParseSource(path,manifest,metadata,fileWarnings,roots,requireHungYenMarker:!includeReceivedArchives);
                     sourceCache[path]=(stamp,packages,fileWarnings);
                     result.Warnings.AddRange(fileWarnings);
                     result.Packages.AddRange(Clone(packages));
