@@ -73,14 +73,14 @@ public static class MotorSerialDiagnostics
         settings.TractionMachineListPath=motorExcel;
         await service.SaveSettingsAsync(settings);
         using(var source=new XLWorkbook(motorExcel))
-            Check(source.Worksheet(1).Cell(2,14).IsEmpty(),
+            Check(source.Worksheet(1).Cell(2,12).IsEmpty(),
                 "Before confirming export, no handover date column or delivery dates are written");
         draft.Status="delivered";var delivered=await service.SaveSlipAsync(draft);
         using(var source=new XLWorkbook(motorExcel))
         {
             var sheet=source.Worksheet(1);
-            Check(sheet.Cell(2,14).GetString()=="Ngày bàn giao" &&
-                Enumerable.Range(3,5).All(row=>sheet.Cell(row,14).GetDateTime()==
+            Check(sheet.Cell(2,12).GetString()=="Ngày xuất kho" &&
+                Enumerable.Range(3,5).All(row=>sheet.Cell(row,12).GetDateTime()==
                     new DateTime(2026,10,27)),
                 "Actual confirmed export automatically writes handover day in MÁY KÉO.xlsx for all five serials");
         }
@@ -120,7 +120,7 @@ public static class MotorSerialDiagnostics
         finally{dialog.Close();}
         await service.ChangeSlipStatusAsync(delivered.Id,"cancelled","Trả lại máy vào kho");
         using(var machineBook=new XLWorkbook(motorExcel))
-            Check(Enumerable.Range(3,5).All(row=>machineBook.Worksheet(1).Cell(row,14).IsEmpty()),
+            Check(Enumerable.Range(3,5).All(row=>machineBook.Worksheet(1).Cell(row,12).IsEmpty()),
                 "Cancelling shipment rolls back HISA-owned handover dates in machine Excel");
         using(var book=new XLWorkbook(service.Settings.ProductExportPath))Check(!book.Worksheet(1).RowsUsed().Any(row=>row.Cell(6).GetString().Contains(delivered.Id)),"Cancelling removes only the physical export entry");
         MotorSerials.Validate(second,service.Slips);checks.Add("Cancelled slip no longer blocks reuse of returned motor serial");
