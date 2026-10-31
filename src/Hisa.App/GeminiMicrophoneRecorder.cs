@@ -21,11 +21,21 @@ public sealed class GeminiMicrophoneRecorder : IDisposable
     private Action<string>? _status;
     private int _recorded;
     private bool _submit;
+    private bool _handsFree;
+    private HandsFreeVoiceActivity? _activity;
+    private readonly Queue<byte[]> _preRoll = new();
     private bool _disposed;
 
     public bool IsRecording { get { lock (_gate) return _input != null; } }
 
-    public void Start(Action<byte[]> completed, Action<string> status)
+    public void Start(Action<byte[]> completed, Action<string> status) =>
+        StartCore(completed,status,false);
+
+    /// <summary>Start VAD mode only after explicit hands-free session consent.</summary>
+    public void StartHandsFree(Action<byte[]> completed,Action<string> status) =>
+        StartCore(completed,status,true);
+
+    private void StartCore(Action<byte[]> completed, Action<string> status,bool handsFree)
     {
         ArgumentNullException.ThrowIfNull(completed);
         ArgumentNullException.ThrowIfNull(status);
@@ -49,6 +59,9 @@ public sealed class GeminiMicrophoneRecorder : IDisposable
             _input = input; _buffer = stream; _writer = writer;
             _completed = completed; _status = status;
             _recorded = 0; _submit = false;
+            _handsFree = handsFree;
+            _activity = handsFree ? new HandsFreeVoiceActivity() : null;
+            _preRoll.Clear();
             try { input.StartRecording(); }
             catch
             {
@@ -66,22 +79,52 @@ public sealed class GeminiMicrophoneRecorder : IDisposable
         lock (_gate)
         {
             if (_writer == null || !ReferenceEquals(sender,_input)) return;
-            var length = Math.Min(e.BytesRecorded,MaximumSeconds*BytesPerSecond - _recorded);
-            if (length > 0)
+            if (_handsFree)
             {
-                _writer.Write(e.Buffer,0,length);
-                _recorded += length;
+                var detector=_activity!;
+                var wasSpeaking=detector.HasSpeech;
+                detector.Feed(e.Buffer.AsSpan(0,e.BytesRecorded));
+                if(!wasSpeaking)
+                {
+                    // Keep only 300-400ms in memory to preserve initial consonants,
+                    // even while listening idle for an extended time.
+                    _preRoll.Enqueue(e.Buffer.AsSpan(0,e.BytesRecorded).ToArray());
+                    while(_preRoll.Count>4)_preRoll.Dequeue();
+                    if(detector.HasSpeech)
+                    {
+                        foreach(var block in _preRoll)
+                        {
+                            var bytes=Math.Min(block.Length,MaximumSeconds*BytesPerSecond-_recorded);
+                            if(bytes>0){_writer.Write(block,0,bytes);_recorded+=bytes;}
+                        }
+                        _preRoll.Clear();
+                    }
+                }
+                else
+                {
+                    var bytes=Math.Min(e.BytesRecorded,MaximumSeconds*BytesPerSecond-_recorded);
+                    if(bytes>0){_writer.Write(e.Buffer,0,bytes);_recorded+=bytes;}
+                }
+                if(detector.Finished || _recorded>=MaximumSeconds*BytesPerSecond)
+                {
+                    _submit=detector.HasSpeech && _recorded>0;
+                    stop=_input;
+                }
             }
-            if (_recorded >= MaximumSeconds*BytesPerSecond)
+            else
             {
-                _submit = true;
-                stop = _input;
+                var length=Math.Min(e.BytesRecorded,MaximumSeconds*BytesPerSecond-_recorded);
+                if(length>0){_writer.Write(e.Buffer,0,length);_recorded+=length;}
+                if(_recorded>=MaximumSeconds*BytesPerSecond)
+                {
+                    _submit=true;stop=_input;
+                }
             }
         }
-        if (stop != null)
+        if(stop!=null)
         {
-            try { stop.StopRecording(); }
-            catch (InvalidOperationException) { }
+            try {stop.StopRecording();}
+            catch(InvalidOperationException) { }
         }
     }
 
@@ -115,6 +158,7 @@ public sealed class GeminiMicrophoneRecorder : IDisposable
             count = _recorded;
             _input = null; _writer = null; _buffer = null;
             _completed = null; _status = null; _submit = false; _recorded = 0;
+            _handsFree = false; _activity = null; _preRoll.Clear();
         }
         try
         {
