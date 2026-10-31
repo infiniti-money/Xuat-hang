@@ -1,3 +1,14 @@
+## HISA v1.9.3 · Hai thao tác từ ảnh Zalo
+
+Chọn ảnh Zalo → **Phân tích với Gemini** → kiểm tra ngày, công trình và hợp đồng → **Lưu kế hoạch đã duyệt**. Sau đó có hai danh sách độc lập:
+
+1. **Cont dự kiến về:** chỉ khi cont *thực tế đã về* mới tích **Cont đã về?** và chọn **Đối chiếu cont đã về → Ghi Excel**. Ở bước tiếp theo, kiểm tra ngày thực nhận và tích **từng kiện** đúng nguồn. Không có kiện nào tự tích nhận. Chỉ ghi vào `Tổng hợp.xlsx` sau xác nhận và sao lưu.
+2. **Hợp đồng dự kiến bàn giao:** tích **Làm phiếu** và chọn **Lập phiếu từ hợp đồng đã tích**, kiểm tra vật tư, tạo **phiếu chờ xuất**. Không tự xác nhận Đã xuất.
+
+Các tính năng thêm hợp đồng thủ công và cảnh báo chi tiết được thu gọn bên dưới hai danh sách. Lịch dự kiến không phải bằng chứng hàng thực nhận. Bản cài đè vẫn giữ dữ liệu và Gemini API Key.
+
+---
+
 ### Khôi phục chọn nguồn dữ liệu · HISA v1.9.2
 
 - Chọn ngay **Cấu hình nguồn dữ liệu** từ thanh menu bên trái. Mục **Nguồn dữ liệu Excel → Chọn thư mục nguồn** hiện ở đầu trang, trước Gemini AI.
