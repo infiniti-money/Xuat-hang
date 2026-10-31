@@ -10,7 +10,7 @@ public partial class MainWindow
     /// contracts. Never treats a forecast as a warehouse arrival.
     /// </summary>
     private FrameworkElement BuildContDiSourcePanel(
-        Func<List<AiScheduleLine>> requests,Action? commitInput=null)
+        Func<List<AiScheduleLine>> requests,Action? commitInput=null,bool searchWhenLoaded=false)
     {
         var actualDate=DateInput(DateTime.Today.ToString("yyyy-MM-dd"));
         var explanation=T("Chọn ngày cont THỰC TẾ về kho. HISA tìm đúng số hợp đồng trong thư mục "+
@@ -99,11 +99,22 @@ public partial class MainWindow
                 await SearchAsync();
             })
         );
-        return Stack(Card(Stack(
+        var panel=Stack(Card(Stack(
             T("TÌM KIỆN CONT ĐI → XÁC NHẬN CONT VỀ → TỔNG HỢP.XLSX",16,true),
             explanation,
             Row(Field("Ngày cont thực tế về kho",actualDate)),
             buttons,feedback)),
             grid);
+        if(searchWhenLoaded)
+        {
+            panel.Loaded+=async (_,_) =>
+            {
+                if(scanned)return;
+                try {await SearchAsync();}
+                catch(Exception ex) {feedback.Text="Chưa tìm được kiện trong CONT ĐI: "+
+                    ex.Message+" · Kiểm tra đường dẫn Excel nguồn, sau đó bấm Tìm kiện.";}
+            };
+        }
+        return panel;
     }
 }
