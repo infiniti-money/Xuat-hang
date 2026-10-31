@@ -38,6 +38,11 @@ public partial class MainWindow : Window
         _service = service;
         Title = SoftwareInfo.DisplayName;
         VersionText.Text="Phiên bản "+SoftwareInfo.Version;
+        AutoUpdater.UpdateStaged+=version=>Dispatcher.BeginInvoke(()=>
+        {
+            TopUpdateButton.Content="↑  Cập nhật "+version;
+            TopUpdateButton.ToolTip="Đã tải và xác minh bản mới. Nhấn để xem và cài đặt.";
+        });
         TodayText.Text=DateTime.Now.ToString("dddd, dd/MM/yyyy",CultureInfo.GetCultureInfo("vi-VN"));
         NavCaption("CÔNG VIỆC HÔM NAY");
         AddNav("dashboard", "▦", "Tổng quan / việc cần làm");

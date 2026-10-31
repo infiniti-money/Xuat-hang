@@ -1,3 +1,11 @@
+
+### Cài đặt và cập nhật phiên bản 1.9.1
+
+- Mở HISA → nút **↑ Cập nhật** trên thanh công cụ → **Kiểm tra cập nhật** → **Cài bản đã tải**. Bản tải xuống phải khớp SHA-256; chỉ cài khi người dùng xác nhận.
+- Đối với HISA 1.8.1 hoặc bản cũ không hiện nút cập nhật: mở [GitHub Releases](https://github.com/infiniti-money/Xuat-hang/releases/latest), tải tệp `HISA-Kho-Vat-Tu-<phiên-bản>-Setup.exe`, đóng HISA và chạy bộ cài đè lên phiên bản hiện có.
+- Nếu Windows hiện yêu cầu UAC, chọn Đồng ý để cài trong Program Files. Nếu từ chối, chương trình hiện tại không bị xóa. Không cần gỡ cài đặt trước và **không xóa thư mục Tài liệu\\HISA Kho Vat Tu**.
+- Trong trường hợp bộ cài lỗi, giữ lại phiên bản đang sử dụng và tải lại từ GitHub Releases; không sao chép đè file EXE riêng lẻ trong Program Files.
+
 # Quản lý kho — C# / .NET 10 · phiên bản 1.9.0
 
 **Người tạo:** Trịnh Phương Tân  

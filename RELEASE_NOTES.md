@@ -1,3 +1,16 @@
+# HISA Quản lý kho v1.9.1 — sửa cài đặt và cập nhật Windows
+
+- **Nút “↑ Cập nhật” hiển thị trực tiếp trên thanh công cụ** thay vì chỉ nằm trong Quản lý & lịch sử → Thông tin phần mềm. Khi tải xong bản nâng cấp đã xác minh, nút hiển thị số phiên bản mới.
+- **Cập nhật có xác nhận:** kiểm tra GitHub Releases, tải bộ cài chính thức và đối chiếu SHA-256. HISA chỉ khởi chạy nâng cấp sau khi người dùng bấm “Cài bản đã tải”, xác nhận và đóng ứng dụng; không tự cài khi đóng mà chưa được phép.
+- **Xử lý lỗi rõ ràng:** bộ cài hiển thị tiến trình, nếu không mở được/UAC bị từ chối hoặc checksum không đúng thì thông báo lỗi; phiên bản cũ và dữ liệu HISA được giữ nguyên.
+- **Mở lại phần mềm đúng lúc:** trình cài chỉ tự mở HISA ở chế độ nâng cấp đã được xác nhận, tránh khởi chạy phần mềm ngoài ý muốn trong cài đặt hàng loạt/CI.
+- **Cài thủ công:** có nút “Tải bộ cài thủ công” dẫn tới GitHub Releases. Nếu đang dùng HISA v1.8.1 không thấy mục cập nhật, hãy tải bản Setup này, thoát HISA và chạy cài đè; không cần xóa chương trình hay thư mục dữ liệu.
+- **Kiểm thử Windows:** thêm kiểm tra cài mới, cài đè cùng AppId, phiên bản tệp đã cài và bảo toàn tệp không thuộc ứng dụng; thêm các bài kiểm tra URL tải bản chính thức, checksum và quyền cho phép cập nhật. Bản phát hành chỉ xuất khi GitHub Actions thành công.
+
+Lưu ý: Cập nhật không tự ghi `Tổng hợp.xlsx`, không thay đổi các phiếu đã lập và không xóa Gemini API Key trong Windows Credential Manager. Windows vẫn có thể yêu cầu quyền quản trị (UAC).
+
+---
+
 # HISA Quản lý kho v1.9.0 – Trung tâm lịch nhập – xuất và hợp đồng phát sinh
 
 ## Một màn hình điều hành cho nhập và bàn giao

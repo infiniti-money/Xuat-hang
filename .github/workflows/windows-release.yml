@@ -100,6 +100,36 @@ jobs:
           "$hash  $(Split-Path $setup -Leaf)" | Set-Content -LiteralPath $checksum -Encoding ascii
           "checksum=$checksum" >> $env:GITHUB_OUTPUT
 
+      - name: Smoke-test fresh installation and in-place upgrade
+        shell: pwsh
+        env:
+          APP_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          $setup = (Resolve-Path "installer-output/HISA-Kho-Vat-Tu-$env:APP_VERSION-Setup.exe").Path
+          $installRoot = Join-Path $env:RUNNER_TEMP "HISA-Installer-Smoke"
+          $installedExe = Join-Path $installRoot 'HISA Kho Vat Tu.exe'
+          $sentinel = Join-Path $installRoot 'preserve-on-upgrade.txt'
+          foreach ($attempt in 1..2) {
+            $arguments = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', ('/DIR="' + $installRoot + '"'))
+            $process = Start-Process -FilePath $setup -ArgumentList $arguments -PassThru -Wait
+            if ($process.ExitCode -ne 0) {
+              throw "Installer attempt $attempt failed with exit code $($process.ExitCode)"
+            }
+            if (!(Test-Path -LiteralPath $installedExe)) {
+              throw "Installed application missing after installer attempt $attempt"
+            }
+            if ($attempt -eq 1) {
+              Set-Content -LiteralPath $sentinel -Value 'keep' -Encoding utf8
+            } elseif (!(Test-Path -LiteralPath $sentinel)) {
+              throw 'In-place upgrade deleted an unrelated existing file'
+            }
+          }
+          $installedVersion = (Get-Item -LiteralPath $installedExe).VersionInfo.ProductVersion
+          if (-not $installedVersion.StartsWith($env:APP_VERSION)) {
+            throw "Unexpected installed version $installedVersion (expected $env:APP_VERSION)"
+          }
+          Write-Host "Clean install and in-place upgrade OK: $installedVersion"
+
       - name: Create ZIP and SHA-256 checksum
         id: package
         shell: pwsh
