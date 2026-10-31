@@ -1,3 +1,13 @@
+# HISA v1.9.17 — Đổi tên giao diện theo dõi gia công máy kéo
+
+- Đổi tên hiển thị **Theo dõi máy kéo Hồng Yên** thành **Máy kéo gia công tại Hưng Yên** theo yêu cầu nghiệp vụ mới, thống nhất menu trái, tiêu đề màn hình, bảng hợp đồng, bộ lọc, nút và thông báo xác nhận, nhãn **Đã gửi gia công tại Hưng Yên**.
+- Phân biệt **gia công máy kéo tại Hưng Yên** với chức năng **Cont & kiện Hưng Yên**: hai màn hình và nghiệp vụ vẫn tách rời, không tự đổi trạng thái nhập xuất chỉ vì thay tên.
+- **Giữ nguyên dữ liệu**: đường dẫn `motor_hung_yen_tracking.json`, các mã trạng thái `sent/completed/handed_over`, ngày gửi/làm/bàn giao, file MÁY KÉO.xlsx, lịch sử và công thức liên kết seri. Không đổi schema hoặc tự di chuyển tệp.
+- Kiểm thử hồi quy giao diện kiểm tra tên mới và không còn nhãn cũ, kiểm thử tiến độ từng máy, nghiệp vụ Excel và Windows installer trước phát hành.
+- Tên cũ trong các ghi chú lịch sử phiên bản trước chỉ phản ánh cách gọi thời điểm phát hành; kể từ v1.9.17, tên hiển thị chính thức là **Máy kéo gia công tại Hưng Yên**.
+
+---
+
 # HISA v1.9.16 — Rà soát lỗi còn thiếu, tăng an toàn cập nhật/phục hồi
 
 - **Sửa lỗi cập nhật bị kẹt khi bộ cài cache sai checksum:** giải phóng luồng đọc trước khi xóa file setup hỏng trên Windows, để có thể tải lại bản chuẩn.
