@@ -26,6 +26,9 @@ public static class InfoDiagnostics
         try
         {
             typeof(MainWindow).GetMethod("ShowInformation",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(window,null);
+            var updateButton=(Button)window.FindName("TopUpdateButton")!;
+            Check(updateButton!=null && updateButton.Content?.ToString()?.Contains("Cập nhật")==true,
+                "Update action stays visible in the main command bar");
             var texts=new List<string>();CollectText(window,texts);
             Check(new[]{SoftwareInfo.DisplayName,SoftwareInfo.Creator,SoftwareInfo.Phone,SoftwareInfo.Email}.All(value=>texts.Contains(value)),"About screen contains every requested visible field");
             var host=(Grid)typeof(MainWindow).GetField("PageHost",BindingFlags.Instance|BindingFlags.NonPublic|BindingFlags.Public)!.GetValue(window)!;
