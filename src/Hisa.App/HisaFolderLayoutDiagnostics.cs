@@ -57,6 +57,18 @@ public static class HisaFolderLayoutDiagnostics
             Check(HisaFolderLayout.PreferredSelection(settings)==root,
                 "Reopening source settings displays Kho HISA root, not an internal CONT ĐI path");
         }
+        var single=HisaFolderLayout.RequireCompleteRoot(root);
+        Check(single.Master==master && single.Kt==kt && single.Product==product &&
+              single.Cabinet==cabinet && single.Motor==motor && single.Door==door &&
+              single.Cont==cont,
+            "One selected root resolves all six Excel sources, no individual file pickers");
+        foreach(var wrong in new[]{main,cont,production})
+        {
+            bool rejected=false;
+            try{HisaFolderLayout.RequireCompleteRoot(wrong);}
+            catch(InvalidOperationException){rejected=true;}
+            Check(rejected,"One-folder setup rejects nested "+Path.GetFileName(wrong)+"; require Kho HISA root");
+        }
         var original=new AppSettings
         {
             MasterPath=master,KtPath=kt,ProductExportPath=product,
@@ -64,12 +76,19 @@ public static class HisaFolderLayoutDiagnostics
             TractionMachineListPath=motor,CarDoorListPath=door
         };
         var months=MakeExcel(production,"Đầu cửa car T09.2026.xlsx");
+        bool missingAmbiguousMonth=false;
+        try{HisaFolderLayout.RequireCompleteRoot(root,new AppSettings());}
+        catch(FileNotFoundException){missingAmbiguousMonth=true;}
+        Check(missingAmbiguousMonth,
+            "Multiple car door months never get silently assigned when no month was previously selected");
         var ambiguous=HisaFolderLayout.Detect(root,new AppSettings());
         Check(ambiguous!=null && ambiguous.Door.Length==0,
             "Two monthly car-door workbooks are not silently guessed");
         var chosen=HisaFolderLayout.Detect(root,original)!;
         Check(chosen.Door==door && File.Exists(months),
             "A previously selected car-door month remains selected when multiple books exist");
+        Check(HisaFolderLayout.RequireCompleteRoot(root,original).Door==door,
+            "One folder selection reuses correctly identified existing car door month");
         var copied=new AppSettings
         {
             ElectricalCabinetListPath=cabinet,TractionMachineListPath=motor,CarDoorListPath=door
@@ -85,6 +104,29 @@ public static class HisaFolderLayoutDiagnostics
         Check(new[]{master,kt,product,cabinet,motor,door,months}
                 .Select(p=>new FileInfo(p).Length).SequenceEqual(bytes),
             "Recognizing folders neither moves nor modifies Excel files");
+        var otherRoot=Path.Combine(workspace,"standard-kho-new-"+Guid.NewGuid().ToString("N"),"Kho HISA");
+        var otherMain=Path.Combine(otherRoot,"Kho chính");
+        var otherCont=Path.Combine(otherRoot,"CONT ĐI");
+        var otherProduction=Path.Combine(otherRoot,"Danh sách sản xuất");
+        Directory.CreateDirectory(otherMain);
+        Directory.CreateDirectory(otherCont);
+        Directory.CreateDirectory(otherProduction);
+        MakeExcel(otherMain,"Tổng hợp.xlsx");
+        MakeExcel(otherMain,"KT tổng hợp.xlsx");
+        MakeExcel(otherMain,"Thành phẩm xuất kho.xlsx");
+        MakeExcel(otherProduction,"TỦ ĐIỆN.xlsx");
+        MakeExcel(otherProduction,"MÁY KÉO.xlsx");
+        bool missingEquipment=false;
+        try{HisaFolderLayout.RequireCompleteRoot(otherRoot,original);}
+        catch(FileNotFoundException){missingEquipment=true;}
+        Check(missingEquipment,
+            "Different warehouse cannot silently reuse the old car-door workbook from another root");
+        MakeExcel(otherProduction,"Đầu cửa car T10.2026.xlsx");
+        var another=HisaFolderLayout.RequireCompleteRoot(otherRoot,original);
+        Check(another.Root==otherRoot && another.Door.StartsWith(otherRoot,StringComparison.OrdinalIgnoreCase) &&
+              another.Cabinet.StartsWith(otherRoot,StringComparison.OrdinalIgnoreCase) &&
+              another.Motor.StartsWith(otherRoot,StringComparison.OrdinalIgnoreCase),
+            "Switching one root relocates all six paths to the new warehouse without stale files");
         var temporarilyMissing=master+".unavailable";
         File.Move(master,temporarilyMissing);
         try
