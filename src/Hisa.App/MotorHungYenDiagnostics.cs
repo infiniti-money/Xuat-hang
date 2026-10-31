@@ -41,6 +41,13 @@ public static class MotorHungYenDiagnostics
         var before=store.List([row1,row2,row3]);
         Check(before.Count==3 && before.All(x=>x.State==MotorHungYenStore.Pending),
               "Excel rows never auto-mark sent, completed or handed over");
+        var allContracts=MotorHungYenContractOverview.Summarize(before,false);
+        Check(allContracts.Count==2 &&
+              allContracts.Single(x=>x.Project=="Công trình A").MachineCount==2 &&
+              allContracts.Single(x=>x.Project=="Công trình B").MachineCount==1,
+            "Contract summary groups exact HĐ + công trình + đơn vị instead of merging T1/T2");
+        Check(MotorHungYenContractOverview.Summarize(before,true).Count==0,
+            "Only confirmed sent contracts appear in Hồng Yên outsourcing list, never unverified Excel rows");
         var chosen=before[0];
         var d1=DateTime.Today.AddDays(-3).ToString("yyyy-MM-dd");
         var d2=DateTime.Today.AddDays(-2).ToString("yyyy-MM-dd");
@@ -58,6 +65,15 @@ public static class MotorHungYenDiagnostics
         Check(sent[0].State==MotorHungYenStore.Sent && sent[0].SentDay==d1 &&
               sent[1].State==MotorHungYenStore.Pending && sent[2].State==MotorHungYenStore.Pending,
             "Mark sent is per-machine and never marks sibling same-contract rows");
+        var sentContracts=MotorHungYenContractOverview.Summarize(sent,true);
+        Check(sentContracts.Count==1 &&
+              sentContracts[0].ContractNumber=="05492026" &&
+              sentContracts[0].Project=="Công trình A" &&
+              sentContracts[0].MachineCount==2 &&
+              sentContracts[0].SentCount==1 &&
+              sentContracts[0].PendingCount==1 &&
+              sentContracts[0].HandedOverCount==0,
+            "One confirmed sent machine reveals its contract but preserves pending sibling and separate project");
         Check(Rejected(()=>store.Advance(sent[0],MotorHungYenStore.HandedOver,d2,"")),
             "Cannot hand over before completion");
         Check(Rejected(()=>store.Advance(sent[0],MotorHungYenStore.Completed,d1==d2?d2:"1900-01-01","")),
@@ -75,6 +91,12 @@ public static class MotorHungYenDiagnostics
               loaded[0].HandoverDay==d3 &&
               reopened.HistoryFor(key).Count==3,
               "Dates, documents, transition order and audit trail survive app restart");
+        var handedContracts=MotorHungYenContractOverview.Summarize(loaded,true);
+        Check(handedContracts.Count==1 &&
+              handedContracts[0].HandedOverCount==1 &&
+              handedContracts[0].PendingCount==1 &&
+              handedContracts[0].MachineCount==2,
+            "One handed-over motor is visible under the Hồng Yên contract without making pending motor delivered");
         Check(Rejected(()=>reopened.Advance(loaded[0],MotorHungYenStore.Sent,d3,"")),
             "Cannot silently reset handed-over machine to sent");
         var movedRow=new EquipmentListReader.Row

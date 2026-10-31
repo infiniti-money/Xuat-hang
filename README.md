@@ -1,3 +1,16 @@
+## HISA v1.9.11 — Hiển thị hợp đồng máy kéo gửi Hồng Yên gia công
+
+Trong **Theo dõi máy kéo → HĐ máy kéo · gia công Hồng Yên**, giao diện có hai bảng liên kết:
+
+1. **Hợp đồng máy kéo gửi Hồng Yên gia công:** gộp theo **số hợp đồng + công trình + công ty**, hiển thị số máy, số lượng (nếu có dữ liệu), máy đang làm, làm xong, bàn giao và chưa ghi nhận gửi. Bảng mặc định **chỉ** hiện hợp đồng có ít nhất một máy đã xác nhận gửi Hồng Yên. Bỏ chọn bộ lọc để xem mọi hợp đồng từ file Máy kéo chưa gửi.
+2. **Chi tiết máy kéo:** chọn một hợp đồng ở bảng trên sẽ lọc chính xác từng máy/seri; tiếp tục chọn máy để nhập ngày, ghi chú/chứng từ và bấm một trong ba nút **Đã gửi Hồng Yên → Đã làm xong → Đã bàn giao**. Có nút xem lịch sử từng máy và bộ lọc tìm hợp đồng/seri.
+
+**Tên nghiệp vụ:** Hồng Yên là đối tác gia công máy kéo, **khác** với cont **Hưng Yên** trong phần nhập–xuất kho. Không thay khóa JSON cũ (`motor_hung_yen_tracking.json`) để giữ lịch sử, chỉ chỉnh nhãn người dùng. Dữ liệu gia công xác nhận bằng người thao tác, **không tự suy ra** từ file `Danh sách sản xuất/MÁY KÉO.xlsx` hay ghi chú DXH. Không cập nhật `Tổng hợp.xlsx` hoặc trạng thái phiếu chỉ từ danh sách gia công.
+
+Các hợp đồng T1/T2 cùng số vẫn tách biệt. Máy đã làm xong hoặc đã bàn giao vẫn hiện trong nhóm đã gửi; chỉ hiển thị trạng thái từng máy sau khi có xác nhận. Giữ nguyên cấu hình chuẩn `Kho HISA/Kho chính`, `CONT ĐI`, `Danh sách sản xuất`.
+
+---
+
 ## HISA v1.9.10 — Rà soát an toàn dữ liệu và hồi quy
 
 - **Sao lưu ZIP v2:** thêm `ai_schedules/lich-kho-*.json` (các lịch Zalo/Gemini đã duyệt) bên cạnh ba file Excel chuẩn, phiếu, trạng thái máy kéo, mẫu in và cấu hình JSON đã có. Ghi `backup-manifest.json` với tên, dung lượng và SHA-256 từng file; kiểm tra toàn ZIP sau khi đóng gói, trước khi ghi đè bản sao lưu đang có.

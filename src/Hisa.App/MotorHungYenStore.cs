@@ -87,7 +87,7 @@ public sealed class MotorHungYenStore
     public static string Name(string state)=>state switch
     {
         Pending=>"Chưa ghi nhận gửi",
-        Sent=>"Đã gửi Hưng Yên làm",
+        Sent=>"Đã gửi Hồng Yên làm",
         Completed=>"Đã làm xong",
         HandedOver=>"Đã bàn giao",
         _=>"Cần đối chiếu"
@@ -232,7 +232,7 @@ public sealed class MotorHungYenStore
                current==Completed&&next!=HandedOver||
                current==HandedOver)
                 throw new InvalidOperationException(
-                    "Cần ghi đúng thứ tự: Đã gửi Hưng Yên → Đã làm xong → Đã bàn giao. Trạng thái hiện tại: "+Name(current));
+                    "Cần ghi đúng thứ tự: Đã gửi Hồng Yên → Đã làm xong → Đã bàn giao. Trạng thái hiện tại: "+Name(current));
             if(previous?.Events.Count>0 &&
                string.CompareOrdinal(effectiveDay,previous.Events[^1].EffectiveDay)<0)
                 throw new InvalidOperationException("Ngày xác nhận không thể sớm hơn giai đoạn trước.");

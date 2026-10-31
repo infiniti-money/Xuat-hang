@@ -213,8 +213,8 @@ public partial class MainWindow
             WorkflowTile("02","Phiếu bàn giao",
                 "Lọc Chờ xuất, Đã xuất, Tạm hoãn, Đã hủy; sửa và in phiếu.",
                 "Có lịch sử trạng thái từng phiếu",()=>Navigate("slips")),
-            WorkflowTile("07","Máy kéo Hưng Yên: gửi / làm / bàn giao",
-                "Theo dõi từng HĐ, từng máy kéo/seri và ngày thực tế ở cả ba giai đoạn.",
+            WorkflowTile("07","Hợp đồng máy kéo Hồng Yên: gửi / làm / bàn giao",
+                "Danh sách hợp đồng gửi Hồng Yên gia công, lọc HĐ, mở chi tiết máy/seri và theo dõi tiến độ.",
                 "Trạng thái lưu độc lập và có lịch sử",()=>Navigate("motor-hung-yen"))));
         page.Children.Add(HubSection("LỊCH SỬ & BÁO CÁO",
             "Xem kết quả theo ngày; muốn xem ai đổi trạng thái một phiếu, mở Phiếu bàn giao → Lịch sử trạng thái.",

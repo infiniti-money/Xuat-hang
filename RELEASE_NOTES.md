@@ -1,3 +1,13 @@
+# HISA v1.9.11 — Danh sách hợp đồng máy kéo gia công Hồng Yên
+
+- Bổ sung bảng **Hợp đồng máy kéo gửi Hồng Yên làm** trực tiếp trong **Theo dõi máy kéo**, hiển thị số HĐ, công trình, đơn vị, tổng số máy và lượng máy ở từng giai đoạn: đang làm, đã làm xong, đã bàn giao, chưa gửi.
+- Mặc định lọc **chỉ hợp đồng đã được xác nhận gửi gia công**. Có thể bỏ lọc để tra cứu tất cả hợp đồng trong `MÁY KÉO.xlsx`; không tự đổi trạng thái chỉ từ sự hiện diện trong file hoặc ghi chú.
+- Chọn hợp đồng sẽ lọc bảng chi tiết máy kéo theo đúng HĐ + công trình + đơn vị. Từng máy/seri vẫn được xác nhận ngày gửi, ngày hoàn thành, ngày bàn giao và lịch sử riêng. Cùng HĐ khác công trình T1/T2 được giữ tách biệt.
+- Chuẩn hóa nhãn **Hồng Yên** cho đơn vị gia công trong khi phần cont vẫn là **Hưng Yên**; không đổi tên file lưu trạng thái nội bộ để đảm bảo bản nâng cấp bảo toàn dữ liệu.
+- Kiểm thử bảng tổng hợp hợp đồng, ngày và nhóm trạng thái, bộ lọc mặc định và tính không nhập nhầm kho; đóng gói Windows x64 và cài đè nếu CI đạt.
+
+---
+
 # HISA v1.9.10 — Rà soát hồi quy, sao lưu lịch AI và an toàn theo dõi máy kéo
 
 - Đã kiểm tra lại luồng đọc nguồn `Kho chính` (Tổng hợp, KT, Thành phẩm), quét `CONT ĐI`, danh sách sản xuất, nhận kiện thực tế, Gemini/Zalo và lập phiếu chờ: không chủ động thay đổi quy trình ghi nhận hàng.
