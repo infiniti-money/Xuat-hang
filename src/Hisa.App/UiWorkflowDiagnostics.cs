@@ -54,7 +54,7 @@ public static class UiWorkflowDiagnostics
             var sourceCard=(Border)configStack.Children[1];
             Check(Children(sourceCard).OfType<TextBlock>().Any(t=>t.Text=="Nguồn dữ liệu Excel"),
                 "Source configuration is first on settings page, above Gemini");
-            Check(Children(sourceCard).OfType<Button>().Any(b=>b.Content?.ToString()=="Chọn thư mục nguồn"),
+            Check(Children(sourceCard).OfType<Button>().Any(b=>b.Content?.ToString()=="Chọn Kho HISA"),
                 "Source folder browser button is available without scrolling past Gemini");
             Check(navigation.Children.OfType<Button>().Any(b=>b.Content?.ToString()
                     ?.Contains("Máy kéo · gửi / làm / bàn giao")==true),
