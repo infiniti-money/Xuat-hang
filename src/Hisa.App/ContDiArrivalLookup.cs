@@ -3,8 +3,8 @@ using System.Globalization;
 namespace Hisa.App;
 
 /// <summary>
-/// Exact contract search against the Cont đi Hưng Yên worksheet in
-/// Tổng hợp.xlsx, shared by Zalo photos and manually entered contract codes.
+/// Exact contract search against physical workbooks under Container, shared
+/// by Zalo photos and manually entered contract codes.
 /// The user selects physical source packages, not whole contract numbers.
 /// </summary>
 public static class ContDiArrivalLookup
@@ -40,8 +40,8 @@ public static class ContDiArrivalLookup
                 results.TryAdd("missing|"+code,new PlannedArrivalRow
                 {
                     Contract=request.Contract,PlannedDate=request.PlannedDate,
-                    Status="Chưa tìm thấy kiện Hưng Yên trong trang Cont đi",
-                    Notes="Không có kiện HƯNG YÊN/HUNG YEN đúng số HĐ trong trang Cont đi Hưng Yên của Tổng hợp.xlsx."
+                    Status="Chưa tìm thấy kiện Hưng Yên trong Container",
+                    Notes="Không có kiện HƯNG YÊN/HUNG YEN đúng số HĐ trong thư mục Container."
                 });
                 continue;
             }
@@ -80,7 +80,7 @@ public static class ContDiArrivalLookup
                     mismatches.Add("khác ngày cont đi");
                 if(mismatches.Count>0)
                 {
-                    row.Status="Lệch lịch / nguồn CONT ĐI";
+                    row.Status="Lệch lịch / nguồn Container";
                     row.Notes="Nguồn của HĐ "+code+" "+string.Join(", ",mismatches)+
                         ". Không nhập tự động; sửa lịch hoặc kiểm tra file gốc.";
                 }
@@ -118,7 +118,7 @@ public static class ContDiArrivalLookup
                 else
                 {
                     row.Status=Ready;
-                    row.Notes="Đã tìm trong trang Cont đi Hưng Yên · "+
+                    row.Notes="Đã quét file Container · "+
                         source.SourceFile+" · kiện "+source.PackageNo+
                         " · ngày cont đi "+Rules.Day(source.SourceDate)+
                         (string.IsNullOrWhiteSpace(source.ContainerNumber)
@@ -161,7 +161,7 @@ public static class ContDiArrivalLookup
                match.MaterialSummary!=row.MaterialSummary ||
                match.SourceFingerprint!=row.SourceFingerprint ||
                match.PackageNo!=row.PackageNo || match.Contract!=row.Contract)
-                throw new InvalidOperationException("Kiện trong CONT ĐI đã thay đổi hoặc không còn đủ điều kiện. Tìm lại trước khi nhập: "+row.Contract);
+                throw new InvalidOperationException("Kiện trong Container đã thay đổi hoặc không còn đủ điều kiện. Tìm lại trước khi nhập: "+row.Contract);
             var source=fresh.ContPackages.Single(x=>x.Id==row.SourcePackageId);
             var copy=WarehouseService.Clone(source);
             // The source package ID is the receipt's durable, per-package
