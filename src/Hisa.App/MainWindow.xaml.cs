@@ -715,7 +715,7 @@ public partial class MainWindow : Window
             model.CarDoorListPath=doorFile.Text.Trim();
             foreach(var file in new[]{model.ElectricalCabinetListPath,model.TractionMachineListPath,model.CarDoorListPath})
                 if(file.Length>0 && !System.IO.File.Exists(file))
-                    throw new FileNotFoundException("Không tìm thấy file danh sách thiết bị: "+file,file);
+                    throw new System.IO.FileNotFoundException("Không tìm thấy file danh sách thiết bị: "+file,file);
             await _service.SaveSettingsAsync(model);await _service.RefreshAsync(true);Notify("Đã lưu cấu hình nguồn.");ShowSettings();
         },true),A("Sao lưu vào Thư viện",async()=>{var path=System.IO.Path.Combine(_service.BackupDirectory,$"HISA-sao-luu-{DateTime.Now:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}.zip");await _service.BackupAsync(path);Notify("Đã sao lưu vào Thư viện → Tài liệu:\n"+path);}),B("Mở thư mục Backup",()=>System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(_service.BackupDirectory){UseShellExecute=true})),B("Mở thư mục dữ liệu",()=>System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(_service.DataDirectory){UseShellExecute=true}))));
         p.Children.Add(GeminiSettingsCard());
