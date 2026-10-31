@@ -89,7 +89,7 @@ public static class HisaFolderLayout
         if(!Directory.Exists(Path.Combine(layout.Root,"Danh sách sản xuất")))
             throw new DirectoryNotFoundException("Thiếu thư mục Kho HISA/Danh sách sản xuất.");
         var expected=new[]{
-            ("Kho chính/KT tổng hợp.xlsx",layout.Kt),
+            // KT is optional; the KT comparison workflow has been removed.
             ("Kho chính/Thành phẩm xuất kho.xlsx",layout.Product),
             ("Danh sách sản xuất/TỦ ĐIỆN.xlsx",layout.Cabinet),
             ("Danh sách sản xuất/MÁY KÉO.xlsx",layout.Motor),
