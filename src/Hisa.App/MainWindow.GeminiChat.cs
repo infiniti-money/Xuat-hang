@@ -95,7 +95,6 @@ public partial class MainWindow
                 }),message=>Dispatcher.BeginInvoke(()=>activity.Text=message));
             }
             catch(Exception ex)when(ex is InvalidOperationException or
-                System.Speech.Recognition.InvalidOperationException or
                 System.Runtime.InteropServices.COMException)
             {activity.Text="Không thể truy cập mic/nhận dạng Windows: "+ex.Message;}
         });
