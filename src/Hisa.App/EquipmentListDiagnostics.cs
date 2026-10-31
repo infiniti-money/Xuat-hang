@@ -101,7 +101,72 @@ public static class EquipmentListDiagnostics
         Check(new[]{new FileInfo(electric).Length,new FileInfo(motor).Length,new FileInfo(car).Length}
                 .SequenceEqual(before),
             "Read-only list import does not change source workbook files");
-        var empty=EquipmentListReader.Load(new AppSettings());
+        // The canonical master Excel and production workbooks live in separate
+        // directories. HISA should read from wherever the user actually stores
+        // the three lists, without relocating or rewriting the originals.
+        var masterFolder=Path.Combine(folder,"Kho chính");
+        var contFolder=Path.Combine(folder,"CONT ĐI");
+        Directory.CreateDirectory(masterFolder);
+        Directory.CreateDirectory(contFolder);
+        var master=Path.Combine(masterFolder,"Tổng hợp.xlsx");
+        using(var workbook=new XLWorkbook())
+        {
+            workbook.AddWorksheet("Cont đi Hưng Yên");
+            workbook.SaveAs(master);
+        }
+        paths.MasterPath=master;
+        paths.DataSources=[contFolder];
+        EquipmentListReader.ValidateIndependentSources(paths);
+        Check(EquipmentListReader.ConfiguredPaths(paths).Count()==3 &&
+              EquipmentListReader.IsConfiguredEquipmentFile(motor,paths),
+            "Three external Excel paths remain independently configured from master warehouse path");
+        var originalEquipmentPaths=EquipmentListReader.ConfiguredPaths(paths).ToArray();
+        // A moved master data source does not relocate or overwrite the
+        // independently configured production catalogues.
+        var secondMaster=Path.Combine(folder,"Kho chính khác");
+        Directory.CreateDirectory(secondMaster);
+        paths.MasterPath=Path.Combine(secondMaster,"Tổng hợp.xlsx");
+        EquipmentListReader.ValidateIndependentSources(paths);
+        Check(EquipmentListReader.ConfiguredPaths(paths).SequenceEqual(originalEquipmentPaths) &&
+              new[]{new FileInfo(electric).Length,new FileInfo(motor).Length,new FileInfo(car).Length}
+                  .SequenceEqual(before),
+            "Changing main workbook folder preserves all production file paths and bytes");
+        paths.MasterPath=master;
+        bool Rejects(AppSettings input)
+        {
+            try{EquipmentListReader.ValidateIndependentSources(input);return false;}
+            catch(InvalidOperationException){return true;}
+        }
+        var sameDirectory=Path.Combine(masterFolder,"MÁY KÉO.xlsx");
+        File.Copy(motor,sameDirectory);
+        var incorrect=new AppSettings
+        {
+            MasterPath=master,DataSources=[contFolder],TractionMachineListPath=sameDirectory
+        };
+        Check(Rejects(incorrect) && File.Exists(sameDirectory),
+            "Selecting a machine list alongside Tổng hợp.xlsx is rejected without moving the Excel file");
+        // Older installations may have equipment files inside CONT ĐI:
+        // source scan must ignore the catalogue even before paths are fixed.
+        var mixed=Path.Combine(contFolder,"MÁY KÉO.xlsx");
+        File.Copy(motor,mixed);
+        var legacy=new AppSettings
+        {
+            MasterPath=master,DataSources=[contFolder],TractionMachineListPath=mixed
+        };
+        Check(Rejects(legacy),
+            "Production Excel inside CONT ĐI is not accepted as independent source");
+        var scanned=new ExcelStore().ScanSources(legacy);
+        Check(scanned.FileCount==0 && scanned.Packages.Count==0 &&
+              File.Exists(mixed),
+            "Existing nested equipment Excel is excluded from container scanning and never touched");
+        var duplicated=new AppSettings
+        {
+            MasterPath=master,DataSources=[contFolder],
+            ElectricalCabinetListPath=electric,TractionMachineListPath=electric
+        };
+        Check(Rejects(duplicated),
+            "Using the same physical file as two production catalogues is rejected");
+                var empty=EquipmentListReader.Load(new AppSettings());
         Check(empty.Rows.Count==0 && empty.Warnings.Count==0,
             "No linked production lists does not break the Zalo workflow");
         return results;
