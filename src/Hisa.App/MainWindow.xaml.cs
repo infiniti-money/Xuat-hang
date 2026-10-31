@@ -46,9 +46,8 @@ public partial class MainWindow : Window
         NavCaption("TRA CỨU & HỖ TRỢ");
         AddNav("lookup", "⌕", "Tra cứu hợp đồng");
         AddNav("ai-hub", "✧", "Trung tâm Gemini AI");
-        NavCaption("QUẢN TRỊ & TIỆN ÍCH");
-        AddNav("reports-hub", "▥", "Báo cáo & tiện ích");
-        AddNav("settings", "⚙", "Cấu hình & sao lưu");
+        NavCaption("QUẢN LÝ & HỒ SƠ");
+        AddNav("management-hub", "▥", "Quản lý & lịch sử");
         _service.Progress += message => Dispatcher.BeginInvoke(()=>StatusText.Text = message);
         _service.Changed += (_,_) => Dispatcher.BeginInvoke(()=>
         {
@@ -96,13 +95,15 @@ public partial class MainWindow : Window
             case "dispatch-hub":ShowDispatchHub();break;
             case "arrival-hub":ShowArrivalHub();break;
             case "ai-hub":ShowAiHub();break;
-            case "reports-hub":ShowReportsHub();break;
+            case "management-hub":ShowManagementHub();break;
+            case "reports-hub":ShowManagementHub();break; // Legacy navigation link
             case "duplicate-review":ShowDuplicateReview();break;
             case "lookup":ShowLookup();break;
             case "packages":ShowPackages();break;
             case "create":ShowCreate(_createPlanMode);break;
             case "plan":_createPlanMode=true;ShowCreate(true);break;
             case "slips":ShowSlips();break;
+            case "flags":ShowFlags();break;
             case "daily":ShowDaily();break;
             case "gemini-chat":ShowGeminiChat();break;
             case "ai-schedule":ShowAiSchedules();break;
@@ -117,11 +118,12 @@ public partial class MainWindow : Window
     }
     internal static string NavigationGroup(string page) => page switch
     {
-        "create" or "plan" or "readiness" or "slips" => "dispatch-hub",
+        "create" or "plan" or "readiness" => "dispatch-hub",
         "arrival" or "planned-arrivals" or "arrival-packages" or "packages" or
         "duplicate-review" => "arrival-hub",
         "gemini-chat" or "ai-schedule" => "ai-hub",
-        "daily" or "templates" or "information" => "reports-hub",
+        "flags" or "slips" or "daily" or "templates" or "information" or "settings" or
+        "reports-hub" => "management-hub",
         _ => page
     };
 
