@@ -62,7 +62,7 @@ public static class UiWorkflowDiagnostics
             Call("ShowMotorHungYen");
             Check(Children(window).OfType<DataGrid>().Any(g=>
                 g.Columns.OfType<DataGridTextColumn>().Any(c=>c.Header?.ToString()=="Tình trạng gia công") &&
-                g.Columns.OfType<DataGridTextColumn>().Any(c=>c.Header?.ToString()=="Đã bàn giao")),
+                g.Columns.OfType<DataGridTextColumn>().Any(c=>c.Header?.ToString()=="Ngày bàn giao")),
                 "Motor tracker shows list, production state and handover date columns");
             Check(new[]{"1 · Xác nhận đã gửi Hồng Yên",
                 "2 · Xác nhận đã làm xong","3 · Xác nhận đã bàn giao",
