@@ -582,16 +582,17 @@ public partial class MainWindow : Window
         codes.Width=510;codes.Height=84;
         var top=Card(Stack(
             T("NHẬP SỐ HỢP ĐỒNG → TÌM ĐÚNG KIỆN HƯNG YÊN",18,true),
-            T("Nhập một hoặc nhiều HĐ (mỗi dòng một số). HISA quét các file Excel "+
-              "trong thư mục CONT ĐI HƯNG YÊN; chỉ lấy những kiện có nhãn HƯNG YÊN "+
-              "và đúng số HĐ, giữ riêng công trình/T1/T2, ngày cont đi, kiện và số lượng.",12,false,Muted),
+            T("Nhập một hoặc nhiều HĐ (mỗi dòng một số). HISA đọc trực tiếp trang "+
+              "Cont đi Hưng Yên trong Tổng hợp.xlsx, không kiểm tra thư mục CONT ĐI. "+
+              "Chỉ lấy kiện ghi HƯNG YÊN / HUNG YEN đúng số HĐ, giữ riêng "+
+              "công trình/T1/T2, ngày cont đi, kiện và số lượng.",12,false,Muted),
             Field("Số hợp đồng cont về kho Hưng Yên",codes),
             T("Đúng hợp đồng chưa có nghĩa là đã nhận tất cả kiện. Tích từng kiện thực tế đã về, "+
               "chọn ngày về và xác nhận trước khi ghi vào Tổng hợp.xlsx. Không đối chiếu KT.",11,false,Muted)));
         var matching=BuildContDiSourcePanel(
             ()=>ContDiArrivalLookup.FromContracts(codes.Text));
         SetPage("Tìm kiện & nhập cont Hưng Yên",
-            "CONT ĐI HƯNG YÊN → kiện đúng hợp đồng → ngày thực về → Tổng hợp.xlsx",
+            "Trang Cont đi Hưng Yên → chọn kiện về thực tế → trang chi tiết Excel",
             new ScrollViewer{
                 Content=Stack(top,matching),
                 VerticalScrollBarVisibility=ScrollBarVisibility.Auto
