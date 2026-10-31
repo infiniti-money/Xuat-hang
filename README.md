@@ -1,3 +1,12 @@
+## HISA v1.9.5 · Tích một lần, xem toàn bộ vật tư từ ảnh Zalo
+
+- Hai bảng **Cont dự kiến về** và **Hợp đồng làm phiếu** dùng ô tích thực sự tương tác bằng **một lần nhấp**, không cần nhấp để vào chế độ sửa ô. Màn đối chiếu **từng kiện thực nhận** cũng dùng ô tích một lần.
+- Chọn dòng hợp đồng bất kỳ để xem **danh sách vật tư, số lượng, đơn vị, ngày cont đi/ngày thực nhận** từ nguồn Excel ngay bên dưới bảng; có nút **Xem toàn bộ vật tư** của tất cả các HĐ trong lịch Zalo.
+- HISA đối chiếu chính xác **số hợp đồng + công trình + công ty** và vẫn giữ riêng từng kiện. Cùng số HĐ có nhiều T1/T2 nhưng thông tin AI chưa rõ sẽ **cảnh báo, không tự lấy gộp hàng**. HĐ thiếu trong Excel hiển thị cảnh báo, không sinh vật tư giả.
+- Các lựa chọn nhận cont/chọn phiếu không tự ghi dữ liệu kho. Phải duyệt lịch, kiểm tra từng kiện và xác nhận thực tế trước khi cập nhật `Tổng hợp.xlsx`. Cài đè giữ dữ liệu và Gemini API Key.
+
+---
+
 ## HISA v1.9.4 · Phân loại file CONT ĐI an toàn
 
 Cấu trúc thư mục mới, ví dụ khi chọn nguồn `D:\Kho\CONT ĐI`:
