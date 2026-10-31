@@ -54,14 +54,14 @@ public partial class MainWindow
             var text=Rules.Code(query.Text);
             var selectedStage=stage.SelectedIndex;
             var filtered=items.Where(x=>
-                (selectedStage==0 || x.State==selectedStage switch
+                (selectedStage==0 || x.State==(selectedStage switch
                 {
                     1=>MotorHungYenStore.Pending,
                     2=>MotorHungYenStore.Sent,
                     3=>MotorHungYenStore.Completed,
                     4=>MotorHungYenStore.HandedOver,
                     _=>""
-                }) &&
+                })) &&
                 (text.Length==0 || Rules.Code(x.Contract+" "+x.Project+" "+x.Company+" "+
                     x.Material+" "+x.Serial+" "+x.Lot).Contains(text,StringComparison.Ordinal)))
                 .OrderBy(x=>x.Contract).ThenBy(x=>x.Project).ThenBy(x=>x.Serial).ToList();
