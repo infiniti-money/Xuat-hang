@@ -112,8 +112,8 @@ public partial class MainWindow
         );
         var explanation = Card(Stack(
             T(onlyMarkedContracts?"CONT ĐÃ VỀ · HĐ ĐƯỢC CHỌN TỪ LỊCH":"CONT HÀNG ĐÃ VỀ KHO",18,true),
-            T("Lịch Gemini chỉ dự báo container. Khi hàng thực tế về kho, tích riêng từng KIỆN (không chỉ từng số HĐ) rồi " +
-              "xác nhận để ghi trang chi tiết của Tổng hợp.xlsx. Không ghi chỉ vì có lịch.",
+            T("Lịch Gemini chỉ dự báo cont. Chỉ khi thực nhận mới tích đúng từng KIỆN và xác nhận ghi Tổng hợp.xlsx. " +
+              "HISA chỉ chuyển file sang Đã nhập kho (NGANG CẤP CONT ĐI) nếu toàn bộ kiện trong file đã nhận; file còn kiện chờ vẫn giữ trong CONT ĐI.",
                 12, false, Muted),
             Row(Field("Ngày cont thực tế về", date),
                 T("Mỗi kiện có ID riêng · không gộp T1/T2, số lượng hay cont đi khác nhau", 12, true, Brush("#21847D"))),
