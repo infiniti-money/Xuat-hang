@@ -16,7 +16,7 @@ public static class HisaFolderLayoutDiagnostics
         }
         var root=Path.Combine(workspace,"standard-kho-"+Guid.NewGuid().ToString("N"),"Kho HISA");
         var main=Path.Combine(root,"Kho chính");
-        var cont=Path.Combine(root,"CONT ĐI");
+        var cont=Path.Combine(root,"Container");
         var production=Path.Combine(root,"Danh sách sản xuất");
         Directory.CreateDirectory(main);
         Directory.CreateDirectory(cont);
@@ -41,21 +41,21 @@ public static class HisaFolderLayoutDiagnostics
             Check(found!=null && found.Root==root && found.Cont==cont &&
                 found.Master==master && found.Kt==kt && found.Product==product &&
                 found.Cabinet==cabinet && found.Motor==motor && found.Door==door,
-                "Selecting "+Path.GetFileName(selected)+" resolves correct 3+3 files and CONT ĐI");
+                "Selecting "+Path.GetFileName(selected)+" resolves correct 3+3 files and Container");
             var settings=new AppSettings();
             HisaFolderLayout.Apply(settings,found!);
             EquipmentListReader.ValidateIndependentSources(settings);
             Check(settings.DataSources.Count==1 && settings.DataSources[0]==cont &&
                   settings.MasterPath==master && settings.KtPath==kt &&
                   settings.ProductExportPath==product,
-                "All three canonical Excel files are in Kho chính, while only CONT ĐI is scanned");
+                "All three canonical Excel files are in Kho chính, while only Container is scanned");
             Check(EquipmentListReader.ConfiguredPaths(settings).Count()==3,
                 "Three production catalogue files resolve from Danh sách sản xuất");
             var scan=new ExcelStore().ScanSources(settings);
             Check(scan.Packages.Count==0 && scan.FileCount==0,
                 "No production or main Excel workbook gets imported as a container");
             Check(HisaFolderLayout.PreferredSelection(settings)==root,
-                "Reopening source settings displays Kho HISA root, not an internal CONT ĐI path");
+                "Reopening source settings displays Kho HISA root, not an internal Container path");
         }
         var single=HisaFolderLayout.RequireCompleteRoot(root);
         Check(single.Master==master && single.Kt==kt && single.Product==product &&
@@ -106,7 +106,7 @@ public static class HisaFolderLayoutDiagnostics
             "Recognizing folders neither moves nor modifies Excel files");
         var otherRoot=Path.Combine(workspace,"standard-kho-new-"+Guid.NewGuid().ToString("N"),"Kho HISA");
         var otherMain=Path.Combine(otherRoot,"Kho chính");
-        var otherCont=Path.Combine(otherRoot,"CONT ĐI");
+        var otherCont=Path.Combine(otherRoot,"Container");
         var otherProduction=Path.Combine(otherRoot,"Danh sách sản xuất");
         Directory.CreateDirectory(otherMain);
         Directory.CreateDirectory(otherCont);
@@ -127,23 +127,23 @@ public static class HisaFolderLayoutDiagnostics
               another.Cabinet.StartsWith(otherRoot,StringComparison.OrdinalIgnoreCase) &&
               another.Motor.StartsWith(otherRoot,StringComparison.OrdinalIgnoreCase),
             "Switching one root relocates all six paths to the new warehouse without stale files");
-        // The physical CONT ĐI folder is optional when the workflow uses
-        // the "Cont đi Hưng Yên" worksheet in Tổng hợp.xlsx directly.
+        // The physical Container folder is optional when the workflow uses
+        // the explicit Container search, not a cached master worksheet.
         Directory.Delete(otherCont);
         var noContFolder=HisaFolderLayout.RequireCompleteRoot(otherRoot,original);
         var noContSettings=new AppSettings();
         HisaFolderLayout.Apply(noContSettings,noContFolder);
         Check(noContFolder.Master==Path.Combine(otherMain,"Tổng hợp.xlsx") &&
               noContSettings.DataSources.Count==0,
-            "Valid Kho HISA root without CONT ĐI folder keeps master Excel available and disables folder scanning");
+            "Valid Kho HISA root without Container folder keeps master Excel available and disables folder scanning");
         Check(HisaFolderLayout.PreferredSelection(noContSettings)==otherRoot,
-            "Settings can reopen the warehouse root without a physical CONT ĐI folder");
+            "Settings can reopen the warehouse root without a physical Container folder");
         var temporarilyMissing=master+".unavailable";
         File.Move(master,temporarilyMissing);
         try
         {
             Check(HisaFolderLayout.PreferredSelection(original)==cont,
-                "Missing master workbook does not crash settings: original CONT ĐI path stays editable");
+                "Missing master workbook does not crash settings: original Container path stays editable");
         }
         finally{File.Move(temporarilyMissing,master);}
         return results;
