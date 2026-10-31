@@ -266,7 +266,7 @@ public sealed partial class WarehouseService : IDisposable
             catch(Exception e){ Log("cache",e); }
         });
         Notify();
-        await RefreshCoreAsync(Settings.AutoSyncCont&&Settings.DataSources.Count>0,Settings.AutoSyncKt);
+        await RefreshCoreAsync(Settings.AutoSyncCont&&Settings.DataSources.Count>0,false);
         _=Task.Run(MonitorAsync);
     }
     private void SetSnapshot(WorkbookSnapshot snapshot)
@@ -328,18 +328,17 @@ public sealed partial class WarehouseService : IDisposable
             {
                 await Task.Delay(TimeSpan.FromSeconds(Settings.PollSeconds),_stop.Token);
                 if(!Settings.AutoRefresh || IsBusy)continue;
-                var source=SourceFingerprint();var master=FileStamp(Settings.MasterPath);var kt=FileStamp(Settings.KtPath);var ledger=HistoryFingerprint();
+                var source=SourceFingerprint();var master=FileStamp(Settings.MasterPath);var ledger=HistoryFingerprint();
                 var sourceChanged=source!=_sourceFingerprint;
                 var masterChanged=master!=_masterFingerprint;
-                var ktChanged=kt!=_ktFingerprint;
-                if(sourceChanged || masterChanged || ktChanged || ledger!=_ledgerFingerprint || _exportsPending || _sourceSyncPending)
-                    await RefreshCoreAsync((sourceChanged||_sourceSyncPending) && Settings.AutoSyncCont,(sourceChanged||masterChanged||ktChanged) && Settings.AutoSyncKt);
+                if(sourceChanged || masterChanged || ledger!=_ledgerFingerprint || _exportsPending || _sourceSyncPending)
+                    await RefreshCoreAsync((sourceChanged||_sourceSyncPending) && Settings.AutoSyncCont,false);
             }
             catch(OperationCanceledException){break;}
             catch(Exception e){Log("monitor",e);LastError=e.Message;Notify();}
         }
     }
-    public Task RefreshAsync(bool force=false)=>RefreshCoreAsync(force&&Settings.AutoSyncCont,force&&Settings.AutoSyncKt);
+    public Task RefreshAsync(bool force=false)=>RefreshCoreAsync(force&&Settings.AutoSyncCont,false);
     private async Task RefreshCoreAsync(bool scanCont,bool syncKt)
     {
         await _gate.WaitAsync(); IsBusy=true;LastError="";Notify();
@@ -375,11 +374,7 @@ public sealed partial class WarehouseService : IDisposable
                     else if(scan.Warnings.Count>0)warnings.Add("Nguồn có cảnh báo; giữ nguyên trang cont để tránh ghi thiếu dữ liệu.");
                     else if(scan.Packages.Count==0)warnings.Add("Không tìm thấy kiện Hưng Yên trong nguồn; giữ nguyên Tổng hợp.xlsx.");
                 }
-                if(syncKt && File.Exists(Settings.KtPath)&&File.Exists(Settings.MasterPath))
-                {
-                    Say("Đối chiếu ngày về và vật tư theo KT tổng hợp.xlsx…");
-                    _excel.ApplyKt(Settings.MasterPath,Settings.KtPath);
-                }
+                // Tắt đối chiếu KT và ghi tự động từ KT tổng hợp theo yêu cầu.
                 Say("Đọc dữ liệu chính Tổng hợp.xlsx…");
                 if(!File.Exists(Settings.MasterPath))throw new FileNotFoundException("Không tìm thấy dữ liệu chính Tổng hợp.xlsx. Chọn lại file trong Cấu hình nguồn.",Settings.MasterPath);
                 var masterBefore=FileStamp(Settings.MasterPath);
@@ -586,14 +581,14 @@ public sealed partial class WarehouseService : IDisposable
     public async Task<List<ComparisonRow>> PreviewArrivalAsync(string contractText)
     {
         var packages=SelectContPackages(contractText);
-        return await Task.Run(()=>_excel.CompareWithKt(Settings.KtPath,packages));
+        return await Task.Run(()=>packages.Select(p=>new ComparisonRow {Contract=p.Contract,Project=p.Project,Company=p.Company,ContItems=p.Items.Count,ContOnly=p.Items,Status="source",Note="Đối chiếu trực tiếp kiện nguồn, không dùng KT tổng hợp."}).ToList());
     }
-    public async Task<RecordArrivalResult> RecordArrivalAsync(string contractText,DateTime day,bool useKt=true)
+    public async Task<RecordArrivalResult> RecordArrivalAsync(string contractText,DateTime day,bool useKt=false)
     {
         var selected=SelectContPackages(contractText);
         if(selected.Count==0)throw new InvalidOperationException("Không có mã khớp trong trang Cont đi Hưng Yên. Chưa ghi dữ liệu.");
         var missing=Rules.Tokens(contractText).Where(c=>!selected.Any(p=>Rules.Contract(p.Contract)==Rules.Contract(c))).ToList();
-        var result=await MutateAsync(()=>_excel.RecordArrival(Settings.MasterPath,Settings.KtPath,selected,day,useKt));
+        var result=await MutateAsync(()=>_excel.RecordArrival(Settings.MasterPath,Settings.KtPath,selected,day,false));
         if(missing.Count>0)result.Warnings.Add("Chưa có trong cont nguồn: "+string.Join(", ",missing));
         await RefreshCoreAsync(Settings.DataSources.Count>0,false);
         if(LastError.Length>0)result.Warnings.Add("Đã ghi kho nhưng chưa phân loại được file nguồn: "+LastError);
@@ -604,7 +599,7 @@ public sealed partial class WarehouseService : IDisposable
     /// incoming container schedule; never include another project with the same contract.
     /// </summary>
     public async Task<RecordArrivalResult> RecordVerifiedArrivalAsync(
-        IReadOnlyList<Package> verified, DateTime actualArrivalDay, bool useKt = true)
+        IReadOnlyList<Package> verified, DateTime actualArrivalDay, bool useKt = false)
     {
         if (verified.Count==0) throw new InvalidOperationException("Chưa chọn kiện Hưng Yên đã về.");
         if (verified.Any(x=>x.Id.Length==0 || x.ContainerNumber.Length==0 ||
@@ -640,11 +635,6 @@ public sealed partial class WarehouseService : IDisposable
         return result;
     }
 
-    public async Task<int> SyncKtAsync()
-    {
-        var count=await MutateAsync(()=>_excel.ApplyKt(Settings.MasterPath,Settings.KtPath));
-        await RefreshAsync(false);return count;
-    }
     private async Task<T> MutateAsync<T>(Func<T> action)
     {
         await _gate.WaitAsync();IsBusy=true;LastError="";Notify();
