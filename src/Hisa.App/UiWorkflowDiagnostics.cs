@@ -112,7 +112,7 @@ public static class UiWorkflowDiagnostics
             Check(headings.Any(x=>x.Contains("1 · CONT DỰ KIẾN VỀ")) &&
                   headings.Any(x=>x.Contains("2 · HỢP ĐỒNG DỰ KIẾN BÀN GIAO")),
                 "Gemini result separates potential container arrival and waiting handover slips");
-            Check(Children(aiPanel).OfType<Button>().Any(b=>b.Content?.ToString()?.Contains("Tìm kiện Hưng Yên trong CONT ĐI")==true) &&
+            Check(Children(aiPanel).OfType<Button>().Any(b=>b.Content?.ToString()?.Contains("Tìm kiện Hưng Yên trong Container")==true) &&
                   Children(aiPanel).OfType<Button>().Any(b=>b.Content?.ToString()?.Contains("Lập phiếu từ hợp đồng")==true),
                 "Arrival verification and draft handover have direct buttons next to their lists");
             var aiGrids=Children(aiPanel).OfType<DataGrid>().ToList();

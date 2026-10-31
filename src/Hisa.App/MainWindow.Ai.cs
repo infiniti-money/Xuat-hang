@@ -227,7 +227,7 @@ public partial class MainWindow
         }
         incomingBody.Children.Add(T("Nếu cont THỰC TẾ đã về, tích đúng hợp đồng ở cột 'Cont đã về?', rồi đối chiếu và chọn từng kiện. Ngày dự kiến không phải ngày thực tế.",12,false,Muted));
         incomingBody.Children.Add(Row(
-            B("⌕  Tìm kiện HĐ trong CONT ĐI", ()=>
+            B("⌕  Tìm kiện HĐ trong Container", ()=>
             {
                 Commit(incoming);
                 ShowAiSchedules();
@@ -243,7 +243,7 @@ public partial class MainWindow
         // explicit action: the source file, date and each package are verified.
         if(doc.Arrivals.Count>0)
         {
-            incomingBody.Children.Add(T("TÌM KIỆN HƯNG YÊN TỪ CONT ĐI · XÁC NHẬN VỀ KHO",16,true));
+            incomingBody.Children.Add(T("TÌM KIỆN HƯNG YÊN TỪ CONTAINER · XÁC NHẬN VỀ KHO",16,true));
             incomingBody.Children.Add(BuildContDiSourcePanel(
                 ()=>doc.Arrivals.ToList(),()=>Commit(incoming),searchWhenLoaded:true));
         }

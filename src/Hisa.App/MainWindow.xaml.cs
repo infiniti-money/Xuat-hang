@@ -582,17 +582,17 @@ public partial class MainWindow : Window
         codes.Width=510;codes.Height=84;
         var top=Card(Stack(
             T("NHẬP SỐ HỢP ĐỒNG → TÌM ĐÚNG KIỆN HƯNG YÊN",18,true),
-            T("Nhập một hoặc nhiều HĐ (mỗi dòng một số). HISA đọc trực tiếp trang "+
-              "Cont đi Hưng Yên trong Tổng hợp.xlsx, không kiểm tra thư mục CONT ĐI. "+
-              "Chỉ lấy kiện ghi HƯNG YÊN / HUNG YEN đúng số HĐ, giữ riêng "+
-              "công trình/T1/T2, ngày cont đi, kiện và số lượng.",12,false,Muted),
+            T("Nhập một hoặc nhiều HĐ (mỗi dòng một số). Khi bấm Tìm, HISA quét "+
+              "file Excel trong Container theo từng thư mục ngày (vd 26.10), "+
+              "chỉ lấy kiện ghi HƯNG YÊN / HUNG YEN đúng HĐ; giữ riêng công trình, "+
+              "T1/T2, thang 1/2, hậu tố ngoặc và từng kiện. Không ghi trang Cont đi.",12,false,Muted),
             Field("Số hợp đồng cont về kho Hưng Yên",codes),
             T("Đúng hợp đồng chưa có nghĩa là đã nhận tất cả kiện. Tích từng kiện thực tế đã về, "+
               "chọn ngày về và xác nhận trước khi ghi vào Tổng hợp.xlsx. Không đối chiếu KT.",11,false,Muted)));
         var matching=BuildContDiSourcePanel(
             ()=>ContDiArrivalLookup.FromContracts(codes.Text));
         SetPage("Tìm kiện & nhập cont Hưng Yên",
-            "Trang Cont đi Hưng Yên → chọn kiện về thực tế → trang chi tiết Excel",
+            "Quét Container khi tìm → xác nhận kiện → chi tiết Tổng hợp.xlsx",
             new ScrollViewer{
                 Content=Stack(top,matching),
                 VerticalScrollBarVisibility=ScrollBarVisibility.Auto
@@ -679,7 +679,7 @@ public partial class MainWindow : Window
         var sources=Input(initialSource??"");sources.Height=38;
         var discovery=T("",11,false,Muted);
         var auto=new CheckBox{Content="Tự động phát hiện dữ liệu mới",IsChecked=model.AutoRefresh};
-        var cont=new CheckBox{Content="Tự cập nhật Cont đi Hưng Yên khi nguồn cont thay đổi",IsChecked=model.AutoSyncCont};
+        var cont=T("Container chỉ được quét khi bạn chủ động tìm hợp đồng / xử lý ảnh Zalo. Không tự động nhập hoặc di chuyển file.",12,false,Muted);
         var poll=Input(model.PollSeconds.ToString());poll.Width=90;
         void updateDiscovery()
         {
@@ -693,7 +693,7 @@ public partial class MainWindow : Window
                     "\n✓ Danh sách sản xuất · "+System.IO.Path.GetFileName(layout.Motor)+
                     "\n✓ Danh sách sản xuất · "+System.IO.Path.GetFileName(layout.Cabinet)+
                     "\n✓ Danh sách sản xuất · "+System.IO.Path.GetFileName(layout.Door)+
-                    "\n✓ CONT ĐI · chỉ quét container tại "+layout.Cont;
+                    "\n✓ Container · chỉ quét khi tìm kiếm tại "+layout.Cont;
             }
             catch(Exception e)
             {
@@ -709,7 +709,7 @@ public partial class MainWindow : Window
             T("Gemini AI · Nguồn Excel · Đồng bộ · Bảo vệ dữ liệu",12,false,Muted))));
         p.Children.Add(Card(Stack(T("Nguồn dữ liệu Excel",18,true),
             T("Thư mục đang chọn: "+(string.IsNullOrWhiteSpace(initialSource)?"Chưa cấu hình":initialSource),12,false,Muted),
-            T("CHỈ CHỌN 1 LẦN thư mục gốc Kho HISA. Không cần chọn 6 file Excel. Phần mềm tự tìm nguồn kho chính và 3 file Danh sách sản xuất và chỉ quét nguồn CONT ĐI.",12,false,Muted),
+            T("CHỈ CHỌN 1 LẦN thư mục gốc Kho HISA. HISA tự tìm Excel kho chính, danh sách sản xuất và thư mục Container; không quét Container khi khởi động.",12,false,Muted),
             DockWithButton(sources,B("Chọn Kho HISA",()=>{var dialog=new OpenFolderDialog{Title="Chọn duy nhất thư mục gốc Kho HISA"};if(dialog.ShowDialog(this)==true)sources.Text=dialog.FolderName;})),discovery)));
         p.Children.Add(Card(Stack(T("DANH SÁCH SẢN XUẤT · TỰ NHẬN DIỆN",18,true),
             T("MÁY KÉO.xlsx · TỦ ĐIỆN.xlsx · Đầu cửa car T10.2026.xlsx được tự động đọc từ thư mục Danh sách sản xuất.",12,false,Muted),
@@ -723,7 +723,7 @@ public partial class MainWindow : Window
             var layout=HisaFolderLayout.RequireCompleteRoot(sources.Text.Trim(),model);
             model=_service.ResolveSettingsFromSourceFolder(layout.Root);
             HisaFolderLayout.Apply(model,layout);
-            model.AutoRefresh=auto.IsChecked==true;model.AutoSyncCont=cont.IsChecked==true;
+            model.AutoRefresh=auto.IsChecked==true;model.AutoSyncCont=false;
             model.AutoSyncKt=false;model.PollSeconds=seconds;
             await _service.SaveSettingsAsync(model);await _service.RefreshAsync(true);Notify("Đã lưu cấu hình nguồn.");ShowSettings();
         },true),A("Sao lưu vào Thư viện",async()=>{var path=System.IO.Path.Combine(_service.BackupDirectory,$"HISA-sao-luu-{DateTime.Now:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}.zip");await _service.BackupAsync(path);Notify("Đã sao lưu vào Thư viện → Tài liệu:\n"+path);}),A("Phục hồi từ ZIP",RestoreFromZipAsync),B("Mở thư mục Backup",()=>System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(_service.BackupDirectory){UseShellExecute=true})),B("Mở thư mục dữ liệu",()=>System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(_service.DataDirectory){UseShellExecute=true}))));

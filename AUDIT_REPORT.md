@@ -1,3 +1,13 @@
+# RÀ SOÁT HISA v1.9.21 · Quy trình Container trực tiếp
+
+- Không đọc trang Cont đi của master trong tra cứu nhập kho mới; không quét vật tư Container khi khởi động, refresh chung hoặc đồng bộ nền.
+- Chỉ xác nhận từ nguồn file Excel tại Container sau khi đối chiếu HĐ/công trình/kiện/vật tư/số lượng; bảng từ ảnh Zalo là lịch, không phải chứng từ.
+- Đọc lại và lưu Excel có bảo toàn cột B ngày, cột E mã hợp đồng có giới hạn độ chính xác Excel; sao lưu atomic và metadata OriginPackageId.
+- Lưu tệp đã nhập đầy đủ ở `Đã nhập kho` ngang hàng Container; file hàng gửi được phân loại riêng; không chuyển file còn kiện chờ và không ghi đè tên trùng.
+- Phạm vi cần kiểm tra tiếp: file nguồn khác mẫu, nhiều T1/T2 trong một file, Excel đang mở, UAC/AV, mạng, và dữ liệu sản xuất thật. Những lỗi chưa xác minh không được coi là đã giải quyết.
+
+---
+
 # BÁO CÁO RÀ SOÁT TIẾP THEO · HISA v1.9.15 → v1.9.16 · 31/10/2026
 
 **Phạm vi:** kiểm tra mã GitHub và kết quả Windows CI, ZIP restore, JSON schema, GitHub updater, nguồn Excel, Gemini credential. Không sử dụng dữ liệu kho thật.

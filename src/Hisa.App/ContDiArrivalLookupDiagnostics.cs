@@ -7,92 +7,42 @@ namespace Hisa.App;
 /// <summary>Pure source lookup tests; no live source or Gemini request.</summary>
 public static class ContDiArrivalLookupDiagnostics
 {
-    /// <summary>
-    /// Tests actual workbook parsing and in-place confirmed receipt without
-    /// any CONT ĐI directory. Only synthetic temporary user data is changed.
-    /// </summary>
+    /// <summary>Without Container, searching must fail rather than use stale master data.</summary>
     public static async Task<List<string>> RunWorkbookAsync()
     {
         var checks=new List<string>();
-        void Check(bool okay,string label)
-        {
-            if(!okay)throw new InvalidOperationException("Cont đi worksheet: "+label);
-            checks.Add("Cont đi worksheet: "+label);
-        }
         var root=SelfTests.CreateDemoWorkspace();
-        // Prove the workflow works even when the physical CONT ĐI directory
-        // does not exist at all; the Cont đi worksheet is the source.
-        Directory.Delete(Path.Combine(root,"CONT ĐI"));
         try
         {
-            var master=Path.Combine(root,"Tổng hợp.xlsx");
-            using(var book=new XLWorkbook(master))
+            var folder=Path.Combine(root,"CONT ĐI");
+            Directory.Delete(folder,true);
+            var settings=new AppSettings
             {
-                var sheet=book.Worksheet("Cont đi Hưng Yên");
-                sheet.Cell(8,5).Value="hung yen";    // no accent, lowercase
-                sheet.Cell(10,5).Value="Hưng Yên";  // mixed case with accents
-                sheet.Cell(12,5).Value="HUNG YEN";  // no accent, uppercase
-                book.Save();
-            }
-            var settings=new AppSettings {
-                MasterPath=master,
+                MasterPath=Path.Combine(root,"Tổng hợp.xlsx"),
                 KtPath=Path.Combine(root,"KT tổng hợp.xlsx"),
                 ProductExportPath=Path.Combine(root,"Thành phẩm xuất kho.xlsx"),
-                DataSources=[],
-                AutoRefresh=false,
-                AutoSyncCont=false,
-                AutoSyncKt=false
+                DataSources=[],AutoRefresh=false,AutoSyncCont=false,AutoSyncKt=false
             };
             File.WriteAllText(Path.Combine(root,"native_data","settings.json"),
                 JsonSerializer.Serialize(settings,WarehouseService.Json));
-            // The physical CONT ĐI folder may exist from the demo fixture,
-            // but this test deliberately configures NONE and proves no scan is required.
             using var service=new WarehouseService(root);
             await service.InitializeAsync();
-            Check(service.LastError.Length==0 && service.Settings.DataSources.Count==0,
-                "Warehouse initializes without a configured source folder");
-            await service.RefreshContDiForArrivalAsync();
-            Check(service.LastError.Length==0 &&
-                  service.ContDiLookupSnapshot.ContPackages.Count==6,
-                "Search reads six existing Hưng Yên packages from master Excel only");
-            var requests=ContDiArrivalLookup.FromContracts(
-                "20012026\n123(1)\n12311\n88882026");
-            var day="2026-11-02";
-            var list=ContDiArrivalLookup.Preview(
-                requests,service.ContDiLookupSnapshot,day);
-            Check(list.Single(x=>x.Contract=="20012026").Status==
-                  ContDiArrivalLookup.Ready &&
-                  list.Single(x=>x.Contract=="123(1)").Status==
-                  ContDiArrivalLookup.Ready,
-                "Mixed-case accented and unaccented HUNG YEN markers are recognized");
-            Check(list.Any(x=>x.Contract=="12311" && x.SourcePackageId.Length==0) &&
-                  list.Any(x=>x.Contract=="88882026" && x.SourcePackageId.Length==0),
-                "Contract exact matching rejects 1231 and a non-Hưng Yên package");
-            var toImport=ContDiArrivalLookup.SelectVerified(
-                [list.Single(x=>x.Contract=="20012026")],
-                requests,service.ContDiLookupSnapshot,day);
-            var result=await service.RecordVerifiedArrivalAsync(
-                toImport,new DateTime(2026,11,2),false);
-            Check(result.Contracts==1 && result.Packages==1 && result.Lines==2,
-                "Confirmed physical Hưng Yên package copies both material lines");
-            var imported=service.Snapshot.DetailPackages
-                .Where(x=>x.OriginPackageId==toImport[0].Id).ToList();
-            Check(imported.Count==1 &&
-                  imported[0].ArrivalDate==day &&
-                  imported[0].Items.Count==2 &&
-                  imported[0].Identity==toImport[0].Identity,
-                "Imported source package is stored in the chi tiết sheet on actual arrival date");
-            await service.RefreshContDiForArrivalAsync();
-            Check(ContDiArrivalLookup.Preview(requests,service.ContDiLookupSnapshot,day)
-                    .Single(x=>x.Contract=="20012026").Status=="Kiện đã nhập kho",
-                "Already imported package is not offered for duplicate receipt");
+            if(service.ContDiLookupSnapshot.ContPackages.Count!=0)
+                throw new InvalidOperationException("Arrival scan used old master Cont đi rows.");
+            checks.Add("Container: no automatic lookup from the historical Cont đi sheet");
+            bool blocked=false;
+            try{await service.RefreshContDiForArrivalAsync();}
+            catch(DirectoryNotFoundException){blocked=true;}
+            if(!blocked || !File.Exists(settings.MasterPath))
+                throw new InvalidOperationException("Missing Container was not safely blocked.");
+            checks.Add("Container: missing directory blocks receipt without changing master Excel");
             return checks;
         }
         finally
         {
             try{Directory.Delete(root,true);}
-            catch(IOException){/* Windows may still be clearing temp file handles. */}
-            catch(UnauthorizedAccessException){/* Keep isolated fixture for diagnostics. */}
+            catch(IOException){/* Temporary Windows file locks may delay cleanup. */}
+            catch(UnauthorizedAccessException){/* Preserve test data for diagnosis. */}
         }
     }
 

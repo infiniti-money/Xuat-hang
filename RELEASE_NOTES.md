@@ -1,3 +1,19 @@
+# HISA v1.9.21 — Nhập kho từ thư mục Container theo kiện Hưng Yên
+
+**Nguồn vật lý:** Chọn đúng thư mục gốc `Kho HISA`. Khi người dùng đọc ảnh Zalo hoặc tự nhập số hợp đồng rồi bấm **Tìm kiện**, HISA mới quét các Excel nằm trong `Kho HISA/Container` và các thư mục ngày (ví dụ `26.10`). Không quét Container lúc mở chương trình, ở nút Làm mới chung hoặc trong đồng bộ nền. Không dùng trang `Cont đi Hưng Yên` trong `Tổng hợp.xlsx` làm nguồn tra cứu hoặc nơi ghi dữ liệu nữa.
+
+**Nhận diện:** Lấy đúng kiện có nhãn `HƯNG YÊN`, `Hưng Yên`, `HUNG YEN` (kể cả xuống dòng); không coi kiện ghi số hoặc nhãn nơi khác là Hưng Yên. Tìm số hợp đồng chính xác và giữ riêng công trình, thang 1/2, T1/T2, các hậu tố ngoặc, ngày cont đi, từng kiện, vật tư/ĐVT/số lượng. Thiếu metadata công trình/đơn vị hoặc số lượng không hợp lệ phải sửa nguồn/đối chiếu; tuyệt đối không tự tạo vật tư từ ảnh.
+
+**Chứng từ nhận:** Ảnh Zalo chỉ là lịch dự kiến. Người vận hành chọn ngày thực tế, tích **từng kiện đã về**, xem xác nhận và cảnh báo trùng vật tư. Khi nhấn ghi, HISA **quét lại file Container**, so khớp ID và dấu vân tay vật tư, sao lưu `Tổng hợp.xlsx` rồi chỉ chèn kiện đã chọn vào trang `chi tiết`. **Cột B** là kiểu ngày Excel (`dd/MM/yyyy`), **cột E** là số Excel nếu hợp đồng dạng số tối đa 15 chữ số; trường hợp mã dài hoặc có hậu tố được giữ dạng văn bản để không mất số 0 đầu/độ chính xác.
+
+**Phân loại file:** Sau khi ghi và đọc lại chứng từ thành công, chỉ chuyển file có **toàn bộ kiện Hưng Yên đã nhập** sang thư mục ngang cấp `Đã nhập kho/<thư mục ngày>/<tên file>`. File còn kiện chưa nhận vẫn ở `Container`. File có tên `hanggui`/`hàng gửi` được loại trừ và chuyển ngang cấp sang `Hàng gửi` trong luồng xử lý có xác nhận. Không ghi đè file đích trùng tên và không xóa file gốc khi phân loại lỗi.
+
+**Giữ nguyên các nghiệp vụ:** Máy kéo gia công Hưng Yên đọc/ghi cột K, xác nhận xuất mới ghi ngày; không đối chiếu KT tổng hợp, không nạp lại lịch AI đã duyệt; Gemini mic/loa và sửa Excel có bước duyệt; sao lưu ZIP, phục hồi/rollback và cập nhật EXE theo quy trình hiện tại.
+
+**Kiểm chứng bắt buộc:** Windows CI gồm build .NET, self-test Excel độc lập, Inno Setup tiếng Việt, cài mới/cài đè, ZIP và SHA-256 phải xanh trước khi gộp. Chưa kiểm thử trên workbook kho thực tế hay Windows người sử dụng. Không đóng issue #13 chỉ vì CI xanh.
+
+---
+
 # HISA v1.9.20 — Nguồn CONT ĐI HƯNG YÊN và ngày về thực tế
 
 - **Ưu tiên file vật lý:** ảnh Zalo hoặc số HĐ nhập tay sẽ tìm từng kiện HƯNG YÊN trong các file Excel ở **thư mục CONT ĐI HƯNG YÊN** đã cấu hình, đối chiếu HĐ, công trình/T1/T2, ngày cont đi, vật tư và số lượng với bảng Cont đi của Tổng hợp.xlsx. Không lấy dữ liệu master cũ nếu file nguồn không còn.

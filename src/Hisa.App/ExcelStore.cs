@@ -375,7 +375,7 @@ public sealed class ExcelStore
         if(companyMatches.Select(x=>Rules.Identity(x.Contract,x.Project,x.Company)).Distinct().Count()==1)return companyMatches.First();
         return null;
     }
-    public SourceScanResult ScanSources(AppSettings settings,IProgress<OperationProgress>? progress=null,CancellationToken cancellationToken=default)
+    public SourceScanResult ScanSources(AppSettings settings,IProgress<OperationProgress>? progress=null,CancellationToken cancellationToken=default,bool includeReceivedArchives=true)
     {
         lock (gate)
         {
@@ -386,12 +386,12 @@ public sealed class ExcelStore
             {
                 if (Directory.Exists(source))
                 {
-                    try { foreach(var path in Directory.EnumerateFiles(source,"*.xlsx",SearchOption.AllDirectories)) if(!Path.GetFileName(path).StartsWith("~$")) files.Add(Path.GetFullPath(path)); }
+                    try { foreach(var path in Directory.EnumerateFiles(source,"*.xlsx",SearchOption.AllDirectories)) if(!Path.GetFileName(path).StartsWith("~$") && (includeReceivedArchives || !ContFileOrganizer.IsAlreadySorted(path,source))) files.Add(Path.GetFullPath(path)); }
                     catch(Exception ex) { result.Warnings.Add($"Không quét đủ nguồn {source}: {ex.Message}"); }
                     // Received originals live beside CONT ĐI, never inside it. Include
                     // them in future rebuilds so stable source IDs remain discoverable.
                     var receivedFolder=ContFileOrganizer.SiblingFolder(source,"Đã nhập kho");
-                    if(Directory.Exists(receivedFolder))
+                    if(includeReceivedArchives && Directory.Exists(receivedFolder))
                     {
                         try
                         {
@@ -438,7 +438,7 @@ public sealed class ExcelStore
                         continue;
                     }
                     var fileWarnings=new List<string>();
-                    var packages=ParseSource(path,manifest,metadata,fileWarnings,roots);
+                    var packages=ParseSource(path,manifest,metadata,fileWarnings,roots,requireHungYenMarker:!includeReceivedArchives);
                     sourceCache[path]=(stamp,packages,fileWarnings);
                     result.Warnings.AddRange(fileWarnings);
                     result.Packages.AddRange(Clone(packages));
@@ -466,7 +466,7 @@ public sealed class ExcelStore
         var name=Rules.Code(Path.GetFileNameWithoutExtension(path));
         return Path.GetFullPath(path).Equals(settings.MasterPath,StringComparison.OrdinalIgnoreCase) || Path.GetFullPath(path).Equals(settings.KtPath,StringComparison.OrdinalIgnoreCase) || name is "TONGHOP" or "KTTONGHOP" or "HANGTHEOCONT" or "THANHPHAMXUATKHO" || name.StartsWith("LICHXUATHANG") || name.StartsWith("SOTHEODOIXUATHANG") || name.StartsWith("PHIEUXUATVATTU") || Path.GetDirectoryName(path)!.Split(Path.DirectorySeparatorChar).Any(x=>Rules.Code(x) is "XUATHANG" or "BACKUPS" or "HISABACKUPS" or "NATIVEDATA");
     }
-    private static List<Package> ParseSource(string path,List<Metadata> manifests,List<Metadata> schedule,List<string> warnings,IEnumerable<string> roots)
+    private static List<Package> ParseSource(string path,List<Metadata> manifests,List<Metadata> schedule,List<string> warnings,IEnumerable<string> roots,bool requireHungYenMarker=false)
     {
         var stem=Path.GetFileNameWithoutExtension(path);var inferred=InferContract(stem);
         var match=MatchMetadata(path,manifests,schedule);
@@ -498,7 +498,7 @@ public sealed class ExcelStore
                 if(marker.Length>0)
                 {
                     var markerCode=Rules.Code(marker);
-                    var hy=markerCode.Contains("HUNGYEN");
+                    var hy=markerCode=="HUNGYEN";
                     // A textual destination always takes precedence over a manifest
                     // fallback; generic numeric/package markers are not destinations.
                     if(hy || !Regex.IsMatch(markerCode,@"^(?:(?:KIEN(?:HANG)?|PACKAGE|PKG|K))?\d+$")) explicitDestination=true;
@@ -516,7 +516,7 @@ public sealed class ExcelStore
                 else pending.Add(new MaterialLine { Material=material,Unit=unit,Quantity=sheet.Quantity(row,4),Note=sheet.Text(row,5) });
             }
         }
-        if(!explicitDestination && blocks.Count==0 && match!=null && pending.Count>0)
+        if(!requireHungYenMarker && !explicitDestination && blocks.Count==0 && match!=null && pending.Count>0)
         {
             var package=new Package {Id="source|"+ContFileOrganizer.OriginalPath(path,roots)+"|1",Contract=contract,Project=project,Company=company,SourceDate=day,ContDate=day,SourceFile=Path.GetFileName(path),SourcePath=path,PackageNo=1};
             foreach(var line in pending) package.Items.Add(NewLine(package,line.Material,line.Unit,line.Quantity,line.Note));
@@ -532,12 +532,12 @@ public sealed class ExcelStore
     private static void SetContract(IXLCell cell,string contract)
     {
         contract=Rules.CleanContract(contract);
-        if(Regex.IsMatch(contract,@"^\d+(?:\.\d+)?$") && double.TryParse(contract,NumberStyles.AllowDecimalPoint,CultureInfo.InvariantCulture,out var number))
+        if(Regex.IsMatch(contract,@"^\d+(?:\.\d+)?$") && Regex.Replace(contract,@"\D","").Length<=15 && double.TryParse(contract,NumberStyles.AllowDecimalPoint,CultureInfo.InvariantCulture,out var number))
         {
             cell.Value=number;
             cell.Style.NumberFormat.Format=contract.StartsWith('0') && !contract.Contains('.')?new string('0',contract.Length):contract.Contains('.')?"0."+new string('0',contract.Split('.')[1].Length):"0";
         }
-        else { cell.Value=contract;cell.Style.NumberFormat.Format="@"; }
+        else { cell.Value=contract;cell.Style.NumberFormat.Format="@"; } // Preserve text/suffix/long numeric identifiers without Excel precision loss.
     }
     private static void SetDate(IXLCell cell,string day)
     {

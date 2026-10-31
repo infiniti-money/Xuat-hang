@@ -49,7 +49,7 @@ public static class HisaFolderLayout
         string root;
         if(Directory.Exists(Path.Combine(folder,"Kho chính")))
             root=folder;
-        else if(new[]{"CONT DI","KHO CHINH","DANH SACH SAN XUAT"}
+        else if(new[]{"CONTAINER","CONT DI","KHO CHINH","DANH SACH SAN XUAT"}
             .Select(Rules.Code).Contains(Rules.Code(Path.GetFileName(folder))) &&
             Directory.GetParent(folder) is { } parent &&
             Directory.Exists(Path.Combine(parent.FullName,"Kho chính")))
@@ -61,7 +61,7 @@ public static class HisaFolderLayout
         if(master==null)throw new FileNotFoundException(
             "Đã tìm thấy cấu trúc Kho HISA nhưng thiếu Kho chính/Tổng hợp.xlsx.",Path.Combine(main,"Tổng hợp.xlsx"));
         var production=Path.Combine(root,"Danh sách sản xuất");
-        return new Paths(root,Path.Combine(root,"CONT ĐI"),master,
+        return new Paths(root,Path.Combine(root,"Container"),master,
             ExcelNamed(main,"KT tổng hợp")??Path.Combine(main,"KT tổng hợp.xlsx"),
             ExcelNamed(main,"Thành phẩm xuất kho")??Path.Combine(main,"Thành phẩm xuất kho.xlsx"),
             ProductionExcel(production,"TUDIEN",previous?.ElectricalCabinetListPath),
@@ -83,7 +83,7 @@ public static class HisaFolderLayout
         if(layout==null ||
            !string.Equals(full,layout.Root,StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException(
-                "Chỉ chọn duy nhất thư mục gốc Kho HISA, không chọn Kho chính, CONT ĐI hoặc Danh sách sản xuất.");
+                "Chỉ chọn thư mục gốc Kho HISA, không chọn Kho chính, Container hoặc Danh sách sản xuất.");
         if(!Directory.Exists(Path.Combine(layout.Root,"Danh sách sản xuất")))
             throw new DirectoryNotFoundException("Thiếu thư mục Kho HISA/Danh sách sản xuất.");
         var expected=new[]{
@@ -117,8 +117,8 @@ public static class HisaFolderLayout
         var source=settings.DataSources.FirstOrDefault();
         if(string.IsNullOrWhiteSpace(source))
         {
-            // An installation that uses only the existing Cont đi Excel sheet
-            // has no physical CONT ĐI folder; still display its warehouse root.
+            // An installation that has not yet configured the Container source
+            // has no physical Container folder; still display its warehouse root.
             if(!string.IsNullOrWhiteSpace(settings.MasterPath) &&
                File.Exists(settings.MasterPath))
             {
