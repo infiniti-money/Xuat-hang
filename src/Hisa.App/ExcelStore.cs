@@ -516,7 +516,7 @@ public sealed class ExcelStore
                 else pending.Add(new MaterialLine { Material=material,Unit=unit,Quantity=sheet.Quantity(row,4),Note=sheet.Text(row,5) });
             }
         }
-        if(!explicitDestination && blocks.Count==0 && match!=null && pending.Count>0)
+        if(!requireHungYenMarker && !explicitDestination && blocks.Count==0 && match!=null && pending.Count>0)
         {
             var package=new Package {Id="source|"+ContFileOrganizer.OriginalPath(path,roots)+"|1",Contract=contract,Project=project,Company=company,SourceDate=day,ContDate=day,SourceFile=Path.GetFileName(path),SourcePath=path,PackageNo=1};
             foreach(var line in pending) package.Items.Add(NewLine(package,line.Material,line.Unit,line.Quantity,line.Note));
