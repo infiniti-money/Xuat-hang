@@ -118,6 +118,7 @@ public partial class MainWindow : Window
             case "ai-schedule":ShowAiSchedules();break;
             case "readiness":ShowDispatchReadiness();break;
             case "planned-arrivals":ShowPlannedArrivals();break;
+            case "gemini-excel":ShowGeminiExcelAssistant();break;
             case "arrival":ShowArrival();break;
             case "arrival-packages":ShowArrivalPackages();break;
             case "templates":ShowTemplates();break;
@@ -576,31 +577,42 @@ public partial class MainWindow : Window
 
     private void ShowArrival()
     {
-        _page="arrival";var codes=Input("",true);codes.Width=410;var day=DateInput(DateTime.Today.ToString("yyyy-MM-dd"));var useKt=new CheckBox{Content="Lấy vật tư chuẩn theo KT khi đối chiếu khớp",IsChecked=true};
-        List<ComparisonRow> comparisons=[];List<Package> packages=[];var content=new ContentControl();var count=T("Nhập nhiều mã hợp đồng để kiểm tra kiện cont đi và đối chiếu KT.",12,false,Muted);
-        async Task preview()
+        _page="arrival";
+        var codes=Input("",true);codes.Width=410;
+        var day=DateInput(DateTime.Today.ToString("yyyy-MM-dd"));
+        var info=T("Nhập các hợp đồng nguồn cont đi để xem đúng kiện và vật tư; không đối chiếu KT tổng hợp.",12,false,Muted);
+        var content=new ContentControl();
+        List<Package> packages=[];
+        void preview()
         {
-            if(Rules.Tokens(codes.Text).Count==0)throw new InvalidOperationException("Hãy nhập số hợp đồng cần nhập kho.");
-            packages=_service.SelectContPackages(codes.Text);comparisons=await _service.PreviewArrivalAsync(codes.Text);
-            var found=packages.Select(x=>Rules.Contract(x.Contract)).ToHashSet();var missing=Rules.Tokens(codes.Text).Where(x=>!found.Contains(Rules.Contract(x))).ToList();
-            var grid=Table(comparisons,("Số HĐ","Contract",120),("Công trình","Project",-1),("Công ty","Company",150),("Kết quả","StatusLabel",175),("Dòng cont","ContItems",90),("Dòng KT","KtItems",90),("Chi tiết","Note",320));
-            grid.MouseDoubleClick+=(_,_)=>{if(grid.SelectedItem is ComparisonRow r)ShowDialogContent("Đối chiếu "+r.Contract,Layout(Stack(T(r.Project,18,true),T(r.Note,12,false,Muted)),Tabs(("Cont có / lệch",MaterialsTable(r.ContOnly)),("KT có / lệch",MaterialsTable(r.KtOnly)))));};
-            var missingTable=Table(missing.Select(x=>new{Contract=x,Warning="Chưa tìm thấy kiện trong Cont đi Hưng Yên"}).ToList(),("Số hợp đồng","Contract",160),("Cảnh báo","Warning",-1));
-            content.Content=Tabs(("Đối chiếu với KT",grid),("Kiện cont đi",PackageGrid(packages)),($"Mã chưa có dữ liệu ({missing.Count})",missingTable));
-            count.Text=$"{found.Count:N0}/{Rules.Tokens(codes.Text).Count} số HĐ có dữ liệu · {packages.Count:N0} kiện · {missing.Count:N0} mã chưa có dữ liệu. Nhấp đúp một dòng đối chiếu để xem vật tư lệch.";
+            if(Rules.Tokens(codes.Text).Count==0)
+                throw new InvalidOperationException("Hãy nhập số hợp đồng cần nhập kho.");
+            packages=_service.SelectContPackages(codes.Text);
+            var found=packages.Select(p=>Rules.Contract(p.Contract)).ToHashSet();
+            var missing=Rules.Tokens(codes.Text).Where(x=>!found.Contains(Rules.Contract(x))).ToList();
+            content.Content=Tabs(("Kiện nguồn cont đi",PackageGrid(packages)),
+                ("Mã chưa có dữ liệu",Table(missing.Select(x=>new{Contract=x,
+                    Warning="Chưa có kiện trong Cont đi Hưng Yên"}).ToList(),
+                    ("Hợp đồng","Contract",160),("Cảnh báo","Warning",-1))));
+            info.Text=$"{found.Count} hợp đồng có nguồn · {packages.Count} kiện · "+
+                $"{missing.Count} mã chưa có dữ liệu. Chọn đúng kiện trước khi xác nhận.";
         }
-        var tools=Card(Stack(Row(Field("SỐ HỢP ĐỒNG NHẬP KHO · NHIỀU MÃ",codes),Field("Ngày cont về",day)),useKt,Row(A("⌕  Kiểm tra & đối chiếu",preview,true),A("↓  Ghi ngày cont về",async()=>
-        {
-            if(Day(day).Length==0)throw new InvalidOperationException("Chọn ngày cont về.");await preview();if(packages.Count==0)throw new InvalidOperationException("Không có hợp đồng có dữ liệu để nhập kho.");
-            var mismatches=comparisons.Count(x=>x.Status!="matched");
-            if(!Ask($"Ghi {packages.Count} kiện Hưng Yên, ngày {Rules.Day(Day(day))} vào trang chi tiết?\n\n{count.Text}\n\nCó {mismatches} công trình cần đối chiếu KT. Các mã chưa có dữ liệu không được ghi; các mã có dữ liệu vẫn được xử lý."))return;
-            var result=await _service.RecordArrivalAsync(codes.Text,day.SelectedDate!.Value,useKt.IsChecked==true);Notify($"Đã ghi {result.Contracts} hợp đồng / {result.Packages} kiện / {result.Lines} dòng.\n"+string.Join("\n",result.Warnings));
-        }),A("Đồng bộ ngày / vật tư theo KT",async()=>
-        {
-            if(!Ask("Đối chiếu và cập nhật trang chi tiết trong Tổng hợp.xlsx theo KT tổng hợp.xlsx?\n\nỨng dụng tạo bản sao lưu trước khi ghi."))return;var n=await _service.SyncKtAsync();Notify($"Đã đồng bộ {n:N0} dòng theo KT tổng hợp.xlsx.");
-        })),count));
-        content.Content=Alert("Trang nguồn để nhập kho là Cont đi Hưng Yên. Kiểm tra hợp đồng/công trình và vật tư với KT trước khi ghi ngày cont về.");
-        SetPage("Cont đã nhập kho Hưng Yên","Nhập nhiều hợp đồng · đối chiếu vật tư · ghi ngày cont về vào Tổng hợp.xlsx",Layout(tools,content));
+        var tools=Card(Stack(
+            Row(Field("HỢP ĐỒNG NHẬP KHO",codes),Field("Ngày cont thực về",day)),
+            Row(B("Xem kiện nguồn",preview,true),A("Xác nhận ghi ngày cont về",async()=>
+            {
+                if(Day(day).Length==0)throw new InvalidOperationException("Chọn ngày thực tế về.");
+                preview();
+                if(packages.Count==0)throw new InvalidOperationException("Không có kiện nguồn.");
+                if(!Ask($"Xác nhận {packages.Count} kiện về ngày {Rules.Day(Day(day))}? "+
+                    "Chỉ dùng thông tin vật tư từ Cont đi Hưng Yên; không đọc hoặc đối chiếu KT. "+
+                    "Tổng hợp.xlsx được sao lưu trước khi ghi."))return;
+                var result=await _service.RecordArrivalAsync(codes.Text,day.SelectedDate!.Value,false);
+                Notify($"Đã ghi {result.Contracts} HĐ · {result.Packages} kiện · "+
+                    $"{result.Lines} dòng.\n"+string.Join("\n",result.Warnings));
+            })),info));
+        content.Content=Alert("Nguồn ghi nhận: Cont đi Hưng Yên. Không sử dụng KT tổng hợp.xlsx.");
+        SetPage("Nhập cont về kho","Ngày thực tế · kiện nguồn · xác nhận trước khi ghi Tổng hợp.xlsx",Layout(tools,content));
     }
 
     private void ShowArrivalPackages()
@@ -684,7 +696,6 @@ public partial class MainWindow : Window
         var discovery=T("",11,false,Muted);
         var auto=new CheckBox{Content="Tự động phát hiện dữ liệu mới",IsChecked=model.AutoRefresh};
         var cont=new CheckBox{Content="Tự cập nhật Cont đi Hưng Yên khi nguồn cont thay đổi",IsChecked=model.AutoSyncCont};
-        var syncKt=new CheckBox{Content="Tự cập nhật trang chi tiết khi file KT thay đổi",IsChecked=model.AutoSyncKt};
         var poll=Input(model.PollSeconds.ToString());poll.Width=90;
         void updateDiscovery()
         {
@@ -692,9 +703,8 @@ public partial class MainWindow : Window
             {
                 var layout=HisaFolderLayout.RequireCompleteRoot(sources.Text.Trim(),model);
                 discovery.Foreground=Brush("#177E89");
-                discovery.Text="✓ ĐÃ NHẬN ĐỦ 6 FILE EXCEL (CHỈ CẦN MỘT THƯ MỤC)"+
+                discovery.Text="✓ ĐÃ NHẬN DIỆN NGUỒN EXCEL (CHỈ CẦN MỘT THƯ MỤC)"+
                     "\n✓ Kho chính · "+System.IO.Path.GetFileName(layout.Master)+
-                    "\n✓ Kho chính · "+System.IO.Path.GetFileName(layout.Kt)+
                     "\n✓ Kho chính · "+System.IO.Path.GetFileName(layout.Product)+
                     "\n✓ Danh sách sản xuất · "+System.IO.Path.GetFileName(layout.Motor)+
                     "\n✓ Danh sách sản xuất · "+System.IO.Path.GetFileName(layout.Cabinet)+
@@ -715,12 +725,12 @@ public partial class MainWindow : Window
             T("Gemini AI · Nguồn Excel · Đồng bộ · Bảo vệ dữ liệu",12,false,Muted))));
         p.Children.Add(Card(Stack(T("Nguồn dữ liệu Excel",18,true),
             T("Thư mục đang chọn: "+(string.IsNullOrWhiteSpace(initialSource)?"Chưa cấu hình":initialSource),12,false,Muted),
-            T("CHỈ CHỌN 1 LẦN thư mục gốc Kho HISA. Không cần chọn 6 file Excel. Phần mềm tự tìm 3 file Kho chính, 3 file Danh sách sản xuất và chỉ quét nguồn CONT ĐI.",12,false,Muted),
+            T("CHỈ CHỌN 1 LẦN thư mục gốc Kho HISA. Không cần chọn 6 file Excel. Phần mềm tự tìm nguồn kho chính và 3 file Danh sách sản xuất và chỉ quét nguồn CONT ĐI.",12,false,Muted),
             DockWithButton(sources,B("Chọn Kho HISA",()=>{var dialog=new OpenFolderDialog{Title="Chọn duy nhất thư mục gốc Kho HISA"};if(dialog.ShowDialog(this)==true)sources.Text=dialog.FolderName;})),discovery)));
         p.Children.Add(Card(Stack(T("DANH SÁCH SẢN XUẤT · TỰ NHẬN DIỆN",18,true),
             T("MÁY KÉO.xlsx · TỦ ĐIỆN.xlsx · Đầu cửa car T10.2026.xlsx được tự động đọc từ thư mục Danh sách sản xuất.",12,false,Muted),
             T("Bạn không phải chọn từng file hoặc cấu hình thêm đường dẫn. Các bảng sản xuất chỉ đọc, không tự xác nhận hàng đã nhập kho.",11,false,Muted))));
-        p.Children.Add(Card(Stack(T("Tốc độ & đồng bộ",18,true),auto,cont,syncKt,Row(Field("Chu kỳ kiểm tra · giây",poll)),T("Dữ liệu được lập chỉ mục trong bộ nhớ và giữ bộ nhớ đệm để mở ứng dụng nhanh. File Excel đang mở sẽ được báo và thử lại, không ghi dở dang.",12,false,Muted))));
+        p.Children.Add(Card(Stack(T("Tốc độ & đồng bộ",18,true),auto,cont,Row(Field("Chu kỳ kiểm tra · giây",poll)),T("Dữ liệu được lập chỉ mục trong bộ nhớ và giữ bộ nhớ đệm để mở ứng dụng nhanh. File Excel đang mở sẽ được báo và thử lại, không ghi dở dang.",12,false,Muted))));
         p.Children.Add(Row(A("Lưu cấu hình & tải lại",async()=>
         {
             if(!int.TryParse(poll.Text,out var seconds)||seconds<5||seconds>3600)throw new InvalidOperationException("Chu kỳ kiểm tra từ 5 đến 3600 giây.");
@@ -730,7 +740,7 @@ public partial class MainWindow : Window
             model=_service.ResolveSettingsFromSourceFolder(layout.Root);
             HisaFolderLayout.Apply(model,layout);
             model.AutoRefresh=auto.IsChecked==true;model.AutoSyncCont=cont.IsChecked==true;
-            model.AutoSyncKt=syncKt.IsChecked==true;model.PollSeconds=seconds;
+            model.AutoSyncKt=false;model.PollSeconds=seconds;
             await _service.SaveSettingsAsync(model);await _service.RefreshAsync(true);Notify("Đã lưu cấu hình nguồn.");ShowSettings();
         },true),A("Sao lưu vào Thư viện",async()=>{var path=System.IO.Path.Combine(_service.BackupDirectory,$"HISA-sao-luu-{DateTime.Now:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}.zip");await _service.BackupAsync(path);Notify("Đã sao lưu vào Thư viện → Tài liệu:\n"+path);}),A("Phục hồi từ ZIP",RestoreFromZipAsync),B("Mở thư mục Backup",()=>System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(_service.BackupDirectory){UseShellExecute=true})),B("Mở thư mục dữ liệu",()=>System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(_service.DataDirectory){UseShellExecute=true}))));
         p.Children.Add(GeminiSettingsCard());

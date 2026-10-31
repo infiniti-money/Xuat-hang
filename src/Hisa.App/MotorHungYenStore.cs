@@ -194,7 +194,7 @@ public sealed class MotorHungYenStore
                     Key=key,Contract=row.Contract,Project=row.Project,Company=row.Company,
                     Material=row.Material,Quantity=row.Quantity,Lot=row.Lot,Serial=row.Serial,
                     SourceNote=row.Note,SourcePosition=row.Sheet+" · dòng "+row.SourceRow,
-                    SourceWorkValue=row.MotorColumnL,
+                    SourceWorkValue=row.MotorColumnK,
                     State=state?.State??Pending,WorkChoice=state?.WorkChoice??"",
                     SentDay=state?.SentDay??"",CompletedDay=state?.CompletedDay??"",
                     HandoverDay=state?.HandoverDay??"",LastNote=state?.LastNote??"",

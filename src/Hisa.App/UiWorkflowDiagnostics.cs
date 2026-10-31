@@ -80,12 +80,12 @@ public static class UiWorkflowDiagnostics
             Check(Children(window).OfType<DataGrid>().Any(g=>
                 g.Columns.OfType<DataGridTextColumn>().Any(c=>c.Header?.ToString()=="Tiến độ xác nhận") &&
                 g.Columns.OfType<DataGridTextColumn>().Any(c=>c.Header?.ToString()=="Chọn làm") &&
-                g.Columns.OfType<DataGridTextColumn>().Any(c=>c.Header?.ToString()=="Cột L (Excel)") &&
+                g.Columns.OfType<DataGridTextColumn>().Any(c=>c.Header?.ToString()=="Cột K (Excel)") &&
                 g.Columns.OfType<DataGridTextColumn>().Any(c=>c.Header?.ToString()=="Ngày bàn giao")),
                 "Motor tracker separates selected work status from actual delivery date");
             Check(Children(window).OfType<ComboBox>().Any(c=>
                     c.Items.Cast<object>().Select(x=>x.ToString()).SequenceEqual(new[]{"Chưa làm","Đã làm"})) &&
-                Children(window).OfType<Button>().Any(b=>b.Content?.ToString()=="Lưu trạng thái vào Excel cột L") &&
+                Children(window).OfType<Button>().Any(b=>b.Content?.ToString()=="Lưu trạng thái vào Excel cột K") &&
                 !Children(window).OfType<Button>().Any(b=>
                     b.Content?.ToString()?.Contains("Xác nhận đã bàn giao")==true) &&
                 Children(window).OfType<Button>().Any(b=>b.Content?.ToString()=="Lịch sử dòng chọn"),

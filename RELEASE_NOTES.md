@@ -1,3 +1,14 @@
+# HISA v1.9.19 — Cột K, lịch cont và trợ lý Gemini
+
+- Máy kéo: đọc/ghi hai chiều trạng thái Chưa làm, Đã làm hoặc ngày xuất kho vào đúng cột K; giữ dữ liệu L/N cũ.
+- Không còn đối chiếu KT tổng hợp, không nạp lịch AI đã duyệt trước đây từ giao diện.
+- Lịch cont dự kiến và xác nhận kiện thực nhận nằm cùng màn hình, giữ xác nhận riêng trước khi ghi.
+- Gemini sử dụng mic/loa Windows theo thao tác người dùng; cần giọng nhận dạng tiếng Việt trên máy.
+- Trợ lý có thể xem dữ liệu Excel đã chọn, hiểu công việc hàng ngày, đề xuất tối đa tám ô chỉnh sửa. Mỗi lần ghi cần người dùng duyệt, lưu bản sao, không sửa sổ kho chính/cột K từ AI.
+- Kiểm thử bằng file tạm, chưa thay thế kiểm tra mic, loa và tệp Excel thật.
+
+---
+
 # HISA v1.9.18 — Cột L cho trạng thái máy kéo và ngày xuất kho (hai chiều)
 
 - **Thay cột N bằng cột L trong MÁY KÉO.xlsx**, sheet đầu: `Chưa làm`, `Đã làm` hoặc **ngày xuất kho**. Không tạo hoặc sử dụng tiếp cột N để cập nhật.

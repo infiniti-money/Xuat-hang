@@ -7,7 +7,7 @@ using ClosedXML.Excel;
 namespace Hisa.App;
 
 /// <summary>
-/// Synchronizes fixed column L in the ORIGINAL MÁY KÉO.xlsx:
+/// Synchronizes fixed column K in the ORIGINAL MÁY KÉO.xlsx:
 /// explicit "Đã làm"/"Chưa làm" before delivery, real dates only from confirmed slips.
 /// Never marks machines based on an HĐ alone or from a draft / projected shipment.
 /// Tracking own writes enables safe reversal after a slip is cancelled.
@@ -15,7 +15,7 @@ namespace Hisa.App;
 public static class MotorHandoverExcel
 {
     private const string ColumnTitle="Ngày xuất kho";
-    private const int StatusColumn=12; // Cột L: trạng thái gia công hoặc ngày xuất kho (hai chiều)
+    private const int StatusColumn=11; // Cột K: trạng thái gia công hoặc ngày xuất kho (hai chiều)
     private const string ReceiptFile="motor_handover_excel_sync.json";
     private static readonly JsonSerializerOptions Json=new() {WriteIndented=true};
     public sealed class Receipt
@@ -146,8 +146,8 @@ public static class MotorHandoverExcel
         var path=settings.TractionMachineListPath;
         var receiptPath=Path.Combine(dataDirectory,ReceiptFile);
         var allReceipts=ReadReceipts(receiptPath);
-        var legacy=allReceipts.Where(x=>!string.Equals(x.Column,"L",StringComparison.OrdinalIgnoreCase)).ToList();
-        var prior=allReceipts.Where(x=>string.Equals(x.Column,"L",StringComparison.OrdinalIgnoreCase)).ToList();
+        var legacy=allReceipts.Where(x=>!string.Equals(x.Column,"K",StringComparison.OrdinalIgnoreCase)).ToList();
+        var prior=allReceipts.Where(x=>string.Equals(x.Column,"K",StringComparison.OrdinalIgnoreCase)).ToList();
         var incomplete=slips.Where(x=>x.Status=="delivered")
             .SelectMany(x=>x.Lines.Where(MotorSerials.IsMotor))
             .Any(x=>x.Quantity is >0);
@@ -181,23 +181,23 @@ public static class MotorHandoverExcel
         var sheet=book.Worksheets.First();
         if(Rules.Code(sheet.Cell(2,4).GetString())!="HD")
             throw new InvalidDataException("MÁY KÉO.xlsx không có tiêu đề HĐ tại cột D, dòng 2. Không sửa file.");
-        // The user's source template reserves column L for either a work-state
+        // The user's source template reserves column K for either a work-state
         // word or the real confirmed delivery date. Never append a new column,
-        // and never overwrite an unrelated original column L.
+        // and never overwrite an unrelated original column K.
         var dateColumn=StatusColumn;
         var header=sheet.Cell(2,dateColumn).GetString().Trim();
         if(header.Length>0 && Rules.Code(header) is not ("NGAYBANGIAO" or
             "NGAYXUATKHO" or "TRANGTHAI" or "TINHTRANG" or
             "TRANGTHAIMAYKEO" or "TRANGTHAIGIACONG" or "TINHTRANGMAYKEO" or
             "TINHTRANGLAM"))
-            throw new InvalidDataException("Cột L đang có tiêu đề '"+header+
+            throw new InvalidDataException("Cột K đang có tiêu đề '"+header+
                 "'. HISA không ghi đè; hãy kiểm tra mẫu MÁY KÉO.xlsx.");
         var newlyAdded=header.Length==0;
         if(newlyAdded && sheet.Column(dateColumn).CellsUsed()
             .Any(c=>c.Address.RowNumber>=3 && !IsWorkText(DateText(c)) &&
                 !DateTime.TryParseExact(DateText(c),"yyyy-MM-dd",
                     CultureInfo.InvariantCulture,DateTimeStyles.None,out _)))
-            throw new InvalidDataException("Cột L không có tiêu đề nhưng chứa dữ liệu ngoài Chưa làm / Đã làm / ngày xuất kho. HISA không ghi đè.");
+            throw new InvalidDataException("Cột K không có tiêu đề nhưng chứa dữ liệu ngoài Chưa làm / Đã làm / ngày xuất kho. HISA không ghi đè.");
         var rows=EquipmentListReader.Read(path,"Máy kéo");
         var workItems=new MotorHungYenStore(dataDirectory).List(rows);
         foreach(var item in workItems.Where(x=>x.PresentInSource &&
@@ -238,7 +238,7 @@ public static class MotorHandoverExcel
             var cell=sheet.Cell(candidates[0].SourceRow,dateColumn);
             var existing=DateText(cell);
             priorByKey.TryGetValue(identity,out var owned);
-            // Excel is also an input: a human's change in L must not be
+            // Excel is also an input: a human's change in K must not be
             // silently reverted by background reconciliation with stale JSON.
             // Only an explicit click in HISA may replace one work word with another.
             bool explicitWork=explicitWorkIdentity==identity && IsWorkText(day) &&
@@ -247,20 +247,20 @@ public static class MotorHandoverExcel
                !(IsWorkText(existing) && !IsWorkText(day)) && !explicitWork)
             {
                 unmatched++;
-                warnings.Add("Cột L có dữ liệu nhập tay khác trạng thái dự kiến; không ghi đè: "+identity);
+                warnings.Add("Cột K có dữ liệu nhập tay khác trạng thái dự kiến; không ghi đè: "+identity);
                 continue;
             }
             if(owned!=null&&existing!=owned.Date&&existing!=day && !explicitWork)
             {
                 unmatched++;
-                warnings.Add("Cột L đã bị sửa bên ngoài HISA. Không ghi đè: "+identity);
+                warnings.Add("Cột K đã bị sửa bên ngoài HISA. Không ghi đè: "+identity);
                 continue;
             }
             // An already-matching value typed by the operator stays operator-owned.
             // Claim ownership only when HISA actually changes the cell.
             if(owned==null && existing==day)continue;
             actions.Add((candidates[0].SourceRow,day,identity,owned?.PreviousDate??existing));
-            next[identity]=new Receipt{Identity=identity,Column="L",Date=day,
+            next[identity]=new Receipt{Identity=identity,Column="K",Date=day,
                 PreviousDate=explicitWork && owned!=null && existing!=owned.Date
                     ? existing : owned?.PreviousDate??existing};
         }

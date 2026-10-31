@@ -38,11 +38,11 @@ public sealed partial class WarehouseService
                     Contract=row.Contract,Project=row.Project,Company=row.Company,
                     Serial=row.Serial
                 })==identity);
-            if(DateTime.TryParseExact(original.MotorColumnL,"yyyy-MM-dd",
+            if(DateTime.TryParseExact(original.MotorColumnK,"yyyy-MM-dd",
                 System.Globalization.CultureInfo.InvariantCulture,
                 System.Globalization.DateTimeStyles.None,out _))
                 throw new InvalidOperationException(
-                    "Cột L đã có ngày xuất kho. Không ghi đè bằng Chưa làm / Đã làm; cần đối chiếu phiếu đã xuất.");
+                    "Cột K đã có ngày xuất kho. Không ghi đè bằng Chưa làm / Đã làm; cần đối chiếu phiếu đã xuất.");
             var tracker=new MotorHungYenStore(_data);
             // A changed original source row is never accepted as a new identity.
             if(!tracker.List(rows).Any(x=>x.Key==item.Key && x.PresentInSource &&
