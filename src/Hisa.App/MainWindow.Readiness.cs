@@ -31,21 +31,8 @@ public partial class MainWindow
         var top = Stack(T("ĐIỀU HÀNH XUẤT HÀNG THEO NGÀY", 17, true),
             T("Vật tư đã chuẩn bị vẫn nằm ở kho Hưng Yên. Chỉ phiếu bàn giao được xác nhận Đã xuất mới cập nhật sổ.", 12, false, Muted),
             Row(Field("Ngày dự kiến xuất", chooseDay),
-                B("Đọc ảnh lịch từ Zalo", () => Navigate("ai-schedule")),
-                A("Nạp lịch AI đã duyệt", async () =>
-                {
-                    var approved = store.LatestApprovedAi(day);
-                    if (approved == null) throw new InvalidOperationException("Không tìm thấy lịch AI đã duyệt cho ngày " + Rules.Day(day) + ". Hãy lưu lịch trong mục AI trước.");
-                    if (approved.Dispatches.Count == 0) throw new InvalidOperationException("Lịch AI ngày này không có hợp đồng xuất.");
-                    if (!Ask("Nạp " + approved.Dispatches.Count + " dòng LỊCH XUẤT dự kiến ngày " +
-                        Rules.Day(day) + "?\nChỉ đọc phần xuất, không lấy hàng cont về, không tự bàn giao. Hợp đồng nhập tay được giữ lại.")) return;
-                    var added = DispatchReadinessStore.ImportApproved(state, approved, day);
-                    store.Save(state);
-                    Notify("Đã nhập " + added + " hợp đồng từ lịch AI. Các hợp đồng phát sinh nhập tay được giữ nguyên.");
-                    ShowDispatchReadiness(day);
-                    await Task.CompletedTask;
-                }, true)),
-            T("Ngày container xuất nhà máy và ngày cont dự kiến về KHÔNG phải ngày xuất kho. Kế hoạch xuất chỉ lấy từ phần lịch xuất đã duyệt.", 11, false, Muted));
+                B("Đọc ảnh lịch từ Zalo", () => Navigate("ai-schedule"))),
+                        T("Ngày container xuất nhà máy và ngày cont dự kiến về KHÔNG phải ngày xuất kho. Kế hoạch xuất chỉ lấy từ phần lịch xuất đã duyệt.", 11, false, Muted));
         var overview = Stack();
         if (result.Count == 0)
             overview.Children.Add(Alert("Chưa có lịch dự kiến ngày " + Rules.Day(day) +
