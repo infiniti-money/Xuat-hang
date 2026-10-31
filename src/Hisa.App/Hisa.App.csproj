@@ -7,7 +7,7 @@
     <Nullable>enable</Nullable>
     <AssemblyName>HISA Kho Vat Tu</AssemblyName>
     <RootNamespace>Hisa.App</RootNamespace>
-    <Version>1.9.21</Version>
+    <Version>1.9.22</Version>
     <Product>Quản lý kho</Product>
     <AssemblyTitle>Quản lý kho</AssemblyTitle>
     <Authors>Trịnh Phương Tân</Authors>
@@ -18,6 +18,7 @@
   <ItemGroup>
     <PackageReference Include="ClosedXML" Version="0.105.0" />
     <PackageReference Include="System.Speech" Version="10.0.14" />
+    <PackageReference Include="NAudio" Version="2.2.1" />
     <Resource Include="Assets\hisa-logo.jpg" />
     <Resource Include="Assets\hisa.ico" />
   </ItemGroup>
