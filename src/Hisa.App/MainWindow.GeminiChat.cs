@@ -20,11 +20,14 @@ public partial class MainWindow
     private bool _geminiHandsFreeActive;
     private int _geminiHandsFreeSession;
     private CancellationTokenSource? _geminiHandsFreeCancellation;
+    private Button? _geminiHandsFreeToggle;
 
     /// <summary>Close the microphone immediately on explicit stop, navigation or exit.</summary>
     private void StopHandsFreeSession()
     {
         _geminiHandsFreeActive=false;
+        if(_geminiHandsFreeToggle!=null)
+            _geminiHandsFreeToggle.Content="🎧 Bật rảnh tay";
         _geminiHandsFreeSession++;
         var cts=_geminiHandsFreeCancellation;
         _geminiHandsFreeCancellation=null;
@@ -228,6 +231,7 @@ public partial class MainWindow
             handsFree!.Content="⏹ Tắt rảnh tay";
             StartHandsFreeListening(session);
         });
+        _geminiHandsFreeToggle=handsFree;
 
         void OnRecorded(byte[] wav)
         {
