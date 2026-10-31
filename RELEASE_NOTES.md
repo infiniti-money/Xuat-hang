@@ -1,3 +1,13 @@
+# HISA v1.9.12 — Cấu hình bằng một thư mục duy nhất
+
+- Chỉ cần chọn **thư mục gốc Kho HISA** một lần; HISA tự đọc 3 Excel trong `Kho chính`, chỉ lấy cont trong `CONT ĐI`, đọc 3 Excel thiết bị trong `Danh sách sản xuất`. Không còn nút hoặc ô chọn riêng từng Excel máy kéo/tủ điện/đầu cửa car.
+- Hiển thị bảng kiểm tra sáu file vừa nhận diện trước khi lưu. Chặn lưu nếu chọn nhầm thư mục con hoặc thiếu một trong sáu file, thay vì lưu cấu hình lẫn nguồn cũ; không thay đổi Excel.
+- Đổi kho bằng cách chọn thư mục gốc khác tự ánh xạ tất cả các đường dẫn trong cùng kho; không giữ nhầm danh sách sản xuất từ kho trước.
+- Giữ nguyên các trạng thái công việc máy kéo Hồng Yên, hợp đồng đã gửi làm, ngày hoàn thành/bàn giao, phiếu kho và lịch AI.
+- Hồi quy kiểm tra chỉ một nút chọn nguồn, nhận diện sáu file, sai thư mục con, file thiếu, đổi sang kho khác, tránh ghép nhầm dữ liệu cũ, Windows .NET compile và smoke cài mới/cài đè.
+
+---
+
 # HISA v1.9.11 — Danh sách hợp đồng máy kéo gia công Hồng Yên
 
 - Bổ sung bảng **Hợp đồng máy kéo gửi Hồng Yên làm** trực tiếp trong **Theo dõi máy kéo**, hiển thị số HĐ, công trình, đơn vị, tổng số máy và lượng máy ở từng giai đoạn: đang làm, đã làm xong, đã bàn giao, chưa gửi.
