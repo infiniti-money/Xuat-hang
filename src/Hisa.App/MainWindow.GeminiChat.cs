@@ -388,10 +388,11 @@ public partial class MainWindow
             privacyNote.Text="ĐÃ TẮT: chỉ câu hỏi và lịch sử trò chuyện mới được gửi đến Gemini. Không tự gửi dữ liệu kho.";
         };
 
-        async Task SendAsync()
+        async Task SendAsync(string? voiceText=null,bool fromHandsFree=false,int session=0)
         {
             if(_geminiChatSending)return;
-            var userText=question.Text.Trim();
+            if(fromHandsFree && !HandsFreeCurrent(session))return;
+            var userText=(voiceText??question.Text).Trim();
             if(userText.Length==0){activity.Text="Nhập câu hỏi trước khi gửi.";return;}
             if(userText.Length>GeminiChatService.MaxQuestionLength)
             {
@@ -421,7 +422,10 @@ public partial class MainWindow
                         userText,warehouse,_service.Slips,readiness,DateTime.Today);
                 }
                 var reply=await GeminiChatService.AskAsync(
-                    key,_geminiChatHistory,userText,context);
+                    key,_geminiChatHistory,userText,context,
+                    fromHandsFree ? (_geminiHandsFreeCancellation?.Token??CancellationToken.None)
+                        : CancellationToken.None);
+                if(fromHandsFree && !HandsFreeCurrent(session))return;
                 _geminiChatHistory.Add(new GeminiChatMessage { Role="user",Text=userText });
                 _geminiChatHistory.Add(new GeminiChatMessage { Role="model",Text=reply });
                 // Keep only recent local turns, no conversation or key saved on disk.
@@ -429,19 +433,39 @@ public partial class MainWindow
                     _geminiChatHistory.RemoveRange(0,_geminiChatHistory.Count-24);
                 Bubble("user",userText);
                 Bubble("model",reply);
-                if(_geminiChatAutoSpeak)
+                if(fromHandsFree && HandsFreeCurrent(session))
+                {
+                    // Micro has already stopped: speech output cannot be
+                    // captured and mistaken for a new user question.
+                    try
+                    {
+                        _geminiVoice.Speak(reply,message=>Dispatcher.BeginInvoke(new Action(()=>
+                        {
+                            if(HandsFreeCurrent(session))activity.Text=message;
+                        })),()=>Dispatcher.BeginInvoke(new Action(()=>
+                            _=ResumeAfterSpeakerAsync(session))));
+                        activity.Text="● RẢNH TAY · Gemini đang trả lời bằng loa; micro tạm tắt.";
+                    }
+                    catch(Exception ex)
+                    {
+                        StopHandsFreeSession();
+                        activity.Text="Dừng rảnh tay: không phát được loa Windows: "+ex.Message;
+                    }
+                }
+                else if(_geminiChatAutoSpeak)
                 {
                     try{_geminiVoice.Speak(reply,message=>Dispatcher.BeginInvoke(()=>
                             activity.Text=message));}
                     catch(Exception ex){activity.Text="Loa Windows: "+ex.Message;}
                 }
-                question.Clear();
+                if(!fromHandsFree)question.Clear();
                 ScrollToEnd();
-                activity.Text="Gemini đã trả lời. Trạng thái kho chỉ có giá trị sau khi anh kiểm tra nguồn.";
+                if(!fromHandsFree)
+                    activity.Text="Gemini đã trả lời. Trạng thái kho chỉ có giá trị sau khi anh kiểm tra nguồn.";
             }
             catch(OperationCanceledException)
             {
-                activity.Text="Gemini phản hồi quá chậm. Kiểm tra Internet rồi thử lại.";
+                if(!fromHandsFree)activity.Text="Gemini phản hồi quá chậm. Kiểm tra Internet rồi thử lại.";
             }
             catch(HttpRequestException)
             {
@@ -454,6 +478,13 @@ public partial class MainWindow
             }
             finally
             {
+                if(fromHandsFree && HandsFreeCurrent(session) && !_geminiVoice.IsSpeaking)
+                {
+                    // Do not silently loop after an API error, which could
+                    // repeatedly upload room audio without a useful response.
+                    StopHandsFreeSession();
+                    activity.Text="Rảnh tay đã dừng (lỗi mạng, API hoặc loa). Bấm Bật để thử lại.";
+                }
                 _geminiChatSending=false;
                 send.IsEnabled=true;question.IsEnabled=true;contextToggle.IsEnabled=true;
                 question.Focus();
@@ -479,9 +510,9 @@ public partial class MainWindow
             Row(T("✦  GEMINI CHAT  /  TRỢ LÝ HISA",19,true),
                 B("⚙  Gemini API Key",()=>Navigate("settings")),
                 B("Xóa hội thoại",ClearChat)),
-            T("Micro có xác nhận trong HISA, chỉ thu khi bạn bấm và không tự gửi âm thanh. Sau khi dừng, bạn có thể hủy hoặc xác nhận gửi WAV cho Gemini qua Internet để nhận dạng tiếng Việt; không cần cài Windows Speech vi-VN. Loa đọc bằng giọng hệ thống. Mọi đề xuất sửa Excel vẫn phải phê duyệt.",12,false,Muted),
+            T("RẢNH TAY: sau khi bạn đồng ý bật chế độ, HISA tự phát hiện bạn ngừng nói, tự gửi âm thanh từng lượt đến Gemini và phát câu trả lời qua loa. Micro tắt trong lúc phát loa và chỉ nghe tiếp sau khi loa kết thúc. Bấm nút Rảnh tay lần nữa hoặc Hủy để dừng ngay. Chế độ thu thủ công vẫn hỏi xác nhận từng lượt. AI không tự ghi Excel.",12,false,Muted),
             contextToggle,privacyNote,autoVoice,
-            Row(listen,transcribe,speak,stopVoice,privacySettings),
+            Row(handsFree,listen,transcribe,speak,stopVoice,privacySettings),
             T("Chỉ bật chia sẻ dữ liệu khi muốn tra cứu hợp đồng, vật tư hoặc kế hoạch thực tế từ HISA.",11,false,Muted)
         ));
         var bottom=Card(Stack(
@@ -499,7 +530,7 @@ public partial class MainWindow
         layout.Children.Add(head);
         Grid.SetRow(viewer,1);layout.Children.Add(viewer);
         Grid.SetRow(bottom,2);layout.Children.Add(bottom);
-        SetPage("Trợ lý Gemini AI","Micro tiếng Việt qua Gemini có xác nhận · loa Windows · Excel có phê duyệt",layout);
+        SetPage("Trợ lý Gemini AI","Rảnh tay có xin phép · tự nghe & trả lời tiếng Việt · Excel vẫn cần phê duyệt",layout);
         ScrollToEnd();
     }
 }
