@@ -388,6 +388,18 @@ public sealed class ExcelStore
                 {
                     try { foreach(var path in Directory.EnumerateFiles(source,"*.xlsx",SearchOption.AllDirectories)) if(!Path.GetFileName(path).StartsWith("~$")) files.Add(Path.GetFullPath(path)); }
                     catch(Exception ex) { result.Warnings.Add($"Không quét đủ nguồn {source}: {ex.Message}"); }
+                    // Received originals live beside CONT ĐI, never inside it. Include
+                    // them in future rebuilds so stable source IDs remain discoverable.
+                    var receivedFolder=ContFileOrganizer.SiblingFolder(source,"Đã nhập kho");
+                    if(Directory.Exists(receivedFolder))
+                    {
+                        try
+                        {
+                            foreach(var path in Directory.EnumerateFiles(receivedFolder,"*.xlsx",SearchOption.AllDirectories))
+                                if(!Path.GetFileName(path).StartsWith("~$"))files.Add(Path.GetFullPath(path));
+                        }
+                        catch(Exception ex){result.Warnings.Add("Không quét đủ Đã nhập kho: "+ex.Message);}
+                    }
                     parents.Add(Directory.GetParent(source)?.FullName??source);
                 }
                 else if (File.Exists(source)) { files.Add(Path.GetFullPath(source));parents.Add(Path.GetDirectoryName(source)!); }
@@ -406,7 +418,7 @@ public sealed class ExcelStore
             var raw=files.Where(x=>!Path.GetFileName(x).StartsWith("~$") && !ContFileOrganizer.HasHangGuiName(x)
                 && !ContFileOrganizer.IsHangGuiFolder(x) && !manifests.Contains(x) && !IsReserved(x,settings)).Order().ToList();
             result.FileCount=raw.Count;
-            var metadataStamp=string.Join("|",manifest.Select(x=>x.ToString()).Concat(metadata.Select(x=>x.ToString())));
+            var metadataStamp=string.Join("|",manifest.Select(x=>x.ToString()).Concat(metadata.Select(x=>x.ToString())))+"|"+string.Join("|",roots);
             for(int index=0;index<raw.Count;index++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -426,7 +438,7 @@ public sealed class ExcelStore
                         continue;
                     }
                     var fileWarnings=new List<string>();
-                    var packages=ParseSource(path,manifest,metadata,fileWarnings);
+                    var packages=ParseSource(path,manifest,metadata,fileWarnings,roots);
                     sourceCache[path]=(stamp,packages,fileWarnings);
                     result.Warnings.AddRange(fileWarnings);
                     result.Packages.AddRange(Clone(packages));
@@ -451,7 +463,7 @@ public sealed class ExcelStore
         var name=Rules.Code(Path.GetFileNameWithoutExtension(path));
         return Path.GetFullPath(path).Equals(settings.MasterPath,StringComparison.OrdinalIgnoreCase) || Path.GetFullPath(path).Equals(settings.KtPath,StringComparison.OrdinalIgnoreCase) || name is "TONGHOP" or "KTTONGHOP" or "HANGTHEOCONT" or "THANHPHAMXUATKHO" || name.StartsWith("LICHXUATHANG") || name.StartsWith("SOTHEODOIXUATHANG") || name.StartsWith("PHIEUXUATVATTU") || Path.GetDirectoryName(path)!.Split(Path.DirectorySeparatorChar).Any(x=>Rules.Code(x) is "XUATHANG" or "BACKUPS" or "HISABACKUPS" or "NATIVEDATA");
     }
-    private static List<Package> ParseSource(string path,List<Metadata> manifests,List<Metadata> schedule,List<string> warnings)
+    private static List<Package> ParseSource(string path,List<Metadata> manifests,List<Metadata> schedule,List<string> warnings,IEnumerable<string> roots)
     {
         var stem=Path.GetFileNameWithoutExtension(path);var inferred=InferContract(stem);
         var match=MatchMetadata(path,manifests,schedule);
@@ -491,7 +503,7 @@ public sealed class ExcelStore
                     if(hy)
                     {
                         ordinal++;
-                        current=new Package {Id="source|"+ContFileOrganizer.OriginalPath(path)+"|"+ordinal,Contract=contract,Project=project,Company=company,SourceDate=day,ContDate=day,SourceFile=Path.GetFileName(path),SourcePath=path,SourceSheet=sheet.Name,PackageNo=ordinal,SourceRowStart=row,SourceRowEnd=row};
+                        current=new Package {Id="source|"+ContFileOrganizer.OriginalPath(path,roots)+"|"+ordinal,Contract=contract,Project=project,Company=company,SourceDate=day,ContDate=day,SourceFile=Path.GetFileName(path),SourcePath=path,SourceSheet=sheet.Name,PackageNo=ordinal,SourceRowStart=row,SourceRowEnd=row};
                         blocks.Add(current);
                     }
                 }
@@ -503,7 +515,7 @@ public sealed class ExcelStore
         }
         if(!explicitDestination && blocks.Count==0 && match!=null && pending.Count>0)
         {
-            var package=new Package {Id="source|"+ContFileOrganizer.OriginalPath(path)+"|1",Contract=contract,Project=project,Company=company,SourceDate=day,ContDate=day,SourceFile=Path.GetFileName(path),SourcePath=path,PackageNo=1};
+            var package=new Package {Id="source|"+ContFileOrganizer.OriginalPath(path,roots)+"|1",Contract=contract,Project=project,Company=company,SourceDate=day,ContDate=day,SourceFile=Path.GetFileName(path),SourcePath=path,PackageNo=1};
             foreach(var line in pending) package.Items.Add(NewLine(package,line.Material,line.Unit,line.Quantity,line.Note));
             blocks.Add(package);
         }
