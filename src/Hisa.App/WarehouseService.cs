@@ -397,6 +397,14 @@ public sealed partial class WarehouseService : IDisposable
                 throw new InvalidDataException("Nguồn Container có lỗi: "+
                     string.Join(" | ",scanned.Warnings.Take(5))+
                     ". Chưa dùng dữ liệu cũ để xác nhận nhập kho.");
+            // Source lookup must also use the current received-sheet IDs;
+            // otherwise a manual Excel edit could display a stale duplicate state.
+            var masterBefore=FileStamp(Settings.MasterPath);
+            var latest=await Task.Run(()=>_excel.ReadMaster(Settings.MasterPath));
+            if(masterBefore!=FileStamp(Settings.MasterPath))
+                throw new IOException("Tổng hợp.xlsx vừa thay đổi. Tìm lại trước khi xác nhận.");
+            SetSnapshot(latest);
+            _masterFingerprint=masterBefore;
             lock(_stateLock)_freshContDiSources=scanned.Packages
                 .Where(x=>x.Items.Any(i=>i.IsHungYen)).ToList();
             Say("Đã tìm trong Container: "+scanned.FileCount+" file, "+
