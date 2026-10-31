@@ -64,7 +64,7 @@ public static class AutoUpdater
         if (root.GetProperty("draft").GetBoolean() || root.GetProperty("prerelease").GetBoolean())
             return null;
         var tag = root.GetProperty("tag_name").GetString() ?? "";
-        if (!tag.StartsWith('v', StringComparison.OrdinalIgnoreCase)
+        if (!tag.StartsWith("v", StringComparison.OrdinalIgnoreCase)
             || !Version.TryParse(tag[1..], out var available)
             || !Version.TryParse(SoftwareInfo.Version, out var current)
             || available <= current) return null;
