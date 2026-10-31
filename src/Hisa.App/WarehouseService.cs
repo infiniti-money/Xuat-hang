@@ -131,6 +131,10 @@ public sealed partial class WarehouseService : IDisposable
         var settings = new AppSettings { MasterPath = Path.Combine(Workspace,"Tổng hợp.xlsx"), KtPath=Path.Combine(Workspace,"KT tổng hợp.xlsx"),ProductExportPath=Path.Combine(Workspace,"Thành phẩm xuất kho.xlsx") };
         var cont = Path.Combine(Workspace,"CONT ĐI");
         if (Directory.Exists(cont)) settings.DataSources.Add(cont);
+        // A standard Kho HISA root keeps the three canonical workbooks under
+        // Kho chính, while CONT ĐI is the only active container scan root.
+        var standard=HisaFolderLayout.Detect(Workspace,settings);
+        if(standard!=null)HisaFolderLayout.Apply(settings,standard);
         var legacy = Path.Combine(Workspace,"Ứng dụng bàn giao vật tư","app_data","settings.json");
         try
         {
@@ -152,6 +156,12 @@ public sealed partial class WarehouseService : IDisposable
     {
         if(!Directory.Exists(sourceFolder))throw new DirectoryNotFoundException("Chọn một thư mục nguồn đang tồn tại.");
         var copy=Clone(Settings);var folder=Path.GetFullPath(sourceFolder);copy.DataSources=[folder];
+        var standard=HisaFolderLayout.Detect(folder,copy);
+        if(standard!=null)
+        {
+            HisaFolderLayout.Apply(copy,standard);
+            return copy;
+        }
         string? Find(string fileName)
         {
             var current=new DirectoryInfo(folder);
