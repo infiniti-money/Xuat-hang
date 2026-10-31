@@ -129,6 +129,9 @@ public sealed partial class WarehouseService : IDisposable
         ImportLegacyOnce();
         Settings = Load<AppSettings>("settings.json") ?? DefaultSettings();
         NormalizeSettings(Settings);
+        // When a real source folder exists, never fall back to stale Cont đi
+        // master data before the first successful physical folder scan.
+        if(Settings.DataSources.Any(Directory.Exists))_freshContDiSources=[];
         _slips = Load<List<Slip>>("slips.json") ?? [];
         _templates = Load<List<PrintTemplate>>("templates.json") ?? [];
         _flags = Load<List<ContractFlag>>("contract_flags.json") ?? [];
