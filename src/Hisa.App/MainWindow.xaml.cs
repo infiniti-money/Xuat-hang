@@ -49,7 +49,7 @@ public partial class MainWindow : Window
         AddNav("dashboard", "▦", "Tổng quan / việc cần làm");
         AddNav("dispatch-hub", "▤", "Điều hành xuất hàng");
         AddNav("arrival-hub", "↓", "Cont & kiện Hưng Yên");
-        AddNav("motor-hung-yen", "⚙", "HĐ máy kéo · gia công Hồng Yên");
+        AddNav("motor-hung-yen", "⚙", "Máy kéo gia công tại Hưng Yên");
         NavCaption("TRA CỨU & HỖ TRỢ");
         AddNav("lookup", "⌕", "Tra cứu hợp đồng");
         AddNav("ai-hub", "✧", "Trung tâm Gemini AI");
