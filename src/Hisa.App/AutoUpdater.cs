@@ -213,7 +213,7 @@ public static class AutoUpdater
         {
             System.Windows.MessageBox.Show(
                 "Không thể mở bộ cài cập nhật: "+ex.Message+
-                "\\nBản hiện tại và dữ liệu kho vẫn được giữ nguyên. Có thể tải bộ cài trên GitHub Releases.",
+                "\nBản hiện tại và dữ liệu kho vẫn được giữ nguyên. Có thể tải bộ cài trên GitHub Releases.",
                 "HISA · Cập nhật chưa thành công",System.Windows.MessageBoxButton.OK,
                 System.Windows.MessageBoxImage.Warning);
         }
