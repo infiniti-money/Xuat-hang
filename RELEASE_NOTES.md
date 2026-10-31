@@ -1,3 +1,14 @@
+# HISA v1.9.9 — Chuẩn hóa Kho chính, CONT ĐI, Danh sách sản xuất
+
+- Chỉ cần chọn **Kho HISA**, HISA nhận diện ba file quan trọng trong `Kho chính`: `Tổng hợp.xlsx`, `KT tổng hợp.xlsx`, `Thành phẩm xuất kho.xlsx`.
+- Tự chọn duy nhất `CONT ĐI` cho nguồn quét container, **không** dùng toàn thư mục `Kho HISA` làm nguồn vật tư.
+- Tự nhận diện `TỦ ĐIỆN.xlsx`, `MÁY KÉO.xlsx`, `Đầu cửa car T10.2026.xlsx` trong thư mục `Danh sách sản xuất` cùng cấp; cho phép chọn thủ công nếu nhiều file đầu cửa theo tháng.
+- Cài đặt nguồn có thể chọn trực tiếp thư mục gốc hoặc ba thư mục con, rồi thấy 6 đường dẫn và các cảnh báo file quan trọng bị thiếu trước khi lưu.
+- Phân biệt đúng đọc file sản xuất với dữ liệu cont đã nhập; giữ lịch sử máy kéo gia công Hưng Yên và các đường dẫn sẵn có, không tự di chuyển file.
+- Bổ sung kiểm thử fixture 6 workbook trong 3 thư mục, quét cont duy nhất, không suy diễn đầu cửa sai tháng; build, kiểm thử riêng trên Windows và cài đè trước khi phát hành.
+
+---
+
 # HISA Quản lý kho v1.9.8 – Ba danh sách sản xuất phải nằm ngoài thư mục Tổng hợp.xlsx
 
 - Nhấn mạnh trong giao diện rằng file **Tủ điện**, **Máy kéo**, **Đầu cửa car** dùng ba đường dẫn **độc lập**, không cần và không được để chung với thư mục chứa `Tổng hợp.xlsx` hoặc thư mục nguồn `CONT ĐI`.

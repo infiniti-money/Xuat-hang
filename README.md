@@ -1,3 +1,28 @@
+## HISA v1.9.9 · Chọn một thư mục Kho HISA, tự nhận 6 file Excel theo đúng nhóm
+
+```text
+Kho HISA/
+├── Kho chính/
+│   ├── Tổng hợp.xlsx
+│   ├── KT tổng hợp.xlsx
+│   └── Thành phẩm xuất kho.xlsx
+├── CONT ĐI/
+└── Danh sách sản xuất/
+    ├── MÁY KÉO.xlsx
+    ├── TỦ ĐIỆN.xlsx
+    └── Đầu cửa car T10.2026.xlsx
+```
+
+**Cài đặt một lần:** tại **Cấu hình nguồn dữ liệu → Chọn Kho HISA**, chọn `Kho HISA` (hoặc một trong các thư mục con `Kho chính`, `CONT ĐI`, `Danh sách sản xuất`) rồi kiểm tra 6 đường dẫn tự nhận; bấm **Lưu cấu hình & tải lại**.
+
+- Tự liên kết `Tổng hợp.xlsx`, `KT tổng hợp.xlsx` và `Thành phẩm xuất kho.xlsx` từ **Kho chính**, không chọn riêng từng file.
+- **Chỉ** `CONT ĐI` được quét là nguồn kiện đang chờ; không quét bừa `Kho HISA` làm nguồn cont, không đưa ba file sản xuất vào `Tổng hợp.xlsx`.
+- Tự phát hiện ba file sản xuất ở **Danh sách sản xuất** để tra cứu theo hợp đồng Gemini/Zalo và theo dõi máy kéo Hưng Yên; chỉ đọc, không tự ghi/di chuyển. Nếu có nhiều file **Đầu cửa car** khác tháng, giữ đường dẫn đã chọn trước; yêu cầu chọn tay khi chưa biết tháng.
+- `Đã nhập kho` và `Hàng gửi` vẫn được tổ chức ngang cấp với `CONT ĐI` nếu ứng dụng phân loại phát sinh nguồn, tránh lồng bên trong `CONT ĐI`. 
+- Không đổi dữ liệu kho, phiếu bàn giao, lịch sử máy kéo, Gemini API Key hay nội dung Excel. Bản cài Windows kiểm thử hồi quy độc lập và cài đè.
+
+---
+
 ## HISA v1.9.8 · Giữ các file Tủ điện, Máy kéo, Đầu cửa car ngoài thư mục Tổng hợp
 
 **Không để ba file sản xuất chung thư mục với `Tổng hợp.xlsx` hoặc trong `CONT ĐI`.** Mỗi file dùng đường dẫn đầy đủ riêng, không bắt buộc chung thư mục với nhau. Ví dụ:
