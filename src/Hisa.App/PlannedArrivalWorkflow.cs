@@ -21,6 +21,7 @@ public sealed class PlannedArrivalRow
     public string SourcePackageId { get; set; } = "";
     public string SourceContDay { get; set; } = "";
     public string MaterialSummary { get; set; } = "";
+    public string SourceFingerprint { get; set; } = "";
     public int PackageNo { get; set; }
     public int PackageCount { get; set; }
     public int MaterialCount { get; set; }
