@@ -1,3 +1,15 @@
+# HISA v1.9.18 — Cột L cho trạng thái máy kéo và ngày xuất kho (hai chiều)
+
+- **Thay cột N bằng cột L trong MÁY KÉO.xlsx**, sheet đầu: `Chưa làm`, `Đã làm` hoặc **ngày xuất kho**. Không tạo hoặc sử dụng tiếp cột N để cập nhật.
+- **Excel → HISA:** đọc trực tiếp trạng thái/ngày cột L, nhận cả ngày Excel và ngày nhập dạng văn bản Việt Nam, hiển thị trong bảng chi tiết và khi làm mới. Ngày nhập trong Excel không tự biến thành phiếu **Đã xuất**; cần xác minh chứng từ.
+- **HISA → Excel:** khi chọn máy/seri và xác nhận trạng thái `Chưa làm` / `Đã làm`, ghi chính xác dòng ở cột L. Phiếu đã xác nhận **Đã xuất** ghi ngày thực tế từ phiếu vào L, hoàn tác ngày chỉ với ô còn do HISA sở hữu.
+- **Đồng bộ an toàn:** sửa tay trạng thái tại Excel sẽ không bị tác vụ đồng bộ nền ghi đè; chỉ nút xác nhận tại HISA mới ghi đổi chữ trạng thái trên ô L. Ngày xuất kho nhập tay được bảo vệ. Lỗi dữ liệu không khớp, cột L chứa nội dung khác, seri trùng hoặc file bị khóa đều chặn ghi và cảnh báo.
+- **Tương thích nâng cấp:** file `motor_handover_excel_sync.json` ghi thêm cột sở hữu; các bản ghi cũ không khai báo cột được xem là N và không được phép can thiệp L. Toàn bộ dữ liệu N và lịch sử JSON được giữ, không tự chuyển hoặc xóa dữ liệu N.
+- Bổ sung hồi quy Windows: xác nhận ngày xuất đúng seri, đổi/hủy phiếu, ghi hai chiều `Đã làm`/`Chưa làm`, ngày do Excel nhập tay, nhật ký phiên bản trước, bảo vệ dữ liệu cột N, file khóa và cấu trúc không phù hợp.
+- **Giới hạn:** cần xác minh trên bản sao workbook người dùng thực tế để đảm bảo cột L có cấu trúc dự kiến, nhất là bảng có định dạng/công thức và dữ liệu lịch sử.
+
+---
+
 # HISA v1.9.17 — Đổi tên giao diện theo dõi gia công máy kéo
 
 - Đổi tên hiển thị **Theo dõi máy kéo Hồng Yên** thành **Máy kéo gia công tại Hưng Yên** theo yêu cầu nghiệp vụ mới, thống nhất menu trái, tiêu đề màn hình, bảng hợp đồng, bộ lọc, nút và thông báo xác nhận, nhãn **Đã gửi gia công tại Hưng Yên**.
