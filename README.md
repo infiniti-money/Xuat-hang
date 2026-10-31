@@ -1,3 +1,18 @@
+## HISA v1.9.13 — Tự ghi Ngày bàn giao vào MÁY KÉO.xlsx khi xác nhận xuất
+
+Khi chốt phiếu **Đã xuất** trên màn hình **Phiếu bàn giao** (hoặc lưu phiếu với trạng thái Đã xuất), HISA tự thêm/tìm cột `Ngày bàn giao` trong sheet đầu của `Kho HISA/Danh sách sản xuất/MÁY KÉO.xlsx`, sau đó điền **ngày xuất thực tế trong phiếu** đúng các dòng máy kéo đã bàn giao. Không yêu cầu chọn lại file Excel: dùng đường dẫn tự nhận từ một thư mục `Kho HISA`.
+
+**Quy tắc an toàn:**
+- Chỉ ghi khi phiếu được xác nhận **Đã xuất**, có seri máy kéo cụ thể. Khớp duy nhất **số HĐ + công trình + đơn vị + seri**; model được lấy từ phiếu và file nguồn nhưng không dùng làm khóa vì cách viết có thể khác. Phiếu chờ, hợp đồng chỉ có dự kiến, hoặc máy không có seri **không được tự đánh dấu bàn giao**. Trùng seri/công trình, dữ liệu không khớp hoặc ngày đã nhập thủ công khác sẽ có cảnh báo và không ghi đè.
+- Nếu `MÁY KÉO.xlsx` đã có cột `Ngày bàn giao`, dùng đúng cột đó. Nếu chưa có, **thêm một cột mới sau dữ liệu đang sử dụng**, không dịch cột hoặc xóa công thức/bảng mẫu.
+- Trước khi sửa workbook, tạo bản sao `MAY-KEO-truoc-ngay-ban-giao-*.xlsx` trong thư mục sao lưu Excel của HISA; lưu workbook qua file tạm và thay thế sau khi ghi thành công. Nếu Excel đang mở khóa ghi, vẫn giữ trạng thái phiếu Đã xuất và thử lại đồng bộ sau.
+- Khi sửa ngày xuất của phiếu, chỉ cập nhật ô do HISA đã ghi. Khi hủy/thu hồi phiếu, tự xóa ngày bàn giao do HISA ghi **nếu ô chưa bị con người chỉnh sửa**. Ngày nhập thủ công và các ô khác được giữ nguyên. File `motor_handover_excel_sync.json` ghi nhận các ô HISA quản lý để hoàn tác; có bản `.bak` và được đưa vào ZIP sao lưu ứng dụng.
+- **Phân biệt:** Trạng thái **Đã bàn giao** trong màn hình gia công **Hồng Yên** là bàn giao giữa đơn vị sản xuất và kho, không đồng nghĩa **Đã xuất cho công trình**. Chỉ xác nhận Đã xuất trong phiếu kho mới tự điền ngày bàn giao xuất hàng vào `MÁY KÉO.xlsx`.
+
+Kiểm thử Windows sử dụng bản sao Excel thử, bao gồm phiếu chờ/đã xuất/đã hủy, seri trùng và thiếu, ngày thủ công, Excel bị khóa và thử lại, giữ nguyên các cột/ghi chú cũ. Cần mở thực tế bản sao `MÁY KÉO.xlsx` có công thức, macro, hình ảnh hoặc bảng mẫu để kiểm tra khả năng bảo toàn định dạng trước khi dùng rộng rãi.
+
+---
+
 ## HISA v1.9.12 — Chỉ chọn duy nhất một thư mục Kho HISA
 
 Trong **Cấu hình nguồn dữ liệu**, chỉ còn một nút **Chọn Kho HISA**. Chọn đúng **thư mục gốc** (`Kho HISA`), không chọn bất kỳ file Excel hoặc thư mục con nào:
