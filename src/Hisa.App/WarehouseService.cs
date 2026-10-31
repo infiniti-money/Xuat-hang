@@ -339,6 +339,25 @@ public sealed partial class WarehouseService : IDisposable
         }
     }
     public Task RefreshAsync(bool force=false)=>RefreshCoreAsync(force&&Settings.AutoSyncCont,false);
+    /// <summary>
+    /// Always re-scan the selected CONT ĐI folder for an explicit Zalo/manual
+    /// import lookup, even when background AutoSyncCont is disabled. Never
+    /// report an old in-memory package list as a successful fresh search.
+    /// </summary>
+    public async Task RefreshContDiForArrivalAsync()
+    {
+        if(Settings.DataSources.Count==0 ||
+           !Settings.DataSources.Any(Directory.Exists))
+            throw new DirectoryNotFoundException(
+                "Chưa chọn thư mục CONT ĐI HƯNG YÊN. Vào Cấu hình nguồn dữ liệu để chọn Kho HISA.");
+        await RefreshCoreAsync(true,false);
+        if(LastError.Length>0)
+            throw new IOException("Không quét được CONT ĐI HƯNG YÊN: "+LastError);
+        if(Warnings.Any(x=>x.Contains("Nguồn có cảnh báo; giữ nguyên trang cont",
+            StringComparison.OrdinalIgnoreCase)))
+            throw new IOException("File CONT ĐI đang có lỗi/cảnh báo. Chưa dùng dữ liệu cũ để nhập kho; hãy sửa nguồn và quét lại.");
+    }
+
     private async Task RefreshCoreAsync(bool scanCont,bool syncKt)
     {
         await _gate.WaitAsync(); IsBusy=true;LastError="";Notify();
@@ -602,9 +621,9 @@ public sealed partial class WarehouseService : IDisposable
         IReadOnlyList<Package> verified, DateTime actualArrivalDay, bool useKt = false)
     {
         if (verified.Count==0) throw new InvalidOperationException("Chưa chọn kiện Hưng Yên đã về.");
-        if (verified.Any(x=>x.Id.Length==0 || x.ContainerNumber.Length==0 ||
+        if (verified.Any(x=>x.Id.Length==0 ||
             x.OriginPackageId!=x.Id))
-            throw new InvalidOperationException("Kiện chưa có đầy đủ ID nguồn và container.");
+            throw new InvalidOperationException("Kiện chưa có mã ID nguồn để xác minh.");
         if (verified.DistinctBy(x=>x.Id).Count()!=verified.Count)
             throw new InvalidOperationException("Trùng ID kiện nguồn, chưa ghi kho.");
         // Keep every package separate; selecting one does not select the whole contract.
@@ -626,7 +645,8 @@ public sealed partial class WarehouseService : IDisposable
         // The underlying Excel operation re-reads the workbook and checks source IDs
         // under its lock before writing. Never replace rows by contract identity.
         var result=await MutateAsync(()=>
-            _excel.RecordSelectedArrival(Settings.MasterPath,verified,actualArrivalDay));
+            _excel.RecordSelectedArrival(Settings.MasterPath,verified,actualArrivalDay,
+                requireContainer:false));
         // A second source scan archives only the fully received originals. A
         // partial container remains pending; a failed classification never
         // reverses the already committed Excel receipt.
