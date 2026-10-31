@@ -56,7 +56,7 @@ public static class ContDiArrivalLookupDiagnostics
                   service.ContDiLookupSnapshot.ContPackages.Count==6,
                 "Search reads six existing Hưng Yên packages from master Excel only");
             var requests=ContDiArrivalLookup.FromContracts(
-                "20012026\n123(1)\n1231\n88882026");
+                "20012026\n123(1)\n12311\n88882026");
             var day="2026-11-02";
             var list=ContDiArrivalLookup.Preview(
                 requests,service.ContDiLookupSnapshot,day);
@@ -65,7 +65,7 @@ public static class ContDiArrivalLookupDiagnostics
                   list.Single(x=>x.Contract=="123(1)").Status==
                   ContDiArrivalLookup.Ready,
                 "Mixed-case accented and unaccented HUNG YEN markers are recognized");
-            Check(list.Any(x=>x.Contract=="1231" && x.SourcePackageId.Length==0) &&
+            Check(list.Any(x=>x.Contract=="12311" && x.SourcePackageId.Length==0) &&
                   list.Any(x=>x.Contract=="88882026" && x.SourcePackageId.Length==0),
                 "Contract exact matching rejects 1231 and a non-Hưng Yên package");
             var toImport=ContDiArrivalLookup.SelectVerified(
