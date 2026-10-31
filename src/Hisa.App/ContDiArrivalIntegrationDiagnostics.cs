@@ -36,6 +36,8 @@ public static class ContDiArrivalIntegrationDiagnostics
 
         var month=Path.Combine(source,"29.10");
         Directory.CreateDirectory(month);
+        var sent=Path.Combine(source,"HANGGUI_29.xlsx");
+        File.WriteAllText(sent,"Do not import sent goods");
         var original=Path.Combine(month,"29102026.xlsx");
         using(var book=new XLWorkbook())
         {
@@ -85,6 +87,8 @@ public static class ContDiArrivalIntegrationDiagnostics
         var archived=Path.Combine(workspace,"Đã nhập kho","29.10","29102026.xlsx");
         Check(File.Exists(archived)&&!File.Exists(original),
             "Confirmed workbook moved to sibling Đã nhập kho preserving the source date folder");
+        Check(!File.Exists(sent) && File.Exists(Path.Combine(workspace,"Hàng gửi","HANGGUI_29.xlsx")),
+            "HANGGUI file is excluded from materials and moved to sibling Hàng gửi");
         using(var workbook=new XLWorkbook(service.Settings.MasterPath))
         {
             var detail=workbook.Worksheet("chi tiết");
