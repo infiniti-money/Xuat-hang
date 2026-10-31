@@ -141,7 +141,18 @@ public static class GeminiExcelAssistant
     public static string Apply(Preview preview,Proposal proposal,AppSettings settings,string backupDirectory)
     {
         ValidatePath(preview.Path,settings);
-        if(proposal.Changes.Count==0)throw new InvalidOperationException("AI không đề xuất ô nào.");
+        if(proposal.Changes.Count is <1 or >8)
+            throw new InvalidOperationException("Mỗi lần chỉ cho phép duyệt từ 1 đến 8 ô.");
+        if(proposal.Changes.Select(c=>c.Row+":"+c.Column).Distinct().Count()!=
+           proposal.Changes.Count)
+            throw new InvalidDataException("Đề xuất có ô trùng nhau.");
+        if(proposal.Changes.Any(c=>c.Row<3 || c.Row>MaxRows ||
+            c.Column<1 || c.Column>MaxColumns || c.After.Length>180 ||
+            c.After.TrimStart().StartsWith('=') || c.After.TrimStart().StartsWith('+') ||
+            c.After.TrimStart().StartsWith('@') ||
+            (c.After.StartsWith('-') && !decimal.TryParse(c.After,
+                 NumberStyles.Number,CultureInfo.InvariantCulture,out _))))
+            throw new InvalidDataException("Vùng hoặc giá trị chỉnh sửa không hợp lệ.");
         if(!Fingerprint(preview.Path).Equals(preview.Fingerprint,StringComparison.Ordinal))
             throw new IOException("File Excel đã thay đổi sau lúc xem trước. Hãy đọc lại trước khi xác nhận.");
         using var book=new XLWorkbook(preview.Path);
@@ -155,6 +166,17 @@ public static class GeminiExcelAssistant
             if(cell.HasFormula || cell.IsMerged() || Value(cell)!=edit.Before)
                 throw new IOException("Ô Excel đã thay đổi hoặc là công thức/ô gộp: "+
                     cell.Address+". Không ghi.");
+            bool cabinet=!string.IsNullOrWhiteSpace(settings.ElectricalCabinetListPath) &&
+                Path.GetFullPath(preview.Path).Equals(
+                    Path.GetFullPath(settings.ElectricalCabinetListPath),
+                    StringComparison.OrdinalIgnoreCase);
+            bool door=!string.IsNullOrWhiteSpace(settings.CarDoorListPath) &&
+                Path.GetFullPath(preview.Path).Equals(Path.GetFullPath(settings.CarDoorListPath),
+                    StringComparison.OrdinalIgnoreCase);
+            if((cabinet && edit.Column is 4 or 5) ||
+               (door && edit.Column==5))
+                throw new InvalidOperationException(
+                    "AI không được đổi hợp đồng/seri trong danh sách sản xuất. Hãy sửa qua quy trình đối chiếu có xác nhận.");
             if(machine)
             {
                 // Writing motor K belongs to the verified serial/warehouse workflow,
