@@ -1,3 +1,14 @@
+# HISA v1.9.20 — Tìm kiện Hưng Yên trong CONT ĐI, sao chép theo ngày thực tế về kho
+
+- **Ảnh Zalo:** khi Gemini nhận dạng các dòng hợp đồng cont dự kiến về, ngay cùng màn hình hiển thị chức năng **Tìm kiện Hưng Yên trong CONT ĐI** và tự quét các file Excel nguồn. Kết quả liệt kê đúng hợp đồng, công trình/T1/T2, đơn vị, kiện, ngày cont đi, vật tư và số lượng; nguồn ảnh chỉ là lịch dự kiến, không tự xác nhận đã về.
+- **Nhập số hợp đồng thủ công:** mở mục **Nhập cont về kho Hưng Yên**, nhập một hay nhiều số HĐ, chọn ngày cont **thực tế về kho**, nhấn tìm và tích từng **kiện vật lý Hưng Yên** đã nhận. Không tự chọn/nhập toàn bộ các kiện chung số hợp đồng.
+- **Ghi Tổng hợp.xlsx:** khi người vận hành xác nhận, HISA sao chép đúng vật tư, số lượng của các kiện được chọn từ nguồn CONT ĐI đã quét vào trang **chi tiết** theo ngày thực tế; trước khi ghi tự tạo bản sao Excel. Không sử dụng KT tổng hợp và không ghi hàng HÀ NỘI/HÀNG GỬI.
+- **Tránh nhầm & trùng:** tìm đúng số HĐ, không tìm gần đúng; giữ riêng T1/T2, các đợt cont đi, từng ID kiện; nếu ngày/cont/công trình từ ảnh lệch nguồn thì cảnh báo; không tự suy diễn container thiếu. Từ chối nhập lại kiện đã có OriginPackageId hoặc kiện ngày cũ không có ID nhưng trùng vật tư.
+- **Xác minh nguồn thật:** không coi những dòng cũ còn trong trang Cont đi của Tổng hợp.xlsx là kiện còn ở thư mục CONT ĐI. Chỉ hiện kiện tương ứng với file Excel nguồn vừa quét thành công, kèm tên file gốc; tìm lại và xác minh toàn bộ dữ liệu ngay trước khi ghi.
+- **Kiểm thử:** dữ liệu tạm độc lập bao gồm HĐ chính xác, T1/T2 khác nhau, ngày cont đi lệch, ảnh Zalo, thiếu nguồn, nhận trùng, thay đổi số lượng, và kiểm thử thực tế giả lập file CONT ĐI → Tổng hợp.xlsx theo ngày nhận. Chưa kiểm tra trực tiếp với workbook sản xuất của người dùng.
+
+---
+
 # HISA v1.9.19 — Cột K, lịch cont và trợ lý Gemini
 
 - Máy kéo: đọc/ghi hai chiều trạng thái Chưa làm, Đã làm hoặc ngày xuất kho vào đúng cột K; giữ dữ liệu L/N cũ.
