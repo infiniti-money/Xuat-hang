@@ -56,6 +56,32 @@ public static class UiWorkflowDiagnostics
                 "Source configuration is first on settings page, above Gemini");
             Check(Children(sourceCard).OfType<Button>().Any(b=>b.Content?.ToString()=="Chọn thư mục nguồn"),
                 "Source folder browser button is available without scrolling past Gemini");
+            var simulated=AiScheduleWorkspace.NewDraft(new DateTime(2026,10,31));
+            simulated.Arrivals.Add(new AiScheduleLine{Contract="56062026",Project="Công trình A",Company="HISA",PlannedDate=simulated.ArrivalDate});
+            simulated.Dispatches.Add(new AiScheduleLine{Contract="13482026",Project="Công trình B",Company="HISA",PlannedDate=simulated.DispatchDate});
+            typeof(MainWindow).GetField("_aiDocument",flags)!.SetValue(window,simulated);
+            Call("ShowAiSchedules");
+            var aiHost=(Grid)window.FindName("PageHost")!;
+            var aiLayout=(Grid)aiHost.Children[0];
+            var aiScroll=aiLayout.Children.OfType<ScrollViewer>().Single();
+            var aiPanel=(StackPanel)aiScroll.Content;
+            var headings=Children(aiPanel).OfType<TextBlock>().Select(x=>x.Text).ToArray();
+            Check(headings.Any(x=>x.Contains("1 · CONT DỰ KIẾN VỀ")) &&
+                  headings.Any(x=>x.Contains("2 · HỢP ĐỒNG DỰ KIẾN BÀN GIAO")),
+                "Gemini result separates potential container arrival and waiting handover slips");
+            Check(Children(aiPanel).OfType<Button>().Any(b=>b.Content?.ToString()?.Contains("Đối chiếu cont đã về")==true) &&
+                  Children(aiPanel).OfType<Button>().Any(b=>b.Content?.ToString()?.Contains("Lập phiếu từ hợp đồng")==true),
+                "Arrival verification and draft handover have direct buttons next to their lists");
+            var aiGrids=Children(aiPanel).OfType<DataGrid>().ToList();
+            Check(aiGrids.Count==2 &&
+                  aiGrids[0].Columns.OfType<DataGridCheckBoxColumn>().Any(c=>c.Header?.ToString()=="Cont đã về?") &&
+                  aiGrids[1].Columns.OfType<DataGridCheckBoxColumn>().Any(c=>c.Header?.ToString()=="Làm phiếu"),
+                "Two workflows have independent checkbox columns");
+            Check(!simulated.Arrivals[0].SelectedForArrival && !simulated.Dispatches[0].SelectedForHandover &&
+                  string.IsNullOrWhiteSpace(simulated.ApprovedAt),
+                "Opening Gemini results does not mark arrival, issue a slip or approve schedule");
+            Check(Children(aiPanel).OfType<Expander>().Count(x=>!x.IsExpanded)>=2,
+                "Optional manual entry and warnings stay below the main flow and are collapsed");
         }
         finally{window.Close();}
         return evidence;
