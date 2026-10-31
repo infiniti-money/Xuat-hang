@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -31,22 +32,31 @@ public partial class MainWindow
         ),new Thickness(26));
         var updating=Card(Stack(
             T("Cập nhật phần mềm",18,true),
-            T("Kiểm tra thủ công phiên bản mới trên GitHub. Bộ cài sẽ được tải và kiểm tra SHA-256 trước khi sử dụng. Không ảnh hưởng dữ liệu trong Thư viện.",12,false,Muted),
+            T("Kiểm tra bản chính thức trên GitHub Releases. HISA tải và xác minh SHA-256; chỉ cài khi bạn đồng ý. Không thay đổi dữ liệu Excel, phiếu và API Key.",12,false,Muted),
+            T(AutoUpdater.ReadyVersion is string ready?"ĐÃ SẴN SÀNG CÀI PHIÊN BẢN "+ready:"PHIÊN BẢN ĐANG SỬ DỤNG: "+SoftwareInfo.Version,13,true,Brush("#117D83")),
             Row(
                 A("Kiểm tra cập nhật",async()=>
                 {
                     var version=await AutoUpdater.CheckAndStageAsync();
-                    if(version==null)Notify("Bạn đang sử dụng phiên bản "+SoftwareInfo.Version+" hoặc hiện chưa có bản cài mới.");
-                    else Notify("Đã tải và xác minh phiên bản "+version+". Bạn có thể tiếp tục làm việc; phần mềm sẽ nâng cấp khi đóng.");
+                    if(version==null)Notify("Bạn đang dùng phiên bản "+SoftwareInfo.Version+" hoặc chưa có bản phát hành mới hơn.");
+                    else Notify("Đã tải và xác minh bản "+version+". Chọn Cài bản đã tải để bắt đầu nâng cấp.");
+                    ShowInformation();
                 },true),
                 B("Cài bản đã tải",()=>
                 {
                     var version=AutoUpdater.ReadyVersion;
                     if(version==null){Notify("Chưa có bản cập nhật được tải và xác minh. Chọn Kiểm tra cập nhật trước.");return;}
-                    if(Ask("Đóng phần mềm và cài bản "+version+" ở chế độ yên lặng?\nDữ liệu đã lưu sẽ được giữ nguyên."))Close();
+                    if(!Ask("Cài HISA "+version+" và đóng phần mềm hiện tại?\nWindows có thể yêu cầu quyền quản trị. Dữ liệu đã lưu được giữ nguyên."))return;
+                    if(!AutoUpdater.RequestInstallOnExit()){Notify("Tệp cập nhật không còn tồn tại. Vui lòng kiểm tra cập nhật lại.");return;}
+                    Close();
+                }),
+                B("Tải bộ cài thủ công",()=>
+                {
+                    try { Process.Start(new ProcessStartInfo("https://github.com/infiniti-money/Xuat-hang/releases/latest"){UseShellExecute=true}); }
+                    catch(Exception ex){Notify("Không thể mở trình duyệt: "+ex.Message);}
                 })
             ),
-            T("Lưu ý: Windows có thể yêu cầu quyền quản trị (UAC) để thay thế chương trình trong Program Files.",11,false,Muted)
+            T("Nếu bạn đang dùng v1.8.1 không có nút cập nhật, hãy tải bản Setup mới từ GitHub và chạy để cài đè. Khi cập nhật, đóng HISA và Excel đang mở. Windows có thể hỏi quyền quản trị (UAC).",11,false,Muted)
         ),new Thickness(26));
         var panel=Stack(heading,contacts,updating,capabilities);
         panel.MaxWidth=920;panel.HorizontalAlignment=HorizontalAlignment.Left;
