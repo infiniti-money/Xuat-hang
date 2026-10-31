@@ -877,6 +877,9 @@ public sealed partial class WarehouseService : IDisposable
         foreach(var source in copy.DataSources)if(!Directory.Exists(source))throw new DirectoryNotFoundException("Nguồn chỉ nhận thư mục đang tồn tại, không nhận tệp Excel: "+source);
         NormalizeSettings(copy);
         if(!File.Exists(copy.MasterPath))throw new FileNotFoundException("Chọn đúng file dữ liệu chính Tổng hợp.xlsx.",copy.MasterPath);
+        // Equipment production lists must remain independent of the master and
+        // CONT ĐI source. Explicit paths only; no copying/moving user files.
+        EquipmentListReader.ValidateIndependentSources(copy);
         copy.DataSources=copy.DataSources.Select(Path.GetFullPath).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         await MutateAsync(()=>{Persist("settings.json",copy);Settings=copy;_sourceFingerprint=SourceFingerprint();return true;});await RefreshAsync(false);
     }
