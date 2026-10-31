@@ -74,6 +74,9 @@ public sealed class MotorHungYenStore
         public string Serial { get; set; }="";
         public string SourceNote { get; set; }="";
         public string SourcePosition { get; set; }="";
+        public string ProductionCell { get; set; }="";
+        public string ProductionStatus => MotorProductionExcel.Status(ProductionCell);
+        public string ProductionHandoverDay => MotorProductionExcel.HandoverDay(ProductionCell);
         public string State { get; set; }=Pending;
         public string StatusLabel => Name(State);
         public string SentDay { get; set; }="";
@@ -179,6 +182,7 @@ public sealed class MotorHungYenStore
                     Key=key,Contract=row.Contract,Project=row.Project,Company=row.Company,
                     Material=row.Material,Quantity=row.Quantity,Lot=row.Lot,Serial=row.Serial,
                     SourceNote=row.Note,SourcePosition=row.Sheet+" · dòng "+row.SourceRow,
+                    ProductionCell=row.ProductionCell,
                     State=state?.State??Pending,
                     SentDay=state?.SentDay??"",CompletedDay=state?.CompletedDay??"",
                     HandoverDay=state?.HandoverDay??"",LastNote=state?.LastNote??"",
