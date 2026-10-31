@@ -23,6 +23,7 @@ public static class EquipmentListReader
         public string Serial { get; set; } = "";
         public string Lot { get; set; } = "";
         public string ProductionDate { get; set; } = "";
+        public string ProductionCell { get; set; } = "";
         public string Code { get; set; } = "";
         public string Note { get; set; } = "";
         public string Source { get; set; } = "";
@@ -159,7 +160,7 @@ public static class EquipmentListReader
     {
         Category=x.Category,Contract=x.Contract,Project=x.Project,Company=x.Company,
         Material=x.Material,Unit=x.Unit,Quantity=x.Quantity,Serial=x.Serial,Lot=x.Lot,
-        ProductionDate=x.ProductionDate,Code=x.Code,Note=x.Note,Source=x.Source,
+        ProductionDate=x.ProductionDate,ProductionCell=x.ProductionCell,Code=x.Code,Note=x.Note,Source=x.Source,
         Sheet=x.Sheet,SourceRow=x.SourceRow,Verification=x.Verification
     };
 
@@ -248,6 +249,7 @@ public static class EquipmentListReader
                         Unit=Txt(sheet,i,6),Quantity=Qty(sheet,i,7),
                         Lot=Txt(sheet,i,8),Serial=Txt(sheet,i,9),
                         Note="Thông tin cont đi / trạng thái ghi trong file: "+Txt(sheet,i,10),
+                         ProductionCell=ExcelDay(sheet,i,MotorProductionExcel.ProgressColumn),
                         Source=source,Sheet=sheet.Name,SourceRow=i
                     });
                 }
