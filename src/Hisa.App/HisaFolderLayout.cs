@@ -71,6 +71,48 @@ public static class HisaFolderLayout
             ProductionExcel(production,"DAUCUACAR",previous?.CarDoorListPath));
     }
 
+    /// <summary>
+    /// Single-folder setup: require the user-selected ROOT and all six real
+    /// Excel workbooks. Never fall back to an older, unrelated workbook path.
+    /// Does not move/copy/modify any user data.
+    /// </summary>
+    public static Paths RequireCompleteRoot(string selected,AppSettings? previous=null)
+    {
+        if(string.IsNullOrWhiteSpace(selected)||!Directory.Exists(selected))
+            throw new DirectoryNotFoundException("Chọn đúng thư mục gốc Kho HISA đang tồn tại.");
+        var full=Path.GetFullPath(selected);
+        var layout=Detect(full,previous);
+        if(layout==null ||
+           !string.Equals(full,layout.Root,StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException(
+                "Chỉ chọn duy nhất thư mục gốc Kho HISA, không chọn Kho chính, CONT ĐI hoặc Danh sách sản xuất.");
+        if(!Directory.Exists(Path.Combine(layout.Root,"Danh sách sản xuất")))
+            throw new DirectoryNotFoundException("Thiếu thư mục Kho HISA/Danh sách sản xuất.");
+        var expected=new[]{
+            ("Kho chính/KT tổng hợp.xlsx",layout.Kt),
+            ("Kho chính/Thành phẩm xuất kho.xlsx",layout.Product),
+            ("Danh sách sản xuất/TỦ ĐIỆN.xlsx",layout.Cabinet),
+            ("Danh sách sản xuất/MÁY KÉO.xlsx",layout.Motor),
+            ("Danh sách sản xuất/Đầu cửa car T10.2026.xlsx",layout.Door)
+        };
+        var missing=expected.Where(x=>string.IsNullOrWhiteSpace(x.Item2)||!File.Exists(x.Item2))
+            .Select(x=>x.Item1).ToList();
+        if(missing.Count>0)
+            throw new FileNotFoundException("Kho HISA chưa nhận diện đủ các file Excel: "+
+                string.Join(", ",missing)+
+                ". Chỉ cần đặt đúng tên và vị trí file trong thư mục, không chọn từng file.");
+        // Validate that no two catalogue names resolved to one file or to
+        // Excel canonical data, without changing the selected settings.
+        var probe=new AppSettings{
+            MasterPath=layout.Master,KtPath=layout.Kt,
+            ProductExportPath=layout.Product,DataSources=[layout.Cont],
+            ElectricalCabinetListPath=layout.Cabinet,
+            TractionMachineListPath=layout.Motor,CarDoorListPath=layout.Door
+        };
+        EquipmentListReader.ValidateIndependentSources(probe);
+        return layout;
+    }
+
     public static string PreferredSelection(AppSettings settings)
     {
         var source=settings.DataSources.FirstOrDefault();
