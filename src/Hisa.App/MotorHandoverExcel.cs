@@ -21,6 +21,9 @@ public static class MotorHandoverExcel
     public sealed class Receipt
     {
         public string Identity { get; set; }="";
+        // Legacy v1.9.17 receipts have no Column property and therefore belong to N.
+        // They must never grant permission to overwrite a different value in L.
+        public string Column { get; set; }="N";
         public string Date { get; set; }="";
         public string PreviousDate { get; set; }="";
     }
@@ -85,7 +88,7 @@ public static class MotorHandoverExcel
             var data=JsonSerializer.Deserialize<List<Receipt>>(File.ReadAllText(path),Json) ??
                 throw new InvalidDataException("Lịch sử đồng bộ ngày bàn giao rỗng.");
             if(data.Any(x=>string.IsNullOrEmpty(x.Identity)) ||
-               data.Select(x=>x.Identity).Distinct(StringComparer.Ordinal).Count()!=data.Count)
+               data.Select(x=>x.Column+"|"+x.Identity).Distinct(StringComparer.Ordinal).Count()!=data.Count)
                 throw new InvalidDataException("Lịch sử đồng bộ có khóa trùng hoặc thiếu.");
             return data;
         }
@@ -137,12 +140,14 @@ public static class MotorHandoverExcel
     }
 
     public static Outcome Sync(AppSettings settings,IEnumerable<Slip> slips,
-        string dataDirectory,string excelBackupDirectory)
+        string dataDirectory,string excelBackupDirectory,string? explicitWorkIdentity=null)
     {
         var warnings=new List<string>();
         var path=settings.TractionMachineListPath;
         var receiptPath=Path.Combine(dataDirectory,ReceiptFile);
-        var prior=ReadReceipts(receiptPath);
+        var allReceipts=ReadReceipts(receiptPath);
+        var legacy=allReceipts.Where(x=>!string.Equals(x.Column,"L",StringComparison.OrdinalIgnoreCase)).ToList();
+        var prior=allReceipts.Where(x=>string.Equals(x.Column,"L",StringComparison.OrdinalIgnoreCase)).ToList();
         var incomplete=slips.Where(x=>x.Status=="delivered")
             .SelectMany(x=>x.Lines.Where(MotorSerials.IsMotor))
             .Any(x=>x.Quantity is >0);
@@ -231,14 +236,19 @@ public static class MotorHandoverExcel
             var cell=sheet.Cell(candidates[0].SourceRow,dateColumn);
             var existing=DateText(cell);
             priorByKey.TryGetValue(identity,out var owned);
+            // Excel is also an input: a human's change in L must not be
+            // silently reverted by background reconciliation with stale JSON.
+            // Only an explicit click in HISA may replace one work word with another.
+            bool explicitWork=explicitWorkIdentity==identity && IsWorkText(day) &&
+                IsWorkText(existing);
             if(owned==null && existing.Length>0 && existing!=day &&
-               !(IsWorkText(existing) && !IsWorkText(day)))
+               !(IsWorkText(existing) && !IsWorkText(day)) && !explicitWork)
             {
                 unmatched++;
                 warnings.Add("Cột L có dữ liệu nhập tay khác trạng thái dự kiến; không ghi đè: "+identity);
                 continue;
             }
-            if(owned!=null&&existing!=owned.Date&&existing!=day)
+            if(owned!=null&&existing!=owned.Date&&existing!=day && !explicitWork)
             {
                 unmatched++;
                 warnings.Add("Cột L đã bị sửa bên ngoài HISA. Không ghi đè: "+identity);
@@ -248,7 +258,9 @@ public static class MotorHandoverExcel
             // Claim ownership only when HISA actually changes the cell.
             if(owned==null && existing==day)continue;
             actions.Add((candidates[0].SourceRow,day,identity,owned?.PreviousDate??existing));
-            next[identity]=new Receipt{Identity=identity,Date=day,PreviousDate=owned?.PreviousDate??existing};
+            next[identity]=new Receipt{Identity=identity,Column="L",Date=day,
+                PreviousDate=explicitWork && owned!=null && existing!=owned.Date
+                    ? existing : owned?.PreviousDate??existing};
         }
         foreach(var old in prior)
         {
@@ -303,7 +315,8 @@ public static class MotorHandoverExcel
         // The receipt file only changes after Excel was safely committed.
         if(prior.Count!=next.Count || prior.Any(x=>!next.TryGetValue(x.Identity,out var y)||
             y.Date!=x.Date||y.PreviousDate!=x.PreviousDate))
-            PersistReceipts(receiptPath,next.Values.OrderBy(x=>x.Identity).ToList());
+            PersistReceipts(receiptPath,legacy.Concat(next.Values)
+                .OrderBy(x=>x.Column).ThenBy(x=>x.Identity).ToList());
         return new Outcome(written,cleared,unmatched,warnings);
     }
 }
