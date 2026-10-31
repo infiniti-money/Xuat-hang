@@ -18,6 +18,9 @@ public static class AutoUpdater
     private const string LatestReleaseApi = "https://api.github.com/repos/infiniti-money/Xuat-hang/releases/latest";
     private static readonly HttpClient Http = CreateClient();
     private static string? _readyInstaller;
+    private static string? _readyHash;
+    private static bool _installRequested;
+    public static event Action<string>? UpdateStaged;
     private static readonly object Sync = new();
     private static readonly SemaphoreSlim CheckGate = new(1,1);
 
@@ -31,7 +34,7 @@ public static class AutoUpdater
         return client;
     }
 
-    private static Uri TrustedAssetUri(string value)
+    internal static Uri TrustedAssetUri(string value)
     {
         if(!Uri.TryCreate(value, UriKind.Absolute, out var uri)
             || uri.Scheme!=Uri.UriSchemeHttps
@@ -90,6 +93,21 @@ public static class AutoUpdater
         return value;
     }
 
+    // GitHub Release checksum must name the exact installer; do not accept a ZIP or another version.
+    internal static string ParseChecksum(string content,string installerName,string? githubDigest)
+    {
+        var lines=content.Split(['\r','\n'],StringSplitOptions.RemoveEmptyEntries);
+        var line=lines.SingleOrDefault()?.Trim()??"";
+        var match=Regex.Match(line,@"^(?<hash>[a-fA-F0-9]{64})\s+\*?(?<name>[^\\/]+)$");
+        if(!match.Success||!string.Equals(match.Groups["name"].Value,installerName,StringComparison.Ordinal))
+            throw new InvalidDataException("Tệp checksum cập nhật không khớp với bộ cài.");
+        var expected=match.Groups["hash"].Value;
+        if(githubDigest is string digest && digest.Length>0 &&
+            !string.Equals(digest,"sha256:"+expected,StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("SHA-256 trên GitHub và tệp checksum không khớp.");
+        return expected;
+    }
+
     private static async Task DownloadInstallerAsync(Uri uri,string destination,CancellationToken cancellationToken)
     {
         using var response=await Http.GetAsync(uri,HttpCompletionOption.ResponseHeadersRead,cancellationToken);
@@ -124,15 +142,7 @@ public static class AutoUpdater
         var release=await CheckLatestAsync(cancellationToken);
         if(release==null)return null;
         var expectedContent=await DownloadTextAsync(release.ChecksumUrl,cancellationToken);
-        var lines=expectedContent.Split(['\r','\n'],StringSplitOptions.RemoveEmptyEntries);
-        var line=lines.SingleOrDefault()?.Trim()??"";
-        var match=Regex.Match(line,@"^(?<hash>[a-fA-F0-9]{64})\s+\*?(?<name>[^\\/]+)$");
-        if(!match.Success||!string.Equals(match.Groups["name"].Value,release.InstallerName,StringComparison.Ordinal))
-            throw new InvalidDataException("Tệp checksum cập nhật không khớp với bộ cài.");
-        var expected=match.Groups["hash"].Value;
-        if(release.GithubAssetDigest is string digest && digest.Length>0 &&
-            !string.Equals(digest,"sha256:"+expected,StringComparison.OrdinalIgnoreCase))
-            throw new InvalidDataException("SHA-256 trên GitHub và tệp checksum không khớp.");
+        var expected=ParseChecksum(expectedContent,release.InstallerName,release.GithubAssetDigest);
 
         // Only installer cache is temporary; all warehouse state and backups remain in Documents.
         var root=Path.Combine(Path.GetTempPath(),"HISA-Verified-Updates");
@@ -149,33 +159,63 @@ public static class AutoUpdater
                     throw new InvalidDataException("Sai mã SHA-256; đã từ chối cài bản cập nhật.");
             }
             File.Move(staging,file,true);
-            lock(Sync){_readyInstaller=file;ReadyVersion=release.Version;}
+            lock(Sync){_readyInstaller=file;_readyHash=expected;ReadyVersion=release.Version;}
+            UpdateStaged?.Invoke(release.Version);
         }
         finally{if(File.Exists(staging))File.Delete(staging);}
         return release.Version;
     }
 
-    /// <summary>Starts an unattended upgrade only after the warehouse application exits.</summary>
+    /// <summary>Only a user-approved update may run at exit. A background download never forces installation.</summary>
+    public static bool RequestInstallOnExit()
+    {
+        lock(Sync)
+        {
+            if(_readyInstaller==null||_readyHash==null||!File.Exists(_readyInstaller))return false;
+            _installRequested=true;
+            return true;
+        }
+    }
+
+    /// <summary>Starts the verified installer after the warehouse process releases its files.</summary>
     public static void InstallWhenExiting()
     {
-        string? setup;
-        lock(Sync){setup=_readyInstaller;_readyInstaller=null;}
-        if(setup==null||!File.Exists(setup))return;
+        string? setup,expected;
+        lock(Sync)
+        {
+            if(!_installRequested)return;
+            setup=_readyInstaller;expected=_readyHash;
+            _installRequested=false;
+        }
+        if(setup==null||expected==null)return;
         try
         {
-            // /VERYSILENT hides the wizard; UAC consent is required by Windows for Program Files.
+            // Re-check the executable when launching: the cache may have changed after download.
+            using(var stream=File.OpenRead(setup))
+            {
+                var actual=Convert.ToHexString(SHA256.HashData(stream));
+                if(!actual.Equals(expected,StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidDataException("Bộ cài đã thay đổi sau khi tải. Vui lòng kiểm tra cập nhật lại.");
+            }
+            // /SILENT displays progress and errors instead of failing invisibly.
+            // /HISAUPGRADE=1 asks Inno Setup to relaunch HISA only after installation finishes.
+            // Windows UAC is never bypassed.
             Process.Start(new ProcessStartInfo
             {
                 FileName=setup,
-                Arguments="/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS /AUTORESTARTAPP",
+                Arguments="/SILENT /NORESTART /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS /HISAUPGRADE=1",
                 UseShellExecute=true,
                 Verb="runas",
                 WorkingDirectory=Path.GetDirectoryName(setup)!
             });
         }
-        catch(Exception)
+        catch(Exception ex)
         {
-            // If elevation is rejected, the current installation and data remain untouched.
+            System.Windows.MessageBox.Show(
+                "Không thể mở bộ cài cập nhật: "+ex.Message+
+                "\\nBản hiện tại và dữ liệu kho vẫn được giữ nguyên. Có thể tải bộ cài trên GitHub Releases.",
+                "HISA · Cập nhật chưa thành công",System.Windows.MessageBoxButton.OK,
+                System.Windows.MessageBoxImage.Warning);
         }
     }
 }
