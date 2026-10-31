@@ -29,24 +29,57 @@ public partial class MainWindow
             T("Công cụ quản lý kho hằng ngày",18,true),
             T("Tra cứu theo hợp đồng và kiện Hưng Yên; theo dõi cont về; đối chiếu dữ liệu Excel; lập kế hoạch, tạo và sửa phiếu bàn giao; quản lý các trạng thái xuất hàng; thiết kế mẫu in và tổng hợp báo cáo theo ngày.",13,false,Muted)
         ),new Thickness(26));
+        var updateStatus = T("Có thể tải bản mới để chuẩn bị; HISA chỉ cài khi anh xác nhận.", 12, false, Muted);
         var updating=Card(Stack(
             T("Cập nhật phần mềm",18,true),
-            T("Kiểm tra thủ công phiên bản mới trên GitHub. Bộ cài sẽ được tải và kiểm tra SHA-256 trước khi sử dụng. Không ảnh hưởng dữ liệu trong Thư viện.",12,false,Muted),
+            T("Tải có thể tiếp tục sau khi gián đoạn; bộ cài phải khớp SHA-256 trước khi mở. Không tự cài khi đóng ứng dụng.",12,false,Muted),
+            updateStatus,
             Row(
-                A("Kiểm tra cập nhật",async()=>
+                A("Kiểm tra / tiếp tục tải",async()=>
                 {
-                    var version=await AutoUpdater.CheckAndStageAsync();
-                    if(version==null)Notify("Bạn đang sử dụng phiên bản "+SoftwareInfo.Version+" hoặc hiện chưa có bản cài mới.");
-                    else Notify("Đã tải và xác minh phiên bản "+version+". Bạn có thể tiếp tục làm việc; phần mềm sẽ nâng cấp khi đóng.");
+                    Action<long,long> progress=(done,total)=>Dispatcher.BeginInvoke(()=>
+                        updateStatus.Text=$"Đang tải {done*100.0/total:0}% ({done/1048576.0:0.0}/{total/1048576.0:0.0} MB)");
+                    AutoUpdater.DownloadProgress += progress;
+                    try
+                    {
+                        var version=await AutoUpdater.CheckAndStageAsync();
+                        if(version==null)
+                        {
+                            updateStatus.Text="Chưa có bản phát hành mới hơn phiên bản "+SoftwareInfo.Version+".";
+                            Notify(updateStatus.Text);
+                        }
+                        else
+                        {
+                            updateStatus.Text="Đã tải đủ và xác minh SHA-256 cho bản "+version+
+                                ". Chọn Cài bản đã tải khi anh muốn nâng cấp.";
+                            Notify(updateStatus.Text);
+                        }
+                    }
+                    catch(Exception ex)
+                    {
+                        updateStatus.Text="Tải hoặc xác minh chưa thành công. Có thể bấm thử lại; phần dữ liệu đã tải được giữ nếu còn hợp lệ.";
+                        throw new IOException(updateStatus.Text+"\nChi tiết: "+ex.Message,ex);
+                    }
+                    finally { AutoUpdater.DownloadProgress -= progress; }
                 },true),
                 B("Cài bản đã tải",()=>
                 {
                     var version=AutoUpdater.ReadyVersion;
-                    if(version==null){Notify("Chưa có bản cập nhật được tải và xác minh. Chọn Kiểm tra cập nhật trước.");return;}
-                    if(Ask("Đóng phần mềm và cài bản "+version+" ở chế độ yên lặng?\nDữ liệu đã lưu sẽ được giữ nguyên."))Close();
+                    if(version==null){Notify("Chưa có bộ cài đã xác minh. Bấm Kiểm tra / tiếp tục tải trước.");return;}
+                    if(!Ask("Đóng HISA và mở trình cài đặt bản "+version+
+                        " có giao diện để xem lỗi nếu xảy ra?\nHISA không tự ghi Excel khi nâng cấp."))return;
+                    if(AutoUpdater.RequestInstall()) Close();
+                    else Notify("Không tìm thấy bộ cài đã xác minh; hãy tải lại.");
+                }),
+                B("Mở thư mục nhật ký cài đặt",()=>
+                {
+                    System.IO.Directory.CreateDirectory(AutoUpdater.LogDirectory);
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(
+                        AutoUpdater.LogDirectory){UseShellExecute=true});
                 })
             ),
-            T("Lưu ý: Windows có thể yêu cầu quyền quản trị (UAC) để thay thế chương trình trong Program Files.",11,false,Muted)
+            T("Windows có thể hỏi quyền quản trị (UAC). Nếu cài đặt báo lỗi, xem nhật ký tại "+
+                AutoUpdater.InstallerLogPath+". Dữ liệu kho và Gemini API Key không nằm trong thư mục cài.",11,false,Muted)
         ),new Thickness(26));
         var panel=Stack(heading,contacts,updating,capabilities);
         panel.MaxWidth=920;panel.HorizontalAlignment=HorizontalAlignment.Left;
