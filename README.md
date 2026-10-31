@@ -43,7 +43,11 @@ Mở **Trung tâm Gemini AI → Đọc lịch Zalo / Nhập hợp đồng**. Đ�
 
 ## HISA v1.8.0 – Giao diện tập trung theo quy trình thực tế
 
-**7 mục chính thay cho menu nhiều mục trùng:** Tổng quan · Điều hành xuất hàng · Cont & kiện Hưng Yên · Tra cứu hợp đồng · Trung tâm Gemini AI · Báo cáo & tiện ích · Cấu hình & sao lưu.
+**6 mục chính thay cho menu nhiều mục trùng:** Tổng quan · Điều hành xuất hàng · Cont & kiện Hưng Yên · Tra cứu hợp đồng · Trung tâm Gemini AI · Quản lý & lịch sử.
+
+- **Quản lý & lịch sử** gom truy cập **Trạng thái hợp đồng (hoãn/hủy)**, **Phiếu bàn giao**, **Lịch sử xuất & báo cáo**, **Cấu hình & sao lưu**, **Mẫu phiếu in** và **Thông tin & cập nhật** vào một màn hình. Nút Phiếu bàn giao trong Điều hành xuất hàng vẫn là lối tắt tới **cùng danh sách phiếu**, không tạo bản sao dữ liệu.
+- Các thao tác ghi kho, xác nhận xuất và xóa trạng thái vẫn nằm trong màn nghiệp vụ với bước xác nhận. Không di chuyển hoặc gộp vật lý file Excel, JSON hay dữ liệu Windows Credential Manager khi thay menu.
+- Bản giao diện này **không thêm chức năng phục hồi ZIP**; chờ bản phục hồi có kiểm thử an toàn riêng.
 
 1. Mở HISA → thấy lịch dự kiến hôm nay/ngày mai nếu có, kiện cần chuẩn bị và cont dự kiến về. Nếu chưa có lịch, phần mềm hỏi anh nhập ảnh Zalo hoặc nhập thủ công.
 2. Vào **Điều hành xuất hàng** → nạp lịch AI đã duyệt hoặc thêm HĐ phát sinh → đối chiếu chuẩn bị vật tư → lập phiếu chờ → chỉ xác nhận sau bàn giao.

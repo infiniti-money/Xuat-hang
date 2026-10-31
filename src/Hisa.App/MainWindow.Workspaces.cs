@@ -192,29 +192,46 @@ public partial class MainWindow
             new ScrollViewer{Content=page,VerticalScrollBarVisibility=ScrollBarVisibility.Auto});
     }
 
-    private void ShowReportsHub()
+    // A single management home for contract flags, handover slips, history and settings.
+    // All original screens and their persisted stores remain unchanged.
+    private void ShowManagementHub()
     {
-        _page="reports-hub";
+        _page="management-hub";
         var page=Stack();
-        page.Children.Add(HubHeader("BÁO CÁO & TIỆN ÍCH",
-            "Theo dõi kết quả đã thực hiện, quản lý mẫu in và xem thông tin phần mềm"));
-        page.Children.Add(HubSection("BÁO CÁO THỰC TẾ",
-            "Kế hoạch xuất và trạng thái chuẩn bị không được đánh đồng với hàng đã xuất.",
-            WorkflowTile("▥","Báo cáo ngày",
-                "Tổng hợp phiếu và công việc theo ngày.",
-                "Báo cáo đã ghi nhận",()=>Navigate("daily"),true),
-            WorkflowTile("▤","Phiếu bàn giao",
-                "Tra cứu, chỉnh sửa phiếu chờ và lịch sử bàn giao.",
-                "Chờ / Hoãn / Đã xuất",()=>Navigate("slips"))));
-        page.Children.Add(HubSection("CÔNG CỤ HỖ TRỢ",
-            "Truy cập các chức năng ít dùng, thay vì lặp lại ở nhiều nhóm menu.",
-            WorkflowTile("▧","Mẫu phiếu in",
-                "Định dạng mẫu phiếu và xem bản in.",
-                "Không thay đổi chứng từ",()=>Navigate("templates")),
-            WorkflowTile("ⓘ","Thông tin & phiên bản",
-                "Thông tin phần mềm và phiên bản đang cài.",
-                "Thông tin HISA",()=>Navigate("information"))));
-        SetPage("Báo cáo & tiện ích","Báo cáo ngày · phiếu · mẫu in · thông tin",
+        page.Children.Add(HubHeader("QUẢN LÝ & LỊCH SỬ",
+            "Một nơi cho trạng thái hợp đồng, phiếu bàn giao, báo cáo lịch sử và cấu hình"));
+        page.Children.Add(StyledDashboardPanel(Stack(
+            T("HỒ SƠ ĐANG QUẢN LÝ",14,true),
+            T(_service.Flags.Count+" trạng thái hoãn / hủy lấy hàng · "+
+              _service.Slips.Count+" phiếu bàn giao",13,false,Muted),
+            T("Trạng thái hợp đồng và trạng thái phiếu là hai loại hồ sơ khác nhau; không gộp hoặc xóa các bản ghi cũ.",11,false,Brush("#946E3E")))));
+        page.Children.Add(HubSection("TRẠNG THÁI & PHIẾU BÀN GIAO",
+            "Quản lý theo số hợp đồng và từng phiếu. Chỉ ghi nhận đã xuất khi anh xác nhận bàn giao.",
+            WorkflowTile("01","Trạng thái hợp đồng",
+                "Ghi chú hoãn / hủy lấy hàng, lý do và thời điểm cập nhật.",
+                "Không thay đổi phiếu đã xuất",()=>Navigate("flags"),true),
+            WorkflowTile("02","Phiếu bàn giao",
+                "Lọc Chờ xuất, Đã xuất, Tạm hoãn, Đã hủy; sửa và in phiếu.",
+                "Có lịch sử trạng thái từng phiếu",()=>Navigate("slips"))));
+        page.Children.Add(HubSection("LỊCH SỬ & BÁO CÁO",
+            "Xem kết quả theo ngày; muốn xem ai đổi trạng thái một phiếu, mở Phiếu bàn giao → Lịch sử trạng thái.",
+            WorkflowTile("03","Lịch sử xuất & báo cáo",
+                "Tra cứu phiếu theo ngày, vật tư đã xuất và xuất báo cáo Excel.",
+                "Không coi lịch dự kiến là đã xuất",()=>Navigate("daily"))));
+        page.Children.Add(HubSection("CẤU HÌNH & CÔNG CỤ",
+            "Giữ nguyên đường dẫn dữ liệu và quyền phê duyệt. Sao lưu không có nghĩa là đã phục hồi.",
+            WorkflowTile("04","Cấu hình & sao lưu",
+                "Nguồn Excel, Gemini API Key, đồng bộ và bản sao lưu ZIP.",
+                "Phục hồi từ ZIP chưa có trên v1.9.0",()=>Navigate("settings")),
+            WorkflowTile("05","Mẫu phiếu in",
+                "Quản lý mẫu phiếu, căn lề và in thử.",
+                "Mẫu in dùng chung",()=>Navigate("templates")),
+            WorkflowTile("06","Thông tin & cập nhật",
+                "Xem phiên bản, kiểm tra và tải bản cập nhật.",
+                "Không tự ghi dữ liệu kho",()=>Navigate("information"))));
+        SetPage("Quản lý & lịch sử",
+            "Trạng thái hợp đồng · phiếu bàn giao · lịch sử · cấu hình & sao lưu",
             new ScrollViewer{Content=page,VerticalScrollBarVisibility=ScrollBarVisibility.Auto});
     }
+
 }

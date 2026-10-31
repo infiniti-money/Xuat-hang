@@ -14,23 +14,25 @@ public static class WorkflowUiDiagnostics
             if(!okay)throw new InvalidOperationException("Workflow UI regression: "+label);
             checks.Add("Workflow UI: "+label);
         }
-        var dispatch=new[]{"create","plan","readiness","slips"};
+        var dispatch=new[]{"create","plan","readiness"};
         var arrivals=new[]{"arrival","planned-arrivals","arrival-packages","packages","duplicate-review"};
         var ai=new[]{"gemini-chat","ai-schedule"};
-        var reports=new[]{"daily","templates","information"};
+        var management=new[]{"flags","slips","daily","templates","information","settings","reports-hub"};
         Check(dispatch.All(x=>MainWindow.NavigationGroup(x)=="dispatch-hub"),
-            "Slip, readiness and create actions share dispatch section");
+            "Readiness and create actions share dispatch section");
         Check(arrivals.All(x=>MainWindow.NavigationGroup(x)=="arrival-hub"),
             "Arrival, approved AI import and independent package review share inbound section");
         Check(ai.All(x=>MainWindow.NavigationGroup(x)=="ai-hub"),
             "Gemini chat and Zalo image workflow share one AI section");
-        Check(reports.All(x=>MainWindow.NavigationGroup(x)=="reports-hub"),
-            "Daily reports and templates share reporting and utilities section");
-        var visible=new[]{"dashboard","dispatch-hub","arrival-hub","lookup","ai-hub","reports-hub","settings"};
+        Check(management.All(x=>MainWindow.NavigationGroup(x)=="management-hub"),
+            "Status, handover slips, history, settings and legacy reporting share one management hub");
+        Check(MainWindow.NavigationGroup("flags")=="management-hub",
+            "Hoan/huy contract status screen is reachable from consolidated navigation");
+        var visible=new[]{"dashboard","dispatch-hub","arrival-hub","lookup","ai-hub","management-hub"};
         Check(visible.All(x=>MainWindow.NavigationGroup(x)==x),
-            "Seven primary destinations remain visible and uniquely selectable");
-        Check(dispatch.Concat(arrivals).Concat(ai).Concat(reports).Concat(visible)
-            .Distinct().Count()==dispatch.Length+arrivals.Length+ai.Length+reports.Length+visible.Length,
+            "Six primary destinations remain visible and uniquely selectable");
+        Check(dispatch.Concat(arrivals).Concat(ai).Concat(management).Concat(visible)
+            .Distinct().Count()==dispatch.Length+arrivals.Length+ai.Length+management.Length+visible.Length,
             "No workflow route is shown in multiple independent top-level sections");
 
         var tomorrow=DateTime.Today.AddDays(1).ToString("yyyy-MM-dd");
