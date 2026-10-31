@@ -1,3 +1,21 @@
+## HISA v1.9.4 · Phân loại file CONT ĐI an toàn
+
+Cấu trúc thư mục mới, ví dụ khi chọn nguồn `D:\Kho\CONT ĐI`:
+
+```text
+D:\Kho\
+├── CONT ĐI\          (file kiện chờ về; chưa nhập thực tế)
+├── Đã nhập kho\     (file có tất cả kiện đã thực sự ghi vào Tổng hợp.xlsx)
+└── Hàng gửi\        (file hàng gửi, không phải nhập kho)
+```
+
+- File **Hàng gửi** được đưa sang thư mục cùng cấp với CONT ĐI, vẫn giữ cấu trúc thư mục ngày.
+- File **Đã nhập kho** chỉ được chuyển sau khi có dấu vết nguồn từng kiện trong phần chi tiết của `Tổng hợp.xlsx`. Nếu một file có nhiều kiện mà chỉ một số đã nhận, vẫn để nguyên trong CONT ĐI.
+- Sau khi nâng cấp, các file do bản cũ đặt nhầm vào `CONT ĐI\Đã nhập kho` được kiểm tra: file có toàn bộ kiện được xác nhận mới chuyển sang thư mục Đã nhập kho cùng cấp, file chưa được xác nhận quay về CONT ĐI. File cũ `CONT ĐI\Hàng gửi` chuyển ra thư mục Hàng gửi cùng cấp. Không ghi đè file trùng tên; hiển thị cảnh báo.
+- Khi đồng bộ, HISA vẫn đọc file ở thư mục Đã nhập kho cùng cấp để bảo toàn lịch sử, ID kiện và không làm trống nguồn cont.
+
+---
+
 ## HISA v1.9.3 · Hai thao tác từ ảnh Zalo
 
 Chọn ảnh Zalo → **Phân tích với Gemini** → kiểm tra ngày, công trình và hợp đồng → **Lưu kế hoạch đã duyệt**. Sau đó có hai danh sách độc lập:
