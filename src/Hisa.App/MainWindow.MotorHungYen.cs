@@ -134,7 +134,7 @@ public partial class MainWindow
                             ("Trạng thái","Label",210),("Ngày thực tế","EffectiveDay",140),
                             ("Ghi nhận lúc","RecordedAt",210),("Người thao tác","By",150),
                             ("Ghi chú","Note",-1)));
-                }))),
+                })),
             T("Dữ liệu trạng thái lưu tại Tài liệu/HISA Kho Vat Tu/APP KHO/data/motor_hung_yen_tracking.json và được sao lưu cùng HISA. Mỗi dòng máy/seri có lịch sử riêng; file MÁY KÉO.xlsx chỉ đọc.",11,false,Muted)
         ));
         var page=Stack(tools);
