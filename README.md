@@ -1,3 +1,14 @@
+## Phục hồi ZIP và xử lý lỗi cập nhật (v1.9.15)
+
+1. Sao lưu dữ liệu hiện tại và đóng mọi file Excel đang mở. Vào **Cấu hình & sao lưu → Phục hồi từ ZIP**; kiểm tra tên file, phiên bản ZIP và số lượng mục.
+2. Chọn **Dữ liệu ứng dụng** (phiếu, trạng thái, cấu hình, lịch AI) hoặc **Excel**. Excel **không được chọn sẵn**, tránh ghi đè workbook kho ngoài ý muốn. Bấm xác nhận và chờ thông báo. HISA tạo thư mục Restore-Safety-* trong Backups chứa từng tệp gốc và restore-map.json; giữ thư mục này để có thể phục hồi thủ công.
+3. HISA đóng sau khi khôi phục; mở lại và kiểm tra **Cấu hình nguồn**, đặc biệt nếu ZIP lấy từ máy Windows khác. ZIP v1 cũ không có manifest và không chứa lịch AI; phải đối chiếu thủ công phần lịch thiếu. Gemini API Key được Windows Credential Manager quản lý riêng và không nằm trong bản ZIP.
+4. Nếu Excel đang khóa hoặc ZIP không đạt kiểm tra, HISA ngăn ghi. Nếu gặp lỗi giữa chừng, phần mềm cố gắng hoàn tác tự động; nếu báo lỗi hoàn tác, **không tiếp tục sửa dữ liệu**, sao chép nguyên thư mục Restore-Safety-* rồi đối chiếu từng cặp tệp trong restore-map.json trước khi phục hồi thủ công.
+5. Nếu cập nhật bị ngắt mạng, mở **Thông tin phần mềm → Kiểm tra cập nhật** để thử tải tiếp; tiến độ hiển thị ngay trên màn hình. Nếu cài đặt Windows thất bại, kiểm tra log trong thư mục TEMP / HISA-Verified-Updates, đóng HISA/Excel, chạy bộ cài từ [GitHub Releases](https://github.com/infiniti-money/Xuat-hang/releases/latest) với UAC. **Không xóa dữ liệu tại Documents** hoặc Gemini Credential Manager khi cài đè.
+6. Đối với ZIP/Setup tải thủ công, kiểm tra SHA-256 từ tệp .sha256 tương ứng trước khi sử dụng. Cập nhật tự động xác minh checksum trước khi cho cài.
+
+---
+
 ## HISA v1.9.14 — Máy kéo: chỉ một lựa chọn, một cột N
 
 Trong **Theo dõi máy kéo Hồng Yên**, chọn hợp đồng và đúng seri, sau đó chọn **Chưa làm** hoặc **Đã làm** và bấm **Lưu trạng thái vào Excel cột N**.

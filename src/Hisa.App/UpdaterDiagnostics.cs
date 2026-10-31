@@ -48,6 +48,12 @@ public static class UpdaterDiagnostics
         try{AutoUpdater.ParseChecksum(checksum+"\n"+checksum,name,null);}
         catch(InvalidDataException){mismatch=true;}
         Check(mismatch,"Multiple checksum lines are rejected");
+        Check(AutoUpdater.CanAppend(System.Net.HttpStatusCode.PartialContent,200,200),
+            "Exact HTTP byte-range resumes partial download");
+        Check(!AutoUpdater.CanAppend(System.Net.HttpStatusCode.OK,200,null) &&
+              !AutoUpdater.CanAppend(System.Net.HttpStatusCode.PartialContent,200,100) &&
+              !AutoUpdater.CanAppend(System.Net.HttpStatusCode.PartialContent,0,0),
+            "Ignored or mismatched HTTP Range never appends incorrect data");
         Check(!AutoUpdater.RequestInstallOnExit(),
             "Installer cannot launch without a verified download and approval");
         return checks;

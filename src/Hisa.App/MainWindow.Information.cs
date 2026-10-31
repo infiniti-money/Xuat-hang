@@ -56,6 +56,9 @@ public partial class MainWindow
                     catch(Exception ex){Notify("Không thể mở trình duyệt: "+ex.Message);}
                 })
             ),
+            T(AutoUpdater.LastFailure is string error?"Cập nhật gần nhất gặp lỗi: "+error:"Tải lỗi hoặc mạng mất kết nối: chọn Kiểm tra cập nhật để thử lại phần tải dở.",12,false,Muted),
+            T("Log cài đặt (nếu Inno Setup đã chạy): "+AutoUpdater.InstallLogDirectory+"\\installer-<phiên bản>.log",11,false,Muted),
+            B("Mở thư mục log cập nhật",()=>{System.IO.Directory.CreateDirectory(AutoUpdater.InstallLogDirectory);Process.Start(new ProcessStartInfo(AutoUpdater.InstallLogDirectory){UseShellExecute=true});}),
             T("Nếu bạn đang dùng v1.8.1 không có nút cập nhật, hãy tải bản Setup mới từ GitHub và chạy để cài đè. Khi cập nhật, đóng HISA và Excel đang mở. Windows có thể hỏi quyền quản trị (UAC).",11,false,Muted)
         ),new Thickness(26));
         var panel=Stack(heading,contacts,updating,capabilities);

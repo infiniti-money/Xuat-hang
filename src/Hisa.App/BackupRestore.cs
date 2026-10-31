@@ -88,7 +88,7 @@ public static class BackupRestore
     }
 
     public static string Restore(string zipPath,string dataDirectory,string backupDirectory,
-        AppSettings settings,bool includeData,bool includeExcel)
+        AppSettings settings,bool includeData,bool includeExcel,int failAfterWrites=-1)
     {
         if(!includeData&&!includeExcel)
             throw new ArgumentException("Phải chọn ít nhất một nhóm dữ liệu cần phục hồi.");
@@ -128,7 +128,8 @@ public static class BackupRestore
                     }
                     else
                     {
-                        using var workbook=new XLWorkbook(stage);
+                        using var workbookStream=File.OpenRead(stage);
+                        using var workbook=new XLWorkbook(workbookStream);
                         if(workbook.Worksheets.Count==0)
                             throw new InvalidDataException("Workbook rỗng: "+name);
                     }
@@ -165,6 +166,8 @@ public static class BackupRestore
                     File.Copy(item.Stage,pending,false);
                     File.Move(pending,item.Target,true);
                     changed.Add((item.Target,item.Original));
+                    if(failAfterWrites>0 && changed.Count>=failAfterWrites)
+                        throw new IOException("Mô phỏng lỗi phục hồi để kiểm thử rollback.");
                 }
                 finally{if(File.Exists(pending))File.Delete(pending);}
             }

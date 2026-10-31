@@ -155,6 +155,7 @@ public static class SelfTests
                 Check(sr.ReadToEnd()==File.ReadAllText(approvedSchedule),
                     "Backup preserves exact approved schedule JSON, not merely a file listing",result);
             }
+            result.Checks.AddRange(BackupRestoreDiagnostics.Run(zip,root,service.Settings));
             var corruptedZip=Path.Combine(root,"backup-corrupted.zip");
             File.Copy(zip,corruptedZip);
             using(var archive=System.IO.Compression.ZipFile.Open(

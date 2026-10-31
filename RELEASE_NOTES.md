@@ -1,3 +1,14 @@
+# HISA v1.9.15 — Phục hồi ZIP an toàn và cập nhật có thể thử lại
+
+- **Cấu hình & sao lưu → Phục hồi từ ZIP:** chọn ZIP, xem trước ngày và số file, chọn riêng **Dữ liệu ứng dụng (JSON, lịch AI)** hoặc **Excel**. Mặc định KHÔNG ghi đè Excel. Cần xác nhận rõ ràng.
+- ZIP v2: kiểm tra SHA-256 manifest, tên file, đường dẫn và cấu trúc JSON/Excel trước khi ghi. ZIP v1 cũ: cho phép phục hồi có cảnh báo **không có checksum và không chứa lịch AI**.
+- Ghi các tệp bằng file tạm tại thư mục đích, lưu bản gốc vào thư mục **Restore-Safety-*** trong Backups và tự rollback các tệp đã thay đổi nếu phát sinh lỗi. Chặn ZIP lạ, zip slip, workbook khóa, thiếu tệp chính và dung lượng giải nén bất thường. Phục hồi xong ứng dụng tự đóng để nạp lại dữ liệu.
+- **Cập nhật trực tuyến:** tệp .partial được giữ lại khi mất mạng để thử tải tiếp bằng HTTP Range; nếu máy chủ không hỗ trợ Range thì tải lại từ đầu, không nối nhầm dữ liệu. Hiển thị tiến độ và trạng thái xác minh SHA-256. Bộ cài ghi log trong thư mục tạm HISA-Verified-Updates.
+- **Bảo vệ dữ liệu:** không ghi API Key Gemini vào ZIP/log; không tự đổi dữ liệu kho khi chỉ kiểm tra cập nhật. Các thử nghiệm phục hồi sử dụng file giả lập cô lập trong Windows CI.
+- **Giới hạn:** ZIP v1 không có chứng cứ SHA-256; phục hồi cấu hình từ máy khác có thể dẫn tới đường dẫn Excel cũ; phải kiểm tra đường dẫn nguồn sau khi mở lại. Dù CI cài mới/cài đè thành công, việc cài trên máy người dùng vẫn phụ thuộc UAC, antivirus và trạng thái Excel. Nếu cập nhật lỗi, dùng bộ cài chính thức và log để chẩn đoán.
+
+---
+
 # HISA v1.9.14 — Trạng thái máy kéo và ngày bàn giao thống nhất tại cột N
 
 - Trong **Theo dõi máy kéo**, chọn đúng HĐ, công trình, đơn vị, seri rồi chọn một tình trạng **Chưa làm / Đã làm** trong danh sách xổ xuống; nhấn **Lưu trạng thái vào Excel cột N** để ghi đúng chữ, không điền ngày khi chỉ mới làm xong.
