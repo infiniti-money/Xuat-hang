@@ -1,3 +1,14 @@
+# HISA v1.9.20 — Điều chỉnh nguồn cont: đọc trực tiếp trang Excel, không kiểm tra thư mục
+
+- Bỏ điều kiện phải có/quét thư mục vật lý **CONT ĐI HƯNG YÊN** trong luồng tìm theo ảnh Zalo hoặc số HĐ nhập tay. Đọc lại trực tiếp trang **Cont đi Hưng Yên** của **Tổng hợp.xlsx**, vẫn xác minh ID kiện, vật tư và số lượng trước khi ghi.
+- Chấp nhận chữ **HƯNG YÊN**, **HUNG YEN**, **hung yen** và viết xuống dòng ở ô dấu hiệu kiện, không phân biệt dấu/hoa/thường. Không lấy hàng vùng khác và không ghép nhầm hợp đồng tương tự.
+- Cho người dùng chọn **từng kiện đã về thực tế**, nhập **ngày về**, kiểm tra lại nguồn sau khi chọn và xác nhận; chỉ lúc đó mới sao chép vật tư, số lượng đúng kiện vào trang **chi tiết** của Tổng hợp.xlsx. Không chuyển nhầm ngày cont đi thành ngày về; không đối chiếu KT; không sửa bảng nguồn cont đi.
+- Kiểm thử workbook mẫu không cấu hình thư mục CONT ĐI, với nhãn HƯNG YÊN/hung yen/HUNG YEN; xác nhận nhập đúng ngày và chặn nhập trùng. Không thực hiện thao tác trên Excel thực của khách hàng.
+
+*Các đoạn ghi chú v1.9.20 cũ bên dưới mô tả luồng quét thư mục trước khi có điều chỉnh này; hướng dẫn mới ở trên thay thế yêu cầu đó.*
+
+---
+
 # HISA v1.9.20 — Tìm kiện Hưng Yên trong CONT ĐI, sao chép theo ngày thực tế về kho
 
 - **Ảnh Zalo:** khi Gemini nhận dạng các dòng hợp đồng cont dự kiến về, ngay cùng màn hình hiển thị chức năng **Tìm kiện Hưng Yên trong CONT ĐI** và tự quét các file Excel nguồn. Kết quả liệt kê đúng hợp đồng, công trình/T1/T2, đơn vị, kiện, ngày cont đi, vật tư và số lượng; nguồn ảnh chỉ là lịch dự kiến, không tự xác nhận đã về.
