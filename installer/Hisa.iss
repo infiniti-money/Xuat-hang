@@ -46,12 +46,14 @@ Name: "{autodesktop}\HISA Quản lý kho"; Filename: "{app}\{#AppExeName}"; Task
 
 [Run]
 Filename: "{app}\{#AppExeName}"; Description: "Mở HISA Quản lý kho"; Flags: nowait postinstall skipifsilent
-Filename: "{app}\{#AppExeName}"; Flags: nowait; Check: IsSilentInstallation
+Filename: "{app}\{#AppExeName}"; Flags: nowait; Check: ShouldRelaunchAfterUpgrade
 
 [Code]
-function IsSilentInstallation(): Boolean;
+function ShouldRelaunchAfterUpgrade(): Boolean;
 begin
-  Result := WizardSilent;
+  { Silent CI installation must not launch a desktop app. Only user-approved
+    HISA in-app upgrades supply /HISAUPGRADE=1 and relaunch on completion. }
+  Result := WizardSilent and (ExpandConstant('{param:HISAUPGRADE|0}') = '1');
 end;
 
 // No [UninstallDelete] for Documents: application data and backups survive upgrades/uninstall.
