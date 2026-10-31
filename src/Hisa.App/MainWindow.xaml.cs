@@ -705,7 +705,6 @@ public partial class MainWindow : Window
                 discovery.Foreground=Brush("#177E89");
                 discovery.Text="✓ ĐÃ NHẬN DIỆN NGUỒN EXCEL (CHỈ CẦN MỘT THƯ MỤC)"+
                     "\n✓ Kho chính · "+System.IO.Path.GetFileName(layout.Master)+
-                    "\n✓ Kho chính · "+System.IO.Path.GetFileName(layout.Kt)+
                     "\n✓ Kho chính · "+System.IO.Path.GetFileName(layout.Product)+
                     "\n✓ Danh sách sản xuất · "+System.IO.Path.GetFileName(layout.Motor)+
                     "\n✓ Danh sách sản xuất · "+System.IO.Path.GetFileName(layout.Cabinet)+
