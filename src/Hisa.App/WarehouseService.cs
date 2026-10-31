@@ -790,6 +790,11 @@ public sealed partial class WarehouseService : IDisposable
         catch(Exception e){_exportsPending=true;lock(_stateLock)_warnings.Add("Phiếu và trạng thái đã lưu; sổ Excel đang chờ cập nhật: "+e.Message);Log("export",e);}
         return item;
     }
+    /// <summary>Update manual production status in column N of the existing motor file.</summary>
+    public Task<bool> SetMotorProductionStatusAsync(MotorHungYenStore.Item machine,string status)=>
+        MutateAsync(()=>MotorProductionExcel.SetStatus(Settings,machine,status,
+            Path.Combine(BackupDirectory,"Excel")));
+
     public async Task<Slip> SaveSlipAsync(Slip slip)
     {
         var saved=await MutateAsync(()=>
