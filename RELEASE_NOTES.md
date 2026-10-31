@@ -1,3 +1,14 @@
+# HISA v1.9.16 — Rà soát lỗi còn thiếu, tăng an toàn cập nhật/phục hồi
+
+- **Sửa lỗi cập nhật bị kẹt khi bộ cài cache sai checksum:** giải phóng luồng đọc trước khi xóa file setup hỏng trên Windows, để có thể tải lại bản chuẩn.
+- **Phục hồi ZIP kiểm tra kiểu dữ liệu thực tế:** các file phiếu, mẫu in, cờ hợp đồng, cấu hình, cache và lịch AI được đối chiếu với cấu trúc HISA trước khi có bất kỳ ghi đè nào. Chặn ví dụ JSON cú pháp hợp lệ nhưng sai kiểu, danh sách phiếu chứa null.
+- **Tương thích ZIP cũ:** nhận đúng nhãn thư mục Excel bất kể viết hoa/thường; giữ khả năng phục hồi V1 có cảnh báo thiếu checksum. Bảo toàn luồng sao lưu, rollback và chọn riêng Excel mặc định bỏ chọn.
+- **Kiểm thử Windows bổ sung:** setup cache tốt/hỏng; ZIP JSON sai cấu trúc và lỗi null; ZIP Excel viết hoa/thường; khẳng định dữ liệu gốc không bị thay khi phục hồi bị chặn.
+- **Trải nghiệm:** nút cập nhật hiển thị rõ "Kiểm tra / Thử lại"; issue #13 tiếp tục mở để kiểm tra trên Windows thực tế (UAC, antivirus, mất mạng trong lúc tải, nâng cấp 1.8.1). Không khẳng định đã xác minh toàn bộ tình huống máy thật.
+- **Không tự thay đổi** dữ liệu Excel, lịch AI, phiếu bàn giao hoặc Gemini API Key khi cài đè.
+
+---
+
 # HISA v1.9.15 — Phục hồi ZIP an toàn và cập nhật có thể thử lại
 
 - **Cấu hình & sao lưu → Phục hồi từ ZIP:** chọn ZIP, xem trước ngày và số file, chọn riêng **Dữ liệu ứng dụng (JSON, lịch AI)** hoặc **Excel**. Mặc định KHÔNG ghi đè Excel. Cần xác nhận rõ ràng.
