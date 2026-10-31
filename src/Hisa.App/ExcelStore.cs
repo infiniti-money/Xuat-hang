@@ -460,6 +460,9 @@ public sealed class ExcelStore
     }
     private static bool IsReserved(string path,AppSettings settings)
     {
+        // Never mistake a production equipment catalogue for a container file,
+        // including when an older installation has stored it under CONT ĐI.
+        if(EquipmentListReader.IsConfiguredEquipmentFile(path,settings))return true;
         var name=Rules.Code(Path.GetFileNameWithoutExtension(path));
         return Path.GetFullPath(path).Equals(settings.MasterPath,StringComparison.OrdinalIgnoreCase) || Path.GetFullPath(path).Equals(settings.KtPath,StringComparison.OrdinalIgnoreCase) || name is "TONGHOP" or "KTTONGHOP" or "HANGTHEOCONT" or "THANHPHAMXUATKHO" || name.StartsWith("LICHXUATHANG") || name.StartsWith("SOTHEODOIXUATHANG") || name.StartsWith("PHIEUXUATVATTU") || Path.GetDirectoryName(path)!.Split(Path.DirectorySeparatorChar).Any(x=>Rules.Code(x) is "XUATHANG" or "BACKUPS" or "HISABACKUPS" or "NATIVEDATA");
     }

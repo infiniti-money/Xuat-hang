@@ -285,7 +285,7 @@ public sealed partial class WarehouseService : IDisposable
             try
             {
                 var files=Directory.Exists(source)?Directory.EnumerateFiles(source,"*.xlsx",SearchOption.AllDirectories):File.Exists(source)?[source]:Array.Empty<string>();
-                stamps.AddRange(files.Where(p=>!Path.GetFileName(p).StartsWith("~$")&&!ContFileOrganizer.IsHangGuiFolder(p)&&!p.Contains(Path.DirectorySeparatorChar+".hisa-backups"+Path.DirectorySeparatorChar)&&!p.Equals(Settings.MasterPath,StringComparison.OrdinalIgnoreCase)&&!p.Equals(Settings.KtPath,StringComparison.OrdinalIgnoreCase)&&!p.Equals(Settings.ProductExportPath,StringComparison.OrdinalIgnoreCase)&&!p.Contains(Path.DirectorySeparatorChar+"XUẤT HÀNG"+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase)).Select(FileStamp));
+                stamps.AddRange(files.Where(p=>!Path.GetFileName(p).StartsWith("~$")&&!ContFileOrganizer.IsHangGuiFolder(p)&&!EquipmentListReader.IsConfiguredEquipmentFile(p,Settings)&&!p.Contains(Path.DirectorySeparatorChar+".hisa-backups"+Path.DirectorySeparatorChar)&&!p.Equals(Settings.MasterPath,StringComparison.OrdinalIgnoreCase)&&!p.Equals(Settings.KtPath,StringComparison.OrdinalIgnoreCase)&&!p.Equals(Settings.ProductExportPath,StringComparison.OrdinalIgnoreCase)&&!p.Contains(Path.DirectorySeparatorChar+"XUẤT HÀNG"+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase)).Select(FileStamp));
                 // Sibling received workbooks must participate in source fingerprints;
                 // otherwise sync can accidentally drop historical source packages.
                 if(Directory.Exists(source))
@@ -877,6 +877,9 @@ public sealed partial class WarehouseService : IDisposable
         foreach(var source in copy.DataSources)if(!Directory.Exists(source))throw new DirectoryNotFoundException("Nguồn chỉ nhận thư mục đang tồn tại, không nhận tệp Excel: "+source);
         NormalizeSettings(copy);
         if(!File.Exists(copy.MasterPath))throw new FileNotFoundException("Chọn đúng file dữ liệu chính Tổng hợp.xlsx.",copy.MasterPath);
+        // Equipment production lists must remain independent of the master and
+        // CONT ĐI source. Explicit paths only; no copying/moving user files.
+        EquipmentListReader.ValidateIndependentSources(copy);
         copy.DataSources=copy.DataSources.Select(Path.GetFullPath).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         await MutateAsync(()=>{Persist("settings.json",copy);Settings=copy;_sourceFingerprint=SourceFingerprint();return true;});await RefreshAsync(false);
     }

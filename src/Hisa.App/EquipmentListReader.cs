@@ -31,6 +31,62 @@ public static class EquipmentListReader
         public string Verification { get; set; } = "";
     }
 
+    /// <summary>The three production workbooks are independent, optional inputs.</summary>
+    public static IEnumerable<string> ConfiguredPaths(AppSettings settings)=>
+        new[]{settings.ElectricalCabinetListPath,settings.TractionMachineListPath,settings.CarDoorListPath}
+            .Where(path=>!string.IsNullOrWhiteSpace(path));
+
+    public static bool IsConfiguredEquipmentFile(string path,AppSettings settings)
+    {
+        var full=Path.GetFullPath(path);
+        return ConfiguredPaths(settings).Any(p=>
+            string.Equals(Path.GetFullPath(p),full,StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool WithinFolder(string path,string folder)
+    {
+        var relative=Path.GetRelativePath(Path.GetFullPath(folder),Path.GetFullPath(path));
+        return relative!="." && relative!=".." &&
+            !relative.StartsWith(".."+Path.DirectorySeparatorChar,StringComparison.Ordinal) &&
+            !Path.IsPathRooted(relative);
+    }
+
+    /// <summary>
+    /// Production workbooks must not live inside the master Excel directory or
+    /// under CONT ĐI. Never move user files implicitly: ask them to choose the
+    /// independently located copies instead. Existing settings are still read.
+    /// </summary>
+    public static void ValidateIndependentSources(AppSettings settings)
+    {
+        if(!ConfiguredPaths(settings).Any())return;
+        var master=Path.GetFullPath(settings.MasterPath);
+        var mainFolder=Path.GetDirectoryName(master)!;
+        var used=new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach(var (kind,path) in new[]{
+            ("Tủ điện",settings.ElectricalCabinetListPath),
+            ("Máy kéo",settings.TractionMachineListPath),
+            ("Đầu cửa car",settings.CarDoorListPath)
+        })
+        {
+            if(string.IsNullOrWhiteSpace(path))continue;
+            var full=Path.GetFullPath(path);
+            if(!File.Exists(full))
+                throw new FileNotFoundException("Không tìm thấy file danh sách "+kind+": "+full,full);
+            if(!used.Add(full))
+                throw new InvalidOperationException("Mỗi danh sách thiết bị phải chọn một file Excel riêng: "+kind);
+            if(string.Equals(Path.GetDirectoryName(full),mainFolder,StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(full,master,StringComparison.OrdinalIgnoreCase) ||
+               (!string.IsNullOrWhiteSpace(settings.KtPath) &&
+                string.Equals(full,Path.GetFullPath(settings.KtPath),StringComparison.OrdinalIgnoreCase)) ||
+               (!string.IsNullOrWhiteSpace(settings.ProductExportPath) &&
+                string.Equals(full,Path.GetFullPath(settings.ProductExportPath),StringComparison.OrdinalIgnoreCase)))
+                throw new InvalidOperationException("Danh sách "+kind+" phải nằm ở thư mục riêng, KHÔNG để chung với Tổng hợp.xlsx. HISA sẽ không tự chuyển file; hãy chọn đúng đường dẫn gốc.");
+            if(settings.DataSources.Any(folder=>!string.IsNullOrWhiteSpace(folder)&&
+                (WithinFolder(full,folder)||string.Equals(full,Path.GetFullPath(folder),StringComparison.OrdinalIgnoreCase))))
+                throw new InvalidOperationException("Danh sách "+kind+" đang nằm trong thư mục nguồn CONT ĐI. Hãy đưa file sang thư mục thiết bị riêng, rồi chọn lại đường dẫn; HISA không tự di chuyển.");
+        }
+    }
+
     public sealed record Catalog(List<Row> Rows,List<string> Warnings)
     {
         public List<Row> Find(AiScheduleLine schedule)

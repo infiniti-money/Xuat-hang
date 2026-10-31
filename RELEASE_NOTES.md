@@ -1,3 +1,13 @@
+# HISA Quản lý kho v1.9.8 – Ba danh sách sản xuất phải nằm ngoài thư mục Tổng hợp.xlsx
+
+- Nhấn mạnh trong giao diện rằng file **Tủ điện**, **Máy kéo**, **Đầu cửa car** dùng ba đường dẫn **độc lập**, không cần và không được để chung với thư mục chứa `Tổng hợp.xlsx` hoặc thư mục nguồn `CONT ĐI`.
+- HISA **không tự di chuyển, sao chép, chỉnh sửa** file Excel của người dùng. Cảnh báo khi cấu hình file bị trùng hoặc nằm sai thư mục; thay đổi nguồn kho không làm mất đường dẫn thiết bị đã lưu.
+- Tránh quét nhầm các danh sách sản xuất thành nguồn cont ở các cài đặt cũ đã đặt file thiết bị dưới thư mục `CONT ĐI`.
+- Kiểm thử nguồn thiết bị nằm ngoài kho, thay đổi master path vẫn giữ ba đường dẫn, trường hợp đặt chung thư mục hoặc đặt trong `CONT ĐI`, file trùng tên và không tác động vào dữ liệu Excel.
+- Giữ nguyên danh sách máy kéo đã gửi Hưng Yên làm / đã làm xong / đã bàn giao từ v1.9.7, cùng lịch sử theo dõi riêng.
+
+---
+
 # HISA Quản lý kho v1.9.7 — Danh sách máy kéo Hưng Yên gửi làm / đã làm / đã bàn giao
 
 - Thêm màn hình trực tiếp **Máy kéo · gửi / làm / bàn giao** và lối mở từ Quản lý & lịch sử.
