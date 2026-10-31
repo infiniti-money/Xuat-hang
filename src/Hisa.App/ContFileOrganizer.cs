@@ -104,6 +104,7 @@ public static class ContFileOrganizer
             .ToDictionary(g=>g.Key,g=>g.Count(),StringComparer.Ordinal);
         return sources.GroupBy(p=>Path.GetFullPath(p.SourcePath),StringComparer.OrdinalIgnoreCase)
             .Where(group=>group.All(p=>
+                receivedIds.Contains(p.Id) ||
                 receivedCounts.GetValueOrDefault(PhysicalSignature(p)) >=
                 sourceCounts[PhysicalSignature(p)]))
             .Select(g=>g.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
