@@ -1,3 +1,9 @@
+### Khôi phục chọn nguồn dữ liệu · HISA v1.9.2
+
+- Chọn ngay **Cấu hình nguồn dữ liệu** từ thanh menu bên trái. Mục **Nguồn dữ liệu Excel → Chọn thư mục nguồn** hiện ở đầu trang, trước Gemini AI.
+- Nếu chưa có thư mục nguồn được lưu nhưng `Tổng hợp.xlsx` hiện tại tồn tại, giao diện đề xuất thư mục của tệp đó mà không tự thay đổi cấu hình.
+- Nhấn **Lưu cấu hình & tải lại** sau khi chọn thư mục; đường dẫn nguồn và các cài đặt đồng bộ chỉ thay đổi khi lưu. Không xóa dữ liệu Excel hoặc API Key.
+
 
 ### Cài đặt và cập nhật phiên bản 1.9.1
 
