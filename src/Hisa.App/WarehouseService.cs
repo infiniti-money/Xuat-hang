@@ -33,9 +33,6 @@ public sealed partial class WarehouseService : IDisposable
     private WorkbookSnapshot _snapshot = new();
     private bool _initialized;
     private bool _dataAvailable;
-    // Only source packages validated during a fresh physical CONT ĐI scan are
-    // eligible for lookup, never a stale entry left in Tổng hợp.xlsx.
-    private List<Package> _freshContDiSources=[];
     private string _sourceFingerprint = "";
     private string _masterFingerprint = "";
     private string _ktFingerprint = "";
@@ -50,50 +47,10 @@ public sealed partial class WarehouseService : IDisposable
     public string BackupDirectory { get; }
     public AppSettings Settings { get; private set; }
     public WorkbookSnapshot Snapshot { get { lock(_stateLock) return _snapshot; } }
-    private static string ContDiPhysicalKey(Package package) =>
-        package.Identity+"|"+package.SourceDate+"|"+
-        string.Join(";",package.Items.Where(x=>x.IsHungYen)
-            .Select(x=>Rules.Code(x.Material)+"|"+Rules.Code(x.Unit)+"|"+
-                (x.Quantity?.ToString("0.################",CultureInfo.InvariantCulture)??"?"))
-            .Order(StringComparer.Ordinal));
-
-    /// <summary>
-    /// Show only master Cont packages proven to exist in freshly scanned CONT ĐI
-    /// source Excel. This is a read-only overlay: original receipts keep their
-    /// existing master source IDs for rollback and deduplication.
-    /// </summary>
-    public WorkbookSnapshot ContDiLookupSnapshot
-    {
-        get
-        {
-            lock(_stateLock)
-            {
-                var sources=_freshContDiSources
-                    .GroupBy(ContDiPhysicalKey,StringComparer.Ordinal)
-                    .ToDictionary(g=>g.Key,g=>new Queue<Package>(
-                        g.OrderBy(x=>x.SourcePath,StringComparer.OrdinalIgnoreCase)),
-                        StringComparer.Ordinal);
-                var live=new List<Package>();
-                foreach(var master in _snapshot.ContPackages)
-                {
-                    if(!sources.TryGetValue(ContDiPhysicalKey(master),out var matches) ||
-                       matches.Count==0)continue;
-                    var original=matches.Dequeue();
-                    var copy=Clone(master);
-                    copy.SourceFile=Path.GetFileName(original.SourcePath.Length>0
-                        ?original.SourcePath:original.SourceFile);
-                    copy.SourcePath=original.SourcePath;
-                    live.Add(copy);
-                }
-                return new WorkbookSnapshot {
-                    ContPackages=live,
-                    DetailPackages=_snapshot.DetailPackages,
-                    Packages=_snapshot.Packages,
-                    Warnings=_snapshot.Warnings
-                };
-            }
-        }
-    }
+    /// <summary>Use existing HƯNG YÊN/ HUNG YEN package rows in the
+    /// Cont đi Hưng Yên worksheet of Tổng hợp.xlsx, without requiring
+    /// a separate physical CONT ĐI folder or source re-import.</summary>
+    public WorkbookSnapshot ContDiLookupSnapshot => Snapshot;
 
     public List<Slip> Slips { get { lock(_stateLock) return [.._slips]; } }
     public List<PrintTemplate> Templates { get { lock(_stateLock) return [.._templates]; } }
@@ -388,22 +345,19 @@ public sealed partial class WarehouseService : IDisposable
     }
     public Task RefreshAsync(bool force=false)=>RefreshCoreAsync(force&&Settings.AutoSyncCont,false);
     /// <summary>
-    /// Always re-scan the selected CONT ĐI folder for an explicit Zalo/manual
-    /// import lookup, even when background AutoSyncCont is disabled. Never
-    /// report an old in-memory package list as a successful fresh search.
+    /// Read the existing Cont đi Hưng Yên worksheet in Tổng hợp.xlsx as the
+    /// source for the arrival workflow. Do NOT require or scan a CONT ĐI folder.
+    /// A fresh master read detects changed packages before confirming an import.
     /// </summary>
     public async Task RefreshContDiForArrivalAsync()
     {
-        if(Settings.DataSources.Count==0 ||
-           !Settings.DataSources.Any(Directory.Exists))
-            throw new DirectoryNotFoundException(
-                "Chưa chọn thư mục CONT ĐI HƯNG YÊN. Vào Cấu hình nguồn dữ liệu để chọn Kho HISA.");
-        await RefreshCoreAsync(true,false);
+        await RefreshCoreAsync(false,false);
         if(LastError.Length>0)
-            throw new IOException("Không quét được CONT ĐI HƯNG YÊN: "+LastError);
-        if(Warnings.Any(x=>x.Contains("Nguồn có cảnh báo; giữ nguyên trang cont",
-            StringComparison.OrdinalIgnoreCase)))
-            throw new IOException("File CONT ĐI đang có lỗi/cảnh báo. Chưa dùng dữ liệu cũ để nhập kho; hãy sửa nguồn và quét lại.");
+            throw new IOException("Không đọc được trang Cont đi Hưng Yên trong Tổng hợp.xlsx: "+LastError);
+        if(Snapshot.Warnings.Any(w=>w.Contains("chưa có trang Cont đi Hưng Yên",
+                StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidDataException(
+                "Tổng hợp.xlsx chưa có trang Cont đi Hưng Yên. Không thể tìm kiện để nhập kho.");
     }
 
     private async Task RefreshCoreAsync(bool scanCont,bool syncKt)
@@ -427,15 +381,9 @@ public sealed partial class WarehouseService : IDisposable
                     sourceStamp=sourceBefore;
                     var scan=_excel.ScanSources(Settings,progress,_stop.Token);
                     sourceScan=scan;
-                    // A failed or moving source must never be considered a live
-                    // match solely because the master contains old package rows.
-                    lock(_stateLock)_freshContDiSources=[];
                     warnings.AddRange(scan.Warnings);
                     var stable=sourceBefore==SourceFingerprint();
                     sourceFilesStable=stable && scan.Warnings.Count==0;
-                    if(sourceFilesStable)
-                        lock(_stateLock)_freshContDiSources=scan.Packages
-                            .Where(x=>x.Items.Any(i=>i.IsHungYen)).ToList();
                     _sourceSyncPending=scan.Warnings.Count>0||!stable;
                     if(!stable)warnings.Add("Nguồn cont đang thay đổi; ứng dụng sẽ quét lại sau khi sao chép/cập nhật file hoàn tất.");
                     if(stable && scan.Warnings.Count==0 && scan.FileCount>0 && scan.Packages.Count>0 && File.Exists(Settings.MasterPath))
