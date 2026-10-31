@@ -43,6 +43,7 @@ public partial class MainWindow : Window
             TopUpdateButton.Content="↑  Cập nhật "+version;
             TopUpdateButton.ToolTip="Đã tải và xác minh bản mới. Nhấn để xem và cài đặt.";
         });
+        AutoUpdater.UpdateProgress+=message=>Dispatcher.BeginInvoke(()=>StatusText.Text=message);
         TodayText.Text=DateTime.Now.ToString("dddd, dd/MM/yyyy",CultureInfo.GetCultureInfo("vi-VN"));
         NavCaption("CÔNG VIỆC HÔM NAY");
         AddNav("dashboard", "▦", "Tổng quan / việc cần làm");
