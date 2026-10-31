@@ -42,7 +42,48 @@ public static class MotorSerialDiagnostics
         Check(MotorSerials.BuildRows(changed).Count==3,"Excluded motor lines do not reserve serials");
         changed=WarehouseService.Clone(draft);changed.Lines[0].Quantity=1.5m;
         Reject(()=>MotorSerials.BuildRows(changed),"Fractional motor quantities rejected before serial entry");
+        // Connect the real service's delivery transition to a separate source
+        // MÁY KÉO.xlsx (not the canonical Tổng hợp.xlsx).
+        var production=Path.Combine(root,"Danh sách sản xuất");
+        Directory.CreateDirectory(production);
+        var motorExcel=Path.Combine(production,"MÁY KÉO.xlsx");
+        using(var book=new XLWorkbook())
+        {
+            var sheet=book.AddWorksheet("DS máy kéo");
+            string[] headers=["STT","Tên công trình","Công ty","HĐ","Tên vật tư",
+                "ĐVT","SL","Số Lô","số seri","Ngày cont đi"];
+            for(int column=0;column<headers.Length;column++)sheet.Cell(2,column+1).Value=headers[column];
+            var index=3;
+            foreach(var serial in draft.MotorSerials)
+            {
+                sheet.Cell(index,1).Value=index-2;
+                sheet.Cell(index,2).Value=serial.Project;
+                sheet.Cell(index,3).Value=serial.Company;
+                sheet.Cell(index,4).Value=serial.Contract;
+                sheet.Cell(index,5).Value=serial.Material;
+                sheet.Cell(index,6).Value="Bộ";
+                sheet.Cell(index,7).Value=1;
+                sheet.Cell(index,8).Value="Lô 10";
+                sheet.Cell(index,9).Value=serial.SerialNumber;
+                index++;
+            }
+            book.SaveAs(motorExcel);
+        }
+        var settings=WarehouseService.Clone(service.Settings);
+        settings.TractionMachineListPath=motorExcel;
+        await service.SaveSettingsAsync(settings);
+        using(var source=new XLWorkbook(motorExcel))
+            Check(source.Worksheet(1).Cell(2,11).IsEmpty(),
+                "Before confirming export, no handover date column or delivery dates are written");
         draft.Status="delivered";var delivered=await service.SaveSlipAsync(draft);
+        using(var source=new XLWorkbook(motorExcel))
+        {
+            var sheet=source.Worksheet(1);
+            Check(sheet.Cell(2,11).GetString()=="Ngày bàn giao" &&
+                Enumerable.Range(3,5).All(row=>sheet.Cell(row,11).GetDateTime()==
+                    new DateTime(2026,10,27)),
+                "Actual confirmed export automatically writes handover day in MÁY KÉO.xlsx for all five serials");
+        }
         Check(delivered.MotorSerials.Count==5&&delivered.MotorSerials[0].SerialNumber=="0000392-A","Export saves complete serial list on the slip");
         MotorSerials.Validate(delivered,service.Slips);checks.Add("Editing own exported slip does not report its serials as duplicates");
         var second=WarehouseService.Clone(delivered);second.Id=Guid.NewGuid().ToString();second.SlipCode="";
@@ -78,6 +119,9 @@ public static class MotorSerialDiagnostics
         }
         finally{dialog.Close();}
         await service.ChangeSlipStatusAsync(delivered.Id,"cancelled","Trả lại máy vào kho");
+        using(var machineBook=new XLWorkbook(motorExcel))
+            Check(Enumerable.Range(3,5).All(row=>machineBook.Worksheet(1).Cell(row,11).IsEmpty()),
+                "Cancelling shipment rolls back HISA-owned handover dates in machine Excel");
         using(var book=new XLWorkbook(service.Settings.ProductExportPath))Check(!book.Worksheet(1).RowsUsed().Any(row=>row.Cell(6).GetString().Contains(delivered.Id)),"Cancelling removes only the physical export entry");
         MotorSerials.Validate(second,service.Slips);checks.Add("Cancelled slip no longer blocks reuse of returned motor serial");
         using(var book=new XLWorkbook(ledgerPath))Check(book.Worksheet("Serial máy kéo").Cell(2,3).GetString()=="Đã hủy","Serial audit sheet retains cancelled status for traceability");
