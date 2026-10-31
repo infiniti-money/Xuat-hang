@@ -685,64 +685,51 @@ public partial class MainWindow : Window
         var cont=new CheckBox{Content="Tự cập nhật Cont đi Hưng Yên khi nguồn cont thay đổi",IsChecked=model.AutoSyncCont};
         var syncKt=new CheckBox{Content="Tự cập nhật trang chi tiết khi file KT thay đổi",IsChecked=model.AutoSyncKt};
         var poll=Input(model.PollSeconds.ToString());poll.Width=90;
-        var cabinetFile=Input(model.ElectricalCabinetListPath);
-        var motorFile=Input(model.TractionMachineListPath);
-        var doorFile=Input(model.CarDoorListPath);
         void updateDiscovery()
         {
             try
             {
-                var resolved=_service.ResolveSettingsFromSourceFolder(sources.Text.Trim());
-                var standard=HisaFolderLayout.Detect(sources.Text.Trim(),resolved);
-                if(standard!=null)
-                {
-                    // Choosing Kho HISA (or one of its three direct child folders)
-                    // automatically fills the production list locations, too.
-                    if(standard.Cabinet.Length>0)cabinetFile.Text=standard.Cabinet;
-                    if(standard.Motor.Length>0)motorFile.Text=standard.Motor;
-                    if(standard.Door.Length>0)doorFile.Text=standard.Door;
-                    discovery.Text="✓ Kho chính: "+resolved.MasterPath+
-                        "\n"+(System.IO.File.Exists(resolved.KtPath)?"✓ ":"⚠ Thiếu ")+resolved.KtPath+
-                        "\n"+(System.IO.File.Exists(resolved.ProductExportPath)?"✓ ":"⚠ Thiếu ")+resolved.ProductExportPath+
-                        "\n✓ Quét cont tại: "+standard.Cont+
-                        "\n✓ Danh sách sản xuất: "+System.IO.Path.Combine(standard.Root,"Danh sách sản xuất");
-                }
-                else discovery.Text="Tự nhận diện: "+resolved.MasterPath+" · "+
-                    System.IO.Path.GetFileName(resolved.KtPath)+" · "+
-                    System.IO.Path.GetFileName(resolved.ProductExportPath);
+                var layout=HisaFolderLayout.RequireCompleteRoot(sources.Text.Trim(),model);
+                discovery.Foreground=Brush("#177E89");
+                discovery.Text="✓ ĐÃ NHẬN ĐỦ 6 FILE EXCEL (CHỈ CẦN MỘT THƯ MỤC)"+
+                    "\n✓ Kho chính · "+System.IO.Path.GetFileName(layout.Master)+
+                    "\n✓ Kho chính · "+System.IO.Path.GetFileName(layout.Kt)+
+                    "\n✓ Kho chính · "+System.IO.Path.GetFileName(layout.Product)+
+                    "\n✓ Danh sách sản xuất · "+System.IO.Path.GetFileName(layout.Motor)+
+                    "\n✓ Danh sách sản xuất · "+System.IO.Path.GetFileName(layout.Cabinet)+
+                    "\n✓ Danh sách sản xuất · "+System.IO.Path.GetFileName(layout.Door)+
+                    "\n✓ CONT ĐI · chỉ quét container tại "+layout.Cont;
             }
-            catch(Exception e){discovery.Text=e.Message;}
+            catch(Exception e)
+            {
+                discovery.Foreground=Brush("#B05A32");
+                discovery.Text="⚠ "+e.Message;
+            }
         }
         sources.TextChanged+=(_,_)=>updateDiscovery();
         updateDiscovery();
-        FrameworkElement EquipmentFileField(string name,TextBox editor)=>
-            Stack(T(name,13,true),DockWithButton(editor,
-                B("Chọn Excel",()=>{var selected=OpenPath(this);if(selected!=null)editor.Text=selected;})));
 
         var p=Stack();
         p.Children.Add(Card(Stack(T("TRUNG TÂM CẤU HÌNH",20,true),
             T("Gemini AI · Nguồn Excel · Đồng bộ · Bảo vệ dữ liệu",12,false,Muted))));
         p.Children.Add(Card(Stack(T("Nguồn dữ liệu Excel",18,true),
             T("Thư mục đang chọn: "+(string.IsNullOrWhiteSpace(initialSource)?"Chưa cấu hình":initialSource),12,false,Muted),
-            T("Chọn KHO HISA (hoặc CONT ĐI). HISA tự tìm ba file trong Kho chính, chỉ quét kiện từ CONT ĐI và tìm máy kéo/tủ điện/đầu cửa car trong Danh sách sản xuất.",12,false,Muted),
-            DockWithButton(sources,B("Chọn Kho HISA",()=>{var dialog=new OpenFolderDialog{Title="Chọn Kho HISA hoặc CONT ĐI"};if(dialog.ShowDialog(this)==true)sources.Text=dialog.FolderName;})),discovery)));
-        p.Children.Add(Card(Stack(T("DANH SÁCH THIẾT BỊ THEO HỢP ĐỒNG",18,true),
-            T("Ba file TỦ ĐIỆN / MÁY KÉO / ĐẦU CỬA CAR đặt chung trong Danh sách sản xuất, ngang cấp với Kho chính và CONT ĐI.",13,true,Brush("#177E89")),
-            T("Nếu chọn thư mục Kho HISA, HISA tự điền cả ba đường dẫn khi nhận diện được. Vẫn có thể Chọn Excel riêng; tuyệt đối không coi danh sách sản xuất là cont đã nhập.",12,false,Muted),
-            EquipmentFileField("1 · Danh sách TỦ ĐIỆN",cabinetFile),
-            EquipmentFileField("2 · Danh sách MÁY KÉO",motorFile),
-            EquipmentFileField("3 · Danh sách ĐẦU CỬA CAR",doorFile),
-            T("Để trống nếu chưa có file. Ba file thiết bị được đọc riêng và không ghi đè. Nhấn Lưu cấu hình & tải lại sau khi kiểm tra đường dẫn.",11,false,Muted))));
+            T("CHỈ CHỌN 1 LẦN thư mục gốc Kho HISA. Không cần chọn 6 file Excel. Phần mềm tự tìm 3 file Kho chính, 3 file Danh sách sản xuất và chỉ quét nguồn CONT ĐI.",12,false,Muted),
+            DockWithButton(sources,B("Chọn Kho HISA",()=>{var dialog=new OpenFolderDialog{Title="Chọn duy nhất thư mục gốc Kho HISA"};if(dialog.ShowDialog(this)==true)sources.Text=dialog.FolderName;})),discovery)));
+        p.Children.Add(Card(Stack(T("DANH SÁCH SẢN XUẤT · TỰ NHẬN DIỆN",18,true),
+            T("MÁY KÉO.xlsx · TỦ ĐIỆN.xlsx · Đầu cửa car T10.2026.xlsx được tự động đọc từ thư mục Danh sách sản xuất.",12,false,Muted),
+            T("Bạn không phải chọn từng file hoặc cấu hình thêm đường dẫn. Các bảng sản xuất chỉ đọc, không tự xác nhận hàng đã nhập kho.",11,false,Muted))));
         p.Children.Add(Card(Stack(T("Tốc độ & đồng bộ",18,true),auto,cont,syncKt,Row(Field("Chu kỳ kiểm tra · giây",poll)),T("Dữ liệu được lập chỉ mục trong bộ nhớ và giữ bộ nhớ đệm để mở ứng dụng nhanh. File Excel đang mở sẽ được báo và thử lại, không ghi dở dang.",12,false,Muted))));
         p.Children.Add(Row(A("Lưu cấu hình & tải lại",async()=>
         {
             if(!int.TryParse(poll.Text,out var seconds)||seconds<5||seconds>3600)throw new InvalidOperationException("Chu kỳ kiểm tra từ 5 đến 3600 giây.");
-            model=_service.ResolveSettingsFromSourceFolder(sources.Text.Trim());model.AutoRefresh=auto.IsChecked==true;model.AutoSyncCont=cont.IsChecked==true;model.AutoSyncKt=syncKt.IsChecked==true;model.PollSeconds=seconds;
-            model.ElectricalCabinetListPath=cabinetFile.Text.Trim();
-            model.TractionMachineListPath=motorFile.Text.Trim();
-            model.CarDoorListPath=doorFile.Text.Trim();
-            // Validate all three source locations before persisting anything.
-            EquipmentListReader.ValidateIndependentSources(model);
+            // A single choice resolves ALL Excel paths; never reuse stale
+            // manually-selected equipment files from a previous warehouse.
+            var layout=HisaFolderLayout.RequireCompleteRoot(sources.Text.Trim(),model);
+            model=_service.ResolveSettingsFromSourceFolder(layout.Root);
+            HisaFolderLayout.Apply(model,layout);
+            model.AutoRefresh=auto.IsChecked==true;model.AutoSyncCont=cont.IsChecked==true;
+            model.AutoSyncKt=syncKt.IsChecked==true;model.PollSeconds=seconds;
             await _service.SaveSettingsAsync(model);await _service.RefreshAsync(true);Notify("Đã lưu cấu hình nguồn.");ShowSettings();
         },true),A("Sao lưu vào Thư viện",async()=>{var path=System.IO.Path.Combine(_service.BackupDirectory,$"HISA-sao-luu-{DateTime.Now:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}.zip");await _service.BackupAsync(path);Notify("Đã sao lưu vào Thư viện → Tài liệu:\n"+path);}),B("Mở thư mục Backup",()=>System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(_service.BackupDirectory){UseShellExecute=true})),B("Mở thư mục dữ liệu",()=>System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(_service.DataDirectory){UseShellExecute=true}))));
         p.Children.Add(GeminiSettingsCard());
