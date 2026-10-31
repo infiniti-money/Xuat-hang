@@ -203,7 +203,7 @@ public partial class MainWindow
                 activity.Text="Cần cấu hình Gemini API Key trước khi bật rảnh tay.";
                 return;
             }
-            if(!Ask("BẬT CHẾ ĐỘ RẢNH TAY?\n\n"+
+            if(MessageBox.Show(this,"BẬT CHẾ ĐỘ RẢNH TAY?\n\n"+
                 "HISA sẽ MỞ MICRO liên tục trên trang Gemini Chat, "+
                 "tự phát hiện bạn bắt đầu và ngừng nói, rồi TỰ GỬI từng đoạn âm thanh "+
                 "đến Google Gemini qua Internet để nhận dạng tiếng Việt.\n"+
@@ -214,7 +214,9 @@ public partial class MainWindow
                 "Đây là chế độ chỉ tư vấn, KHÔNG tự ghi/sửa Excel.\n"+
                 "Bấm Tắt rảnh tay, chuyển trang hoặc đóng HISA sẽ dừng micro. "+
                 "Bật lại sau khi đóng ứng dụng cần đồng ý lại.\n\n"+
-                "Bạn có đồng ý bật và tự gửi âm thanh trong phiên này không?"))
+                "Bạn có đồng ý bật và tự gửi âm thanh trong phiên này không?",
+                "Xin phép micro và gửi âm thanh tới Gemini",
+                MessageBoxButton.YesNo,MessageBoxImage.Warning)!=MessageBoxResult.Yes)
             {
                 activity.Text="Chưa bật rảnh tay: micro vẫn tắt.";
                 return;
@@ -393,6 +395,7 @@ public partial class MainWindow
 
         async Task SendAsync(string? voiceText=null,bool fromHandsFree=false,int session=0)
         {
+            bool handedToSpeaker=false;
             if(_geminiChatSending)return;
             if(fromHandsFree && !HandsFreeCurrent(session))return;
             var userText=(voiceText??question.Text).Trim();
@@ -447,6 +450,7 @@ public partial class MainWindow
                             if(HandsFreeCurrent(session))activity.Text=message;
                         })),()=>Dispatcher.BeginInvoke(new Action(()=>
                             _=ResumeAfterSpeakerAsync(session))));
+                        handedToSpeaker=true;
                         activity.Text="● RẢNH TAY · Gemini đang trả lời bằng loa; micro tạm tắt.";
                     }
                     catch(Exception ex)
@@ -481,7 +485,7 @@ public partial class MainWindow
             }
             finally
             {
-                if(fromHandsFree && HandsFreeCurrent(session) && !_geminiVoice.IsSpeaking)
+                if(fromHandsFree && HandsFreeCurrent(session) && !handedToSpeaker)
                 {
                     // Do not silently loop after an API error, which could
                     // repeatedly upload room audio without a useful response.
