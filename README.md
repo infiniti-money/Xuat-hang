@@ -1,3 +1,17 @@
+## HISA v1.9.19 — Cập nhật quy trình nhập kho và trợ lý AI
+
+**Máy kéo:** trạng thái **Chưa làm / Đã làm / Ngày xuất kho** được đọc và ghi hai chiều tại **cột K** của `Danh sách sản xuất/MÁY KÉO.xlsx`. Trước khi ghi cần xác minh duy nhất hợp đồng, công trình, đơn vị và seri; ngày xuất chỉ theo phiếu Đã xuất. Giá trị lịch sử tại cột L/N giữ nguyên, không tự chuyển hoặc xóa.
+
+**Nhập cont:** Không sử dụng `KT tổng hợp.xlsx` để đối chiếu hoặc tự điền vào Tổng hợp.xlsx; đây cũng không còn là tệp bắt buộc khi chọn Kho HISA. Trong **Ảnh Zalo → nhập cont / làm phiếu**, lịch dự kiến và bảng xác nhận kiện đã về thực tế nằm trên cùng màn hình. Chỉ lịch vừa được duyệt trong phiên làm việc được sử dụng; nút nạp lại lịch AI đã duyệt trước đây đã được bỏ. File lịch đã lưu vẫn được giữ để sao lưu/lịch sử, không xóa tự động.
+
+**Gemini mic/loa Windows:** Tại **Trợ lý Gemini AI**, dùng **Mic nhập câu hỏi** và **Đọc câu trả lời**. Lời nói nhận dạng bằng bộ tiếng Việt cài trong Windows; nếu máy chưa hỗ trợ vi-VN, phần mềm báo rõ và không tự gửi âm thanh lên Gemini. Bản ghi nhận dạng chỉ được gửi sau khi bạn bấm Gửi. Loa đọc bằng giọng đã cài trên máy. Có thể bật tùy chọn tự đọc câu trả lời.
+
+**Gemini đọc/sửa Excel có phê duyệt:** Mở **Trợ lý Gemini AI → AI đọc / đề xuất sửa Excel**, chọn file Kho HISA đã liên kết, xem trước tối đa 45 dòng × 16 cột, rồi mới bấm gửi bản xem trước tới Gemini. AI đề xuất tối đa 8 ô; người vận hành kiểm tra từng thay đổi và xác nhận trước khi sao lưu & ghi. Không cho AI sửa `Tổng hợp.xlsx`, sổ xuất, ô công thức, hợp đồng/seri hay cột K máy kéo; những thao tác đó thuộc quy trình xác minh nghiệp vụ riêng. Khi bật chia sẻ tóm tắt kho trong trò chuyện, Gemini có thể giúp tổng hợp hợp đồng, kiện, kế hoạch và công việc trong ngày.
+
+Các ghi chú phiên bản cũ bên dưới phản ánh cách vận hành tại thời điểm trước v1.9.19, đặc biệt cột N/L và đối chiếu KT. **Quy tắc v1.9.19 ở trên được ưu tiên.**
+
+---
+
 ## HISA v1.9.18 · Đồng bộ hai chiều trạng thái máy kéo tại cột L
 
 **MÁY KÉO.xlsx — cột L (12)** là cột trạng thái làm máy và ngày xuất kho được HISA đọc/ghi hai chiều. **Cột N của các bản cũ chỉ được giữ lại**, không ghi tiếp và không xóa dữ liệu trước đây.
