@@ -258,6 +258,9 @@ public partial class MainWindow
         incomingBody.Children.Add(T("Nhấp MỘT LẦN vào ô vuông để tích. Chọn một dòng bất kỳ để xem từng vật tư, số lượng và tình trạng thực nhận ngay bên dưới.",12,false,Muted));
         incomingBody.Children.Add(incoming);
 
+        EquipmentListReader.Catalog? productionCache=null;
+        EquipmentListReader.Catalog Production()=>
+            productionCache??=EquipmentListReader.Load(_service.Settings);
         var arrivalMaterials=new ContentControl{Margin=new Thickness(0,9,0,10)};
         var dispatchMaterials=new ContentControl{Margin=new Thickness(0,9,0,10)};
         FrameworkElement MaterialDetail(AiScheduleLine line)
@@ -271,10 +274,36 @@ public partial class MainWindow
                 ("Ghi chú","Note",220));
             grid.MinHeight=108;
             grid.MaxHeight=265;
-            return Card(Stack(
+            var view=Stack(
                 T("VẬT TƯ CỦA HĐ "+line.Contract+" · "+line.Project,14,true),
                 T(match.Message,12,false,match.Exact?Brush("#177E89"):Brush("#AB6A37")),
-                grid));
+                grid);
+            var production=Production();
+            var related=production.Find(line);
+            if(related.Count>0)
+            {
+                var equipmentGrid=Table(related,
+                    ("Nhóm","Category",100),("Công trình","Project",170),
+                    ("Công ty","Company",125),("Tên thiết bị","Material",-1),
+                    ("ĐVT","Unit",64),("Số lượng","Quantity",85),
+                    ("Seri","Serial",115),("Ngày SX","ProductionDate",112),
+                    ("Đối chiếu","Verification",215),
+                    ("Ghi chú","Note",240));
+                equipmentGrid.IsReadOnly=true;
+                equipmentGrid.MaxHeight=245;
+                view.Children.Add(T("THIẾT BỊ TỪ 3 DANH SÁCH SẢN XUẤT (CHỈ XEM)",14,true));
+                view.Children.Add(T("Tủ điện · Máy kéo · Đầu cửa car. Có tên trong danh sách KHÔNG xác nhận đã nhập kho; kiểm tra công trình/đơn vị trước khi dùng thông tin.",11,false,Muted));
+                view.Children.Add(equipmentGrid);
+            }
+            else if(_service.Settings.ElectricalCabinetListPath.Length+
+                _service.Settings.TractionMachineListPath.Length+
+                _service.Settings.CarDoorListPath.Length>0)
+            {
+                view.Children.Add(T("Chưa thấy HĐ này trong ba danh sách Tủ điện/Máy kéo/Đầu cửa car đã liên kết.",11,false,Muted));
+            }
+            if(production.Warnings.Count>0)
+                view.Children.Add(T("Lỗi nguồn danh sách thiết bị: "+string.Join(" | ",production.Warnings),11,false,Brush("#AB6A37")));
+            return Card(view);
         }
         void UpdateMaterialDetail(DataGrid source,ContentControl host)
         {
@@ -311,7 +340,33 @@ public partial class MainWindow
             dialogBody.Children.Add(allGrid);
             ShowDialogContent(title,dialogBody);
         }
-        incomingBody.Children.Add(Row(B("▤ Xem toàn bộ vật tư cont dự kiến",()=>OpenAllMaterials(doc.Arrivals,"Vật tư các hợp đồng cont dự kiến về"))));
+        void OpenEquipmentLists(List<AiScheduleLine> schedules,string title)
+        {
+            var catalog=Production();
+            var contracts=schedules.Select(x=>Rules.Contract(x.Contract)).ToHashSet(StringComparer.Ordinal);
+            var rows=catalog.Rows.Where(x=>contracts.Contains(Rules.Contract(x.Contract)))
+                .OrderBy(x=>x.Category).ThenBy(x=>x.Contract).ToList();
+            var table=Table(rows,
+                ("Nhóm","Category",103),("Hợp đồng","Contract",100),
+                ("Công trình","Project",210),("Đơn vị","Company",150),
+                ("Thiết bị","Material",-1),("ĐVT","Unit",66),("SL","Quantity",76),
+                ("Seri","Serial",110),("Lô","Lot",115),
+                ("Ngày SX","ProductionDate",105),("Mã VT","Code",90),
+                ("Tên file","Source",165),("Sheet","Sheet",75),
+                ("Ghi chú","Note",280));
+            table.IsReadOnly=true;
+            var top=Card(Stack(
+                T(title,18,true),
+                T(schedules.Count+" HĐ trong lịch Zalo · "+rows.Count+" dòng sản xuất khớp số HĐ.",12,true),
+                T("Đây là dữ liệu làm hàng/danh sách sản xuất, KHÔNG tự nhận là đã nhập kho; các HĐ cùng số nhưng khác công trình hoặc đơn vị phải kiểm tra.",12,false,Muted),
+                T(catalog.Warnings.Count==0?"Nguồn danh sách: "+(catalog.Rows.Count>0?"Đã tải 3 nhóm thiết bị đã cấu hình":"Chưa liên kết danh sách. Vào Cấu hình nguồn dữ liệu → Danh sách thiết bị để chọn 3 file Excel.")
+                    :string.Join(" | ",catalog.Warnings),11,false,Muted)));
+            ShowDialogContent(title,Layout(top,table));
+        }
+        incomingBody.Children.Add(Row(
+            B("▤ Xem 3 danh sách: tủ điện / máy kéo / đầu cửa car",
+                ()=>OpenEquipmentLists(doc.Arrivals,"Thiết bị của các HĐ cont dự kiến")),
+            B("▤ Xem toàn bộ vật tư cont dự kiến",()=>OpenAllMaterials(doc.Arrivals,"Vật tư các hợp đồng cont dự kiến về"))));
         incomingBody.Children.Add(arrivalMaterials);
         UpdateMaterialDetail(incoming,arrivalMaterials);
 
@@ -431,7 +486,9 @@ public partial class MainWindow
         }, true);
         outgoingBody.Children.Insert(1, Row(toPlan));
         outgoingBody.Children.Add(outgoing);
-        outgoingBody.Children.Add(Row(B("▤ Xem toàn bộ vật tư HĐ bàn giao",()=>OpenAllMaterials(doc.Dispatches,"Vật tư các hợp đồng làm phiếu"))));
+        outgoingBody.Children.Add(Row(
+            B("▤ Xem 3 danh sách thiết bị",()=>OpenEquipmentLists(doc.Dispatches,"Thiết bị của các HĐ làm phiếu")),
+            B("▤ Xem toàn bộ vật tư HĐ bàn giao",()=>OpenAllMaterials(doc.Dispatches,"Vật tư các hợp đồng làm phiếu"))));
         outgoingBody.Children.Add(dispatchMaterials);
         UpdateMaterialDetail(outgoing,dispatchMaterials);
         var tools = Card(Stack(

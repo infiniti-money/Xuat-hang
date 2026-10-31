@@ -1,3 +1,13 @@
+# HISA v1.9.6 — Thêm ba danh sách thiết bị Tủ điện, Máy kéo và Đầu cửa car
+
+- Cấu hình riêng ba đường dẫn Excel bằng nút **Chọn Excel** trong trang Cấu hình nguồn dữ liệu. Giữ cài đặt khi đổi thư mục nguồn hoặc nâng cấp; không trộn với thư mục `CONT ĐI` và file tổng hợp kho.
+- Sau khi phân tích Zalo bằng Gemini, chọn HĐ để xem cả **vật tư trong Tổng hợp.xlsx** và **dữ liệu thiết bị từ các danh sách sản xuất**; hiển thị loại thiết bị, công trình/đơn vị, số lượng, mã vật tư, số lô/seri, ngày xuất xưởng, lịch và nguồn Excel. Có nút xem cả ba danh sách tương ứng các HĐ trong ảnh.
+- Chỉ đọc các trang danh sách sản xuất được nhận diện đúng mẫu; bỏ qua in tem, danh mục mẫu, hàng mượn và dòng tổng cộng. Dữ liệu sắp xếp theo từng nguồn, không tự gán số lượng hoặc trạng thái đã về.
+- Nguồn T1/T2 hoặc công ty không giống ảnh: cảnh báo **chỉ khớp số HĐ**, không tự coi đã cùng công trình và không dùng trực tiếp để lập phiếu.
+- Bổ sung regression tests bằng Excel giả cho ba cấu trúc, không lẫn template, mã, seri, ngày, lượng và khả năng mở khi chưa cấu hình. Giữ nguyên an toàn phiên bản trước.
+
+---
+
 # HISA Quản lý kho v1.9.5 — Sửa không tích được ô Zalo, xem hàng hóa hợp đồng
 
 - Sửa checkbox **Cont đã về?**, **Làm phiếu** và màn **Đã về**: có thể tích/bỏ tích ngay lần nhấp chuột đầu tiên, kích thước ô chọn dễ thao tác hơn. Cùng kiểu dùng cho Khách gấp/Cần kiểm tra.

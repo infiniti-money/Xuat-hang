@@ -1,3 +1,16 @@
+## HISA v1.9.6 · Liên kết danh sách Tủ điện, Máy kéo và Đầu cửa car
+
+Ba file Excel sản xuất tùy chọn **khác** với `Tổng hợp.xlsx` và dữ liệu kho:
+- **TỦ ĐIỆN.xlsx:** đọc trang `Lịch tủ điện tổng hợp`, số HĐ, công trình, công ty, seri tủ, điện áp phanh, thông số máy kéo và lịch. Không tự suy ra số lượng nếu cột không có dữ liệu.
+- **MÁY KÉO.xlsx:** đọc trang `DS máy kéo`, tên vật tư, số lượng, số lô/seri và thông tin cont. Bỏ qua trang in tem, danh mục máy kéo mẫu và các bảng cho mượn để không nhập trùng.
+- **Đầu cửa car T10.2026.xlsx:** đọc các trang có cột `Số HĐ`, `Tên Vật tư` theo từng ngày, ngày xuất xưởng, mã VT, số lượng và đơn vị. Bỏ qua dòng `Tổng` và trang không đúng cấu trúc.
+
+**Thiết lập:** mở **Cấu hình nguồn dữ liệu → Danh sách thiết bị theo hợp đồng**, chọn lần lượt ba tệp rồi bấm **Lưu cấu hình & tải lại**. Sau khi Gemini phân tích ảnh Zalo, chọn từng hợp đồng để thấy danh sách thiết bị bên dưới phần vật tư kho, hoặc bấm **Xem 3 danh sách thiết bị** để xem tất cả hợp đồng nhận diện theo từng nguồn.
+
+**An toàn dữ liệu:** chỉ đọc danh sách sản xuất; không tự nhập kho, không ghi `Đã xuất` hay sinh phiếu khi chưa duyệt. Nếu số HĐ trùng nhưng công trình hoặc đơn vị khác nhau, phần mềm hiển thị cảnh báo đối chiếu; không dùng những dòng đó như vật tư đã nhận. Không đưa các file khách hàng lên GitHub.
+
+---
+
 ## HISA v1.9.5 · Tích một lần, xem toàn bộ vật tư từ ảnh Zalo
 
 - Hai bảng **Cont dự kiến về** và **Hợp đồng làm phiếu** dùng ô tích thực sự tương tác bằng **một lần nhấp**, không cần nhấp để vào chế độ sửa ô. Màn đối chiếu **từng kiện thực nhận** cũng dùng ô tích một lần.

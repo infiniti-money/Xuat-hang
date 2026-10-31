@@ -114,6 +114,10 @@ public class AppSettings
     public string MasterPath { get; set; } = "";
     public string KtPath { get; set; } = "";
     public string ProductExportPath { get; set; } = "";
+    // Optional read-only production lists, never part of canonical stock/cont scan.
+    public string ElectricalCabinetListPath { get; set; } = "";
+    public string TractionMachineListPath { get; set; } = "";
+    public string CarDoorListPath { get; set; } = "";
     public bool AutoRefresh { get; set; } = true;
     public bool AutoSyncCont { get; set; } = true;
     public bool AutoSyncKt { get; set; } = true;
