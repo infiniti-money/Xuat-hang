@@ -1,3 +1,12 @@
+# HISA Quản lý kho v1.9.2 — Khôi phục cấu hình nguồn dữ liệu
+
+- **Khôi phục lối mở trực tiếp:** thanh menu trái có mục **Cấu hình nguồn dữ liệu**. Không cần mở qua Quản lý & lịch sử nữa.
+- **Hiển thị chọn nguồn trước Gemini:** nút **Chọn thư mục nguồn** cùng trạng thái nhận diện Excel nằm ngay đầu trang cấu hình; các nút **Lưu cấu hình & tải lại** vẫn hoạt động như trước.
+- **Đề xuất đường dẫn an toàn:** nếu cấu hình nguồn chưa có nhưng `Tổng hợp.xlsx` đang sử dụng vẫn tồn tại, hiện thư mục chứa file để người dùng kiểm tra; không tự ghi đè nguồn.
+- **Bảo toàn dữ liệu:** không thay đổi thư mục chứa Excel, lịch sử phiếu, quy trình xuất và Gemini API Key khi nâng cấp. Kiểm thử UI Windows và cài đè chạy trong CI trước khi phát hành.
+
+---
+
 # HISA Quản lý kho v1.9.1 — sửa cài đặt và cập nhật Windows
 
 - **Nút “↑ Cập nhật” hiển thị trực tiếp trên thanh công cụ** thay vì chỉ nằm trong Quản lý & lịch sử → Thông tin phần mềm. Khi tải xong bản nâng cấp đã xác minh, nút hiển thị số phiên bản mới.
