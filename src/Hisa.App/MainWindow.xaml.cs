@@ -118,6 +118,7 @@ public partial class MainWindow : Window
             case "ai-schedule":ShowAiSchedules();break;
             case "readiness":ShowDispatchReadiness();break;
             case "planned-arrivals":ShowPlannedArrivals();break;
+            case "gemini-excel":ShowGeminiExcelAssistant();break;
             case "arrival":ShowArrival();break;
             case "arrival-packages":ShowArrivalPackages();break;
             case "templates":ShowTemplates();break;
