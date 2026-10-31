@@ -191,7 +191,9 @@ public static class MotorHandoverExcel
         var rows=EquipmentListReader.Read(path,"Máy kéo");
         var workItems=new MotorHungYenStore(dataDirectory).List(rows);
         foreach(var item in workItems.Where(x=>x.PresentInSource &&
-            !string.IsNullOrWhiteSpace(x.Serial)))
+            !string.IsNullOrWhiteSpace(x.Serial) &&
+            !string.IsNullOrWhiteSpace(x.Project) &&
+            !string.IsNullOrWhiteSpace(x.Company)))
         {
             var choice=item.WorkChoice;
             if(choice.Length==0 && item.State==MotorHungYenStore.Completed)
