@@ -1,3 +1,19 @@
+## HISA v1.9.7 · Theo dõi máy kéo gửi Hưng Yên gia công và bàn giao
+
+**Quy trình thao tác mới:** Mở **Máy kéo · gửi / làm / bàn giao** từ menu trái. HISA đọc các dòng của file **MÁY KÉO.xlsx** đã liên kết tại Cấu hình nguồn dữ liệu (file chỉ đọc). Mỗi dòng / máy / số seri được đối chiếu riêng với số HĐ, công trình, đơn vị và loại máy.
+
+- Bước 1: Chọn máy kéo → nhập ngày thực tế và ghi chú → **Xác nhận đã gửi Hưng Yên**.
+- Bước 2: Sau khi xác minh gia công xong → **Xác nhận đã làm xong**.
+- Bước 3: Khi bàn giao có chứng từ → **Xác nhận đã bàn giao**.
+- Có lọc nhanh theo số HĐ, công trình, seri; lọc theo trạng thái Chưa gửi / Đã gửi Hưng Yên / Đã làm / Đã bàn giao và xem **Lịch sử dòng chọn**.
+- Nếu máy kéo xuất hiện trong Excel không có nghĩa là đã gửi hoặc đã hoàn thành; ghi chú kiểu `DXH` không tự chuyển thành bằng chứng đã giao. Chỉ người thao tác bấm xác nhận mới đổi trạng thái.
+- Ngày chuyển giai đoạn không được trước giai đoạn trước hoặc sau ngày hiện tại; không nhảy giai đoạn hay tự quay lại trạng thái đã bàn giao.
+- Lưu lịch sử trong `motor_hung_yen_tracking.json` ở thư mục dữ liệu HISA, sao lưu trong ZIP cùng các trạng thái và phiếu, tạo `.bak` mỗi khi thay đổi. Nếu dòng Excel bị xóa, lịch sử vẫn còn để đối chiếu nhưng không cho đổi trạng thái tới khi xác minh nguồn. Không sửa file `MÁY KÉO.xlsx`, `Tổng hợp.xlsx`, trạng thái phiếu hay tồn kho.
+
+**Cài đặt:** Cài đè HISA phiên bản mới, giữ nguyên nguồn máy kéo đã chọn ở v1.9.6. Nếu danh sách trống, vào **Cấu hình nguồn dữ liệu → Danh sách thiết bị theo hợp đồng → Máy kéo** chọn file Excel trên máy rồi lưu cấu hình. Các giai đoạn ban đầu mặc định **Chưa ghi nhận gửi** cho đến khi người vận hành xác nhận.
+
+---
+
 ## HISA v1.9.6 · Liên kết danh sách Tủ điện, Máy kéo và Đầu cửa car
 
 Ba file Excel sản xuất tùy chọn **khác** với `Tổng hợp.xlsx` và dữ liệu kho:
