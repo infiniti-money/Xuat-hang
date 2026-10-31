@@ -222,7 +222,7 @@ public partial class MainWindow
             "Giữ nguyên đường dẫn dữ liệu và quyền phê duyệt. Sao lưu không có nghĩa là đã phục hồi.",
             WorkflowTile("04","Cấu hình & sao lưu",
                 "Nguồn Excel, Gemini API Key, đồng bộ và bản sao lưu ZIP.",
-                "Phục hồi từ ZIP chưa có trên v1.9.0",()=>Navigate("settings")),
+                "Chọn nguồn Excel trực tiếp từ menu bên trái",()=>Navigate("settings")),
             WorkflowTile("05","Mẫu phiếu in",
                 "Quản lý mẫu phiếu, căn lề và in thử.",
                 "Mẫu in dùng chung",()=>Navigate("templates")),

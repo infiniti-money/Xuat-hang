@@ -55,7 +55,7 @@
                 <TextBlock Text="DỮ LIỆU LƯU TẠI MÁY" Foreground="#D5E7EF"
                            FontSize="10" FontWeight="SemiBold"/>
               </DockPanel>
-              <TextBlock x:Name="VersionText" Text="Phiên bản 1.9.1"
+              <TextBlock x:Name="VersionText" Text="Phiên bản 1.9.2"
                          Foreground="#93B2C5" FontSize="11" Margin="0,6,0,0"/>
               <TextBlock Text="Ctrl+1 Tổng quan · Ctrl+2 Xuất · Ctrl+3 Cont · Ctrl+4 AI"
                          Foreground="#789BAF" FontSize="10" Margin="0,5,0,0"

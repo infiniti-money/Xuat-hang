@@ -53,6 +53,7 @@ public partial class MainWindow : Window
         AddNav("ai-hub", "✧", "Trung tâm Gemini AI");
         NavCaption("QUẢN LÝ & HỒ SƠ");
         AddNav("management-hub", "▥", "Quản lý & lịch sử");
+        AddNav("settings", "⚙", "Cấu hình nguồn dữ liệu");
         _service.Progress += message => Dispatcher.BeginInvoke(()=>StatusText.Text = message);
         _service.Changed += (_,_) => Dispatcher.BeginInvoke(()=>
         {
@@ -127,7 +128,7 @@ public partial class MainWindow : Window
         "arrival" or "planned-arrivals" or "arrival-packages" or "packages" or
         "duplicate-review" => "arrival-hub",
         "gemini-chat" or "ai-schedule" => "ai-hub",
-        "flags" or "slips" or "daily" or "templates" or "information" or "settings" or
+        "flags" or "slips" or "daily" or "templates" or "information" or
         "reports-hub" => "management-hub",
         _ => page
     };
@@ -671,7 +672,12 @@ public partial class MainWindow : Window
     private void ShowSettings()
     {
         _page="settings";var model=Copy(_service.Settings);
-        var sources=Input(model.DataSources.FirstOrDefault()??"");sources.Height=38;
+        // Fresh Program Files installs can have no DataSources entry; show an existing
+        // canonical Excel folder as a suggestion without altering saved settings.
+        var initialSource=model.DataSources.FirstOrDefault();
+        if(string.IsNullOrWhiteSpace(initialSource)&&System.IO.File.Exists(model.MasterPath))
+            initialSource=System.IO.Path.GetDirectoryName(model.MasterPath);
+        var sources=Input(initialSource??"");sources.Height=38;
         var discovery=T("",11,false,Muted);
         void updateDiscovery(){try{var resolved=_service.ResolveSettingsFromSourceFolder(sources.Text.Trim());discovery.Text=$"Tự nhận diện: {System.IO.Path.GetFileName(resolved.MasterPath)} · {System.IO.Path.GetFileName(resolved.KtPath)} · {System.IO.Path.GetFileName(resolved.ProductExportPath)}";}catch(Exception e){discovery.Text=e.Message;}}
         sources.TextChanged+=(_,_)=>updateDiscovery();updateDiscovery();
@@ -682,8 +688,10 @@ public partial class MainWindow : Window
         var p=Stack();
         p.Children.Add(Card(Stack(T("TRUNG TÂM CẤU HÌNH",20,true),
             T("Gemini AI · Nguồn Excel · Đồng bộ · Bảo vệ dữ liệu",12,false,Muted))));
-        p.Children.Add(GeminiSettingsCard());
-        p.Children.Add(Card(Stack(T("Nguồn dữ liệu Excel",18,true),T("Chọn duy nhất một thư mục. Ứng dụng tự quét nguồn cont và tự nhận diện ba tệp Excel cần dùng; không cần chọn riêng từng tệp.",12,false,Muted),DockWithButton(sources,B("Chọn thư mục nguồn",()=>{var dialog=new OpenFolderDialog{Title="Chọn thư mục nguồn duy nhất"};if(dialog.ShowDialog(this)==true)sources.Text=dialog.FolderName;})),discovery)));
+        p.Children.Add(Card(Stack(T("Nguồn dữ liệu Excel",18,true),
+            T("Thư mục đang chọn: "+(string.IsNullOrWhiteSpace(initialSource)?"Chưa cấu hình":initialSource),12,false,Muted),
+            T("Chọn duy nhất một thư mục. HISA tự nhận diện Tổng hợp.xlsx, KT tổng hợp.xlsx và Thành phẩm xuất kho.xlsx; không cần chọn từng tệp.",12,false,Muted),
+            DockWithButton(sources,B("Chọn thư mục nguồn",()=>{var dialog=new OpenFolderDialog{Title="Chọn thư mục nguồn duy nhất"};if(dialog.ShowDialog(this)==true)sources.Text=dialog.FolderName;})),discovery)));
         p.Children.Add(Card(Stack(T("Tốc độ & đồng bộ",18,true),auto,cont,syncKt,Row(Field("Chu kỳ kiểm tra · giây",poll)),T("Dữ liệu được lập chỉ mục trong bộ nhớ và giữ bộ nhớ đệm để mở ứng dụng nhanh. File Excel đang mở sẽ được báo và thử lại, không ghi dở dang.",12,false,Muted))));
         p.Children.Add(Row(A("Lưu cấu hình & tải lại",async()=>
         {
@@ -691,6 +699,7 @@ public partial class MainWindow : Window
             model=_service.ResolveSettingsFromSourceFolder(sources.Text.Trim());model.AutoRefresh=auto.IsChecked==true;model.AutoSyncCont=cont.IsChecked==true;model.AutoSyncKt=syncKt.IsChecked==true;model.PollSeconds=seconds;
             await _service.SaveSettingsAsync(model);await _service.RefreshAsync(true);Notify("Đã lưu cấu hình nguồn.");ShowSettings();
         },true),A("Sao lưu vào Thư viện",async()=>{var path=System.IO.Path.Combine(_service.BackupDirectory,$"HISA-sao-luu-{DateTime.Now:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}.zip");await _service.BackupAsync(path);Notify("Đã sao lưu vào Thư viện → Tài liệu:\n"+path);}),B("Mở thư mục Backup",()=>System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(_service.BackupDirectory){UseShellExecute=true})),B("Mở thư mục dữ liệu",()=>System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(_service.DataDirectory){UseShellExecute=true}))));
+        p.Children.Add(GeminiSettingsCard());
         p.Children.Add(Alert($"Dữ liệu ứng dụng: {_service.DataDirectory}\nSao lưu (ZIP và Excel): {_service.BackupDirectory}\nCác bản sao lưu cũ tại nguồn sẽ được giữ nguyên."));
         SetPage("Cấu hình & sao lưu","Gemini AI · lưu / xóa API Key · đồng bộ dữ liệu Excel · sao lưu",new ScrollViewer{Content=p,VerticalScrollBarVisibility=ScrollBarVisibility.Auto});
     }

@@ -17,7 +17,7 @@ public static class WorkflowUiDiagnostics
         var dispatch=new[]{"create","plan","readiness"};
         var arrivals=new[]{"arrival","planned-arrivals","arrival-packages","packages","duplicate-review"};
         var ai=new[]{"gemini-chat","ai-schedule"};
-        var management=new[]{"flags","slips","daily","templates","information","settings","reports-hub"};
+        var management=new[]{"flags","slips","daily","templates","information","reports-hub"};
         Check(dispatch.All(x=>MainWindow.NavigationGroup(x)=="dispatch-hub"),
             "Readiness and create actions share dispatch section");
         Check(arrivals.All(x=>MainWindow.NavigationGroup(x)=="arrival-hub"),
@@ -28,9 +28,11 @@ public static class WorkflowUiDiagnostics
             "Status, handover slips, history, settings and legacy reporting share one management hub");
         Check(MainWindow.NavigationGroup("flags")=="management-hub",
             "Hoan/huy contract status screen is reachable from consolidated navigation");
-        var visible=new[]{"dashboard","dispatch-hub","arrival-hub","lookup","ai-hub","management-hub"};
+        var visible=new[]{"dashboard","dispatch-hub","arrival-hub","lookup","ai-hub","management-hub","settings"};
         Check(visible.All(x=>MainWindow.NavigationGroup(x)==x),
-            "Six primary destinations remain visible and uniquely selectable");
+            "Primary destinations and direct Excel source settings remain selectable");
+        Check(MainWindow.NavigationGroup("settings")=="settings",
+            "Excel source settings stays a direct navigation destination");
         Check(dispatch.Concat(arrivals).Concat(ai).Concat(management).Concat(visible)
             .Distinct().Count()==dispatch.Length+arrivals.Length+ai.Length+management.Length+visible.Length,
             "No workflow route is shown in multiple independent top-level sections");
