@@ -1,3 +1,28 @@
+## HISA v1.9.12 — Chỉ chọn duy nhất một thư mục Kho HISA
+
+Trong **Cấu hình nguồn dữ liệu**, chỉ còn một nút **Chọn Kho HISA**. Chọn đúng **thư mục gốc** (`Kho HISA`), không chọn bất kỳ file Excel hoặc thư mục con nào:
+
+```text
+Kho HISA/
+├── Kho chính/
+│   ├── Tổng hợp.xlsx
+│   ├── KT tổng hợp.xlsx
+│   └── Thành phẩm xuất kho.xlsx
+├── CONT ĐI/
+└── Danh sách sản xuất/
+    ├── MÁY KÉO.xlsx
+    ├── TỦ ĐIỆN.xlsx
+    └── Đầu cửa car T10.2026.xlsx
+```
+
+HISA tự tìm và **hiển thị kết quả nhận diện 6 file Excel** trong cấu hình, sau đó **Lưu cấu hình & tải lại** một lần. Bỏ hoàn toàn các ô/nút `Chọn Excel` riêng cho máy kéo/tủ điện/đầu cửa car. Chỉ `CONT ĐI` được quét làm nguồn kiện; `Danh sách sản xuất` chỉ đọc.
+
+**An toàn khi thiếu file:** Nếu chọn nhầm thư mục con, thiếu `KT tổng hợp`, `Thành phẩm xuất kho`, `TỦ ĐIỆN`, `MÁY KÉO`, hoặc `Đầu cửa car`, HISA báo lỗi và **không ghi đè cấu hình đã lưu**. Nếu thay thư mục gốc mới, cả sáu đường dẫn được lấy từ thư mục mới — không tái sử dụng nhầm file thiết bị của kho cũ. Nhiều bảng đầu cửa theo tháng thì dùng file tháng đã được chọn từ cấu hình trước nếu còn trong cùng thư mục; không đoán nếu không thể xác định. HISA không di chuyển hay sửa bất kỳ tệp Excel gốc nào.
+
+Các màn hình hợp đồng, Gemini/Zalo và **Theo dõi máy kéo Hồng Yên** tiếp tục đọc từ các đường dẫn vừa tự nhận diện. Giữ lại toàn bộ lịch sử người dùng và file JSON trạng thái/phiếu.
+
+---
+
 ## HISA v1.9.11 — Hiển thị hợp đồng máy kéo gửi Hồng Yên gia công
 
 Trong **Theo dõi máy kéo → HĐ máy kéo · gia công Hồng Yên**, giao diện có hai bảng liên kết:
