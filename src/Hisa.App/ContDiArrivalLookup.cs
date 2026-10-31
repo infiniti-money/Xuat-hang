@@ -52,6 +52,7 @@ public static class ContDiArrivalLookup
                     Contract=source.Contract,Project=source.Project,
                     Company=source.Company,PlannedDate=request.PlannedDate,
                     SourcePackageId=source.Id,SourceContDay=source.SourceDate,
+                    SourceFingerprint=PlannedArrivalWorkflow.MaterialFingerprint(source),
                     PackageNo=source.PackageNo,PackageCount=1,
                     MaterialCount=source.Items.Count,
                     MaterialSummary=string.Join(" · ",source.Items.Where(x=>x.IsHungYen)
