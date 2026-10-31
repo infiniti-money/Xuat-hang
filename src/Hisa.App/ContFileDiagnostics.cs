@@ -56,8 +56,8 @@ public static class ContFileDiagnostics
         Check(first.HangGuiFiles.Count==1 && first.HangGuiFiles[0].Source==sent,
             "Hàng gửi identified by name and excluded from receipt");
         var sourceId=first.Packages[0].Id;
-        Check(ContFileOrganizer.ConfirmedCandidates(first.ImportedHungYenFiles,first.Packages,[]).Count==0 &&
-              File.Exists(hy),
+        Check(ContFileOrganizer.ConfirmedCandidates(first.ImportedHungYenFiles,first.Packages,
+                  new WorkbookSnapshot()).Count==0 && File.Exists(hy),
             "Unreceived source stays in CONT ĐI despite a successful source scan");
         store.WriteContSummary(master,first.Packages);
         Check(store.ReadMaster(master).ContPackages.Count==1 &&
@@ -77,13 +77,32 @@ public static class ContFileDiagnostics
             new Package{Id="pkg-a",SourcePath=partFile},
             new Package{Id="pkg-b",SourcePath=partFile}
         };
-        Check(ContFileOrganizer.ConfirmedCandidates([part],physical,["pkg-a"]).Count==0,
-            "Partially received source workbook cannot be archived");
-        Check(ContFileOrganizer.ConfirmedCandidates([part],physical,["pkg-a","pkg-b"]).Count==1,
-            "Only fully received workbook is eligible for archive");
+        var partialMaster=new WorkbookSnapshot
+        {
+            ContPackages=[
+                new Package{Id="cont-A",Contract="112233",Project="Thang A",Company="HISA"},
+                new Package{Id="cont-B",Contract="112233",Project="Thang A",Company="HISA"}
+            ],
+            DetailPackages=[new Package{OriginPackageId="cont-A"}]
+        };
+        physical[0].Contract="112233";physical[0].Project="Thang A";physical[0].Company="HISA";
+        physical[1].Contract="112233";physical[1].Project="Thang A";physical[1].Company="HISA";
+        Check(ContFileOrganizer.ConfirmedCandidates([part],physical,partialMaster).Count==0,
+            "One of two identical physical packages received must NOT archive the entire source file");
+        partialMaster.DetailPackages.Add(new Package{OriginPackageId="cont-B"});
+        Check(ContFileOrganizer.ConfirmedCandidates([part],physical,partialMaster).Count==1,
+            "Entire source file becomes eligible only after both physical receipts");
 
+        // Master IDs differ from path-based source IDs. Receipt matching must
+        // use strict unique physical signatures rather than equal IDs.
+        var masterSnapshot=store.ReadMaster(master);
+        masterSnapshot.DetailPackages.Add(new Package{
+            OriginPackageId=masterSnapshot.ContPackages.Single().Id
+        });
+        Check(masterSnapshot.ContPackages.Single().Id!=sourceId,
+            "Master Cont đi package ID is NOT the original source-file ID");
         var confirmed=ContFileOrganizer.ConfirmedCandidates(first.ImportedHungYenFiles,
-            first.Packages,[sourceId]);
+            first.Packages,masterSnapshot);
         Check(confirmed.Count==1 && ContFileOrganizer.MoveFiles(confirmed,"Đã nhập kho").Count==0,
             "Only the simulated confirmed source becomes eligible to leave CONT ĐI");
         var archived=Path.Combine(root,"Đã nhập kho","26.10","29102026.xlsx");
@@ -114,7 +133,7 @@ public static class ContFileDiagnostics
         var old=store.ScanSources(settings);
         Check(old.Packages.Any(p=>p.SourcePath==legacyArchive),
             "Legacy nested archive is scanned before safe migration");
-        var migrated=ContFileOrganizer.RelocateLegacyFolders([source],old.Packages,[sourceId]);
+        var migrated=ContFileOrganizer.RelocateLegacyFolders([source],old.Packages,masterSnapshot);
         Check(migrated.Count==0 && !File.Exists(legacyArchive) &&
               File.Exists(Path.Combine(source,"28.10","29102026.xlsx")),
             "Unconfirmed legacy workbook returns to pending CONT ĐI");
