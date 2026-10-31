@@ -17,6 +17,26 @@ public partial class MainWindow
     private bool _geminiMicrophoneConsent;
     private bool _geminiChatTranscribing;
     private bool _geminiChatAutoSpeak;
+    private bool _geminiHandsFreeActive;
+    private int _geminiHandsFreeSession;
+    private CancellationTokenSource? _geminiHandsFreeCancellation;
+
+    /// <summary>Close the microphone immediately on explicit stop, navigation or exit.</summary>
+    private void StopHandsFreeSession()
+    {
+        _geminiHandsFreeActive=false;
+        _geminiHandsFreeSession++;
+        var cts=_geminiHandsFreeCancellation;
+        _geminiHandsFreeCancellation=null;
+        try{cts?.Cancel();}
+        catch(ObjectDisposedException){}
+        cts?.Dispose();
+        _geminiMicrophone.Stop(false);
+        _geminiVoice.StopSpeaking();
+    }
+
+    private bool HandsFreeCurrent(int session) =>
+        _geminiHandsFreeActive && session==_geminiHandsFreeSession && _page=="gemini-chat";
 
     private void ShowGeminiChat()
     {
@@ -87,6 +107,123 @@ public partial class MainWindow
             IsChecked=_geminiChatAutoSpeak};
         autoVoice.Checked+=(_,_)=>_geminiChatAutoSpeak=true;
         autoVoice.Unchecked+=(_,_)=>_geminiChatAutoSpeak=false;
+        void StartHandsFreeListening(int session)
+        {
+            if(!HandsFreeCurrent(session))return;
+            if(_geminiMicrophone.IsRecording)return;
+            try
+            {
+                _geminiMicrophone.StartHandsFree(
+                    wav=>Dispatcher.BeginInvoke(new Action(()=>
+                    {
+                        if(!HandsFreeCurrent(session)){Array.Clear(wav);return;}
+                        _=ProcessHandsFreeAudioAsync(wav,session);
+                    })),
+                    message=>Dispatcher.BeginInvoke(new Action(()=>
+                    {
+                        if(HandsFreeCurrent(session))activity.Text=message;
+                    })));
+                activity.Text="● RẢNH TAY ĐANG NGHE · Nói tiếng Việt. HISA tự dừng sau khi bạn im lặng; bấm Tắt rảnh tay để ngừng.";
+            }
+            catch(Exception ex)
+            {
+                StopHandsFreeSession();
+                activity.Text="Không thể bật rảnh tay: "+ex.Message+
+                    ". Kiểm tra Windows Settings → Privacy & security → Microphone.";
+            }
+        }
+
+        async Task ResumeAfterSpeakerAsync(int session)
+        {
+            if(!HandsFreeCurrent(session))return;
+            try
+            {
+                // Give the output device time to become silent; never record
+                // the tail of the assistant's own response.
+                await Task.Delay(750,_geminiHandsFreeCancellation?.Token??CancellationToken.None);
+            }
+            catch(OperationCanceledException){return;}
+            if(HandsFreeCurrent(session))StartHandsFreeListening(session);
+        }
+
+        async Task ProcessHandsFreeAudioAsync(byte[] wav,int session)
+        {
+            try
+            {
+                if(!HandsFreeCurrent(session))return;
+                string? key;
+                try{key=new GeminiCredentialStore().ReadKey();}
+                catch(Exception){key=null;}
+                if(string.IsNullOrWhiteSpace(key))
+                    throw new InvalidOperationException("Chưa có Gemini API Key trong Cấu hình.");
+                activity.Text="● Đã dừng micro · Gemini đang nhận dạng tiếng Việt…";
+                var transcript=await GeminiAudioTranscriptionService.TranscribeAsync(
+                    key,wav,_geminiHandsFreeCancellation?.Token??CancellationToken.None);
+                if(!HandsFreeCurrent(session))return;
+                if(string.IsNullOrWhiteSpace(transcript))
+                    throw new FormatException("Không nhận dạng được câu nói.");
+                activity.Text="Đã nghe: "+transcript+" · Đang hỏi Gemini…";
+                await SendAsync(transcript,true,session);
+            }
+            catch(OperationCanceledException)
+            {
+                // Explicit stop must not restart the microphone or upload more audio.
+            }
+            catch(Exception ex)
+            {
+                if(HandsFreeCurrent(session))
+                {
+                    StopHandsFreeSession();
+                    activity.Text="Đã dừng rảnh tay do lỗi nhận dạng: "+ex.Message;
+                }
+            }
+            finally{Array.Clear(wav);}
+        }
+
+        var handsFree=B("🎧 Bật rảnh tay",()=>
+        {
+            if(_geminiHandsFreeActive)
+            {
+                StopHandsFreeSession();
+                activity.Text="○ ĐÃ TẮT RẢNH TAY · micro đã dừng. Bấm Bật để sử dụng lại.";
+                return;
+            }
+            if(_geminiChatSending||_geminiChatTranscribing||_geminiMicrophone.IsRecording)
+            {
+                activity.Text="Hãy hoàn thành lượt micro/Gemini hiện tại trước khi bật rảnh tay.";
+                return;
+            }
+            string? key;
+            try{key=new GeminiCredentialStore().ReadKey();}
+            catch(Exception){key=null;}
+            if(string.IsNullOrWhiteSpace(key))
+            {
+                activity.Text="Cần cấu hình Gemini API Key trước khi bật rảnh tay.";
+                return;
+            }
+            if(!Ask("BẬT CHẾ ĐỘ RẢNH TAY?\\n\\n"+
+                "HISA sẽ MỞ MICRO liên tục trên trang Gemini Chat, "+
+                "tự phát hiện bạn bắt đầu và ngừng nói, rồi TỰ GỬI từng đoạn âm thanh "+
+                "đến Google Gemini qua Internet để nhận dạng tiếng Việt.\\n"+
+                "Văn bản nhận dạng sẽ được TỰ ĐỘNG GỬI làm câu hỏi cho Gemini, "+
+                "và câu trả lời sẽ tự phát qua loa.\\n\\n"+
+                "Bạn không phải xác nhận riêng từng lượt trong khi chế độ đang bật. "+
+                "Âm thanh chỉ giữ trong RAM, không lưu file. "+
+                "Đây là chế độ chỉ tư vấn, KHÔNG tự ghi/sửa Excel.\\n"+
+                "Bấm Tắt rảnh tay, chuyển trang hoặc đóng HISA sẽ dừng micro. "+
+                "Bật lại sau khi đóng ứng dụng cần đồng ý lại.\\n\\n"+
+                "Bạn có đồng ý bật và tự gửi âm thanh trong phiên này không?"))
+            {
+                activity.Text="Chưa bật rảnh tay: micro vẫn tắt.";
+                return;
+            }
+            _geminiMicrophoneConsent=true;
+            _geminiHandsFreeCancellation=new CancellationTokenSource();
+            _geminiHandsFreeActive=true;
+            int session=++_geminiHandsFreeSession;
+            StartHandsFreeListening(session);
+        });
+
         void OnRecorded(byte[] wav)
         {
             Dispatcher.BeginInvoke(new Action(async () =>
@@ -142,6 +279,11 @@ public partial class MainWindow
 
         var listen=B("🎙  Bắt đầu thu micro",()=>
         {
+            if(_geminiHandsFreeActive)
+            {
+                activity.Text="Đang bật rảnh tay. Bấm Tắt rảnh tay trước khi dùng chế độ thu thủ công.";
+                return;
+            }
             if(_geminiChatTranscribing)
             {
                 activity.Text="Gemini đang nhận dạng bản ghi trước. Hãy kiểm tra kết quả.";
@@ -201,6 +343,12 @@ public partial class MainWindow
         });
         var stopVoice=B("◼ Hủy micro / dừng loa",()=>
         {
+            if(_geminiHandsFreeActive)
+            {
+                StopHandsFreeSession();
+                activity.Text="Đã tắt rảnh tay, hủy tác vụ và dừng micro/loa.";
+                return;
+            }
             _geminiMicrophone.Stop(false);
             _geminiVoice.StopSpeaking();
             activity.Text="Đã hủy micro. Âm thanh chưa được gửi đến Gemini.";
