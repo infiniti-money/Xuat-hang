@@ -286,6 +286,15 @@ public sealed partial class WarehouseService : IDisposable
             {
                 var files=Directory.Exists(source)?Directory.EnumerateFiles(source,"*.xlsx",SearchOption.AllDirectories):File.Exists(source)?[source]:Array.Empty<string>();
                 stamps.AddRange(files.Where(p=>!Path.GetFileName(p).StartsWith("~$")&&!ContFileOrganizer.IsHangGuiFolder(p)&&!p.Contains(Path.DirectorySeparatorChar+".hisa-backups"+Path.DirectorySeparatorChar)&&!p.Equals(Settings.MasterPath,StringComparison.OrdinalIgnoreCase)&&!p.Equals(Settings.KtPath,StringComparison.OrdinalIgnoreCase)&&!p.Equals(Settings.ProductExportPath,StringComparison.OrdinalIgnoreCase)&&!p.Contains(Path.DirectorySeparatorChar+"XUẤT HÀNG"+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase)).Select(FileStamp));
+                // Sibling received workbooks must participate in source fingerprints;
+                // otherwise sync can accidentally drop historical source packages.
+                if(Directory.Exists(source))
+                {
+                    var received=ContFileOrganizer.SiblingFolder(source,"Đã nhập kho");
+                    if(Directory.Exists(received))
+                        stamps.AddRange(Directory.EnumerateFiles(received,"*.xlsx",SearchOption.AllDirectories)
+                            .Where(p=>!Path.GetFileName(p).StartsWith("~$")).Select(FileStamp));
+                }
                 var parent=Directory.Exists(source)?Directory.GetParent(source)?.FullName:Path.GetDirectoryName(source);
                 if(parent!=null)stamps.AddRange(Directory.EnumerateFiles(parent,"Lịch xuất hàng*.xlsx").Concat(Directory.EnumerateFiles(parent,"HÀNG THEO CONT.xlsx")).Select(FileStamp));
             }
@@ -367,12 +376,22 @@ public sealed partial class WarehouseService : IDisposable
                 var loaded=_excel.ReadMaster(Settings.MasterPath);
                 if(masterBefore!=FileStamp(Settings.MasterPath))throw new IOException("Tổng hợp.xlsx vừa thay đổi trong lúc đọc. Ứng dụng sẽ tự tải lại.");
                 SetSnapshot(loaded);
-                // Never move files until the master workbook was updated and read successfully.
-                // Archived files stay below CONT ĐI and are included in subsequent scans.
+                // Master Excel must first be written and read successfully. A file
+                // merely recognized in CONT ĐI is NOT already physically received.
+                // Only archive workbooks whose EVERY package has an actual receipt
+                // OriginPackageId. Keep partially received workbooks in CONT ĐI.
                 if(sourceScan!=null && sourceFilesStable && sourceStamp==SourceFingerprint())
                 {
+                    var received=loaded.DetailPackages.Where(p=>p.OriginPackageId.Length>0)
+                        .Select(p=>p.OriginPackageId).ToHashSet(StringComparer.Ordinal);
+                    warnings.AddRange(ContFileOrganizer.RelocateLegacyFolders(
+                        Settings.DataSources,sourceScan.Packages,received));
                     if(importSaved)
-                        warnings.AddRange(ContFileOrganizer.MoveFiles(sourceScan.ImportedHungYenFiles,"Đã nhập kho"));
+                    {
+                        var confirmed=ContFileOrganizer.ConfirmedCandidates(
+                            sourceScan.ImportedHungYenFiles,sourceScan.Packages,received);
+                        warnings.AddRange(ContFileOrganizer.MoveFiles(confirmed,"Đã nhập kho"));
+                    }
                     warnings.AddRange(ContFileOrganizer.MoveFiles(sourceScan.HangGuiFiles,"Hàng gửi"));
                 }
                 lock(_stateLock)_warnings=[..warnings,"Đang kiểm tra lịch sử xuất hàng và các cảnh báo trước khi lập phiếu."];
@@ -568,7 +587,9 @@ public sealed partial class WarehouseService : IDisposable
         var missing=Rules.Tokens(contractText).Where(c=>!selected.Any(p=>Rules.Contract(p.Contract)==Rules.Contract(c))).ToList();
         var result=await MutateAsync(()=>_excel.RecordArrival(Settings.MasterPath,Settings.KtPath,selected,day,useKt));
         if(missing.Count>0)result.Warnings.Add("Chưa có trong cont nguồn: "+string.Join(", ",missing));
-        await RefreshAsync(false);return result;
+        await RefreshCoreAsync(Settings.DataSources.Count>0,false);
+        if(LastError.Length>0)result.Warnings.Add("Đã ghi kho nhưng chưa phân loại được file nguồn: "+LastError);
+        return result;
     }
     /// <summary>
     /// Import ONLY verified source package IDs explicitly selected from the approved
@@ -603,7 +624,11 @@ public sealed partial class WarehouseService : IDisposable
         // under its lock before writing. Never replace rows by contract identity.
         var result=await MutateAsync(()=>
             _excel.RecordSelectedArrival(Settings.MasterPath,verified,actualArrivalDay));
-        await RefreshAsync(false);
+        // A second source scan archives only the fully received originals. A
+        // partial container remains pending; a failed classification never
+        // reverses the already committed Excel receipt.
+        await RefreshCoreAsync(Settings.DataSources.Count>0,false);
+        if(LastError.Length>0)result.Warnings.Add("Đã ghi kho nhưng chưa phân loại được file nguồn: "+LastError);
         return result;
     }
 
