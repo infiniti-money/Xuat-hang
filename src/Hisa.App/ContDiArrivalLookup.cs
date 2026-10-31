@@ -158,6 +158,7 @@ public static class ContDiArrivalLookup
             if(match==null || match.Status!=Ready ||
                match.SourceContDay!=row.SourceContDay ||
                match.MaterialSummary!=row.MaterialSummary ||
+               match.SourceFingerprint!=row.SourceFingerprint ||
                match.PackageNo!=row.PackageNo || match.Contract!=row.Contract)
                 throw new InvalidOperationException("Kiện trong CONT ĐI đã thay đổi hoặc không còn đủ điều kiện. Tìm lại trước khi nhập: "+row.Contract);
             var source=fresh.ContPackages.Single(x=>x.Id==row.SourcePackageId);
