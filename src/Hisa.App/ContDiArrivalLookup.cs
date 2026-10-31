@@ -37,11 +37,15 @@ public static class ContDiArrivalLookup
                 .ToList();
             if(packages.Count==0)
             {
+                var received=snapshot.DetailPackages.Any(x=>
+                    Rules.Contract(x.Contract)==code && x.OriginPackageId.Length>0);
                 results.TryAdd("missing|"+code,new PlannedArrivalRow
                 {
                     Contract=request.Contract,PlannedDate=request.PlannedDate,
-                    Status="Chưa tìm thấy kiện Hưng Yên trong Container",
-                    Notes="Không có kiện HƯNG YÊN/HUNG YEN đúng số HĐ trong thư mục Container."
+                    Status=received?"Đã nhập kho (file đã lưu trữ)":"Chưa tìm thấy kiện Hưng Yên trong Container",
+                    Notes=received
+                        ? "HĐ có kiện đã nhận trong trang chi tiết. File gốc có thể đã chuyển sang Đã nhập kho."
+                        : "Không có kiện HƯNG YÊN/HUNG YEN đúng số HĐ trong thư mục Container."
                 });
                 continue;
             }
@@ -118,7 +122,13 @@ public static class ContDiArrivalLookup
                 else
                 {
                     row.Status=Ready;
-                    row.Notes="Đã quét file Container · "+
+                    var sameGoods=snapshot.DetailPackages.Any(x=>
+                        x.OriginPackageId!=source.Id &&
+                        x.Identity==source.Identity && x.ArrivalDate==actualDay &&
+                        PlannedArrivalWorkflow.MaterialFingerprint(x)==
+                        PlannedArrivalWorkflow.MaterialFingerprint(source));
+                    row.Notes=(sameGoods?"CẢNH BÁO: cùng vật tư đã nhận ngày này; kiểm tra kiện nguồn khác. · ":"")+
+                        "Đã quét file Container · "+
                         source.SourceFile+" · kiện "+source.PackageNo+
                         " · ngày cont đi "+Rules.Day(source.SourceDate)+
                         (string.IsNullOrWhiteSpace(source.ContainerNumber)
