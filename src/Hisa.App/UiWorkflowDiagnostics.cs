@@ -45,6 +45,17 @@ public static class UiWorkflowDiagnostics
             Call("ShowSlips");
             var labels=Children(window).OfType<Button>().Select(b=>b.Content?.ToString()??"").ToList();
             Check(new[]{"Chờ xuất","✓  Đã xuất","◷  Tạm hoãn","Hủy phiếu"}.All(labels.Contains),"Slip list exposes all four transition buttons");
+            var navigation=(StackPanel)window.FindName("Navigation")!;
+            Check(navigation.Children.OfType<Button>().Any(b=>b.Content?.ToString()?.Contains("Cấu hình nguồn dữ liệu")==true),
+                "Excel source settings has a dedicated visible navigation entry");
+            Call("ShowSettings");
+            var configScroll=(ScrollViewer)((Grid)window.FindName("PageHost")!).Children[0];
+            var configStack=(StackPanel)configScroll.Content;
+            var sourceCard=(Border)configStack.Children[1];
+            Check(Children(sourceCard).OfType<TextBlock>().Any(t=>t.Text=="Nguồn dữ liệu Excel"),
+                "Source configuration is first on settings page, above Gemini");
+            Check(Children(sourceCard).OfType<Button>().Any(b=>b.Content?.ToString()=="Chọn thư mục nguồn"),
+                "Source folder browser button is available without scrolling past Gemini");
         }
         finally{window.Close();}
         return evidence;
