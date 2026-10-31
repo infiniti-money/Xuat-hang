@@ -374,6 +374,11 @@ public partial class MainWindow
 
         void ClearChat()
         {
+            if(_geminiHandsFreeActive)
+            {
+                StopHandsFreeSession();
+                handsFree!.Content="🎧 Bật rảnh tay";
+            }
             _geminiChatHistory.Clear();
             messages.Children.Clear();
             Bubble("model","Bắt đầu cuộc trò chuyện mới. Tôi chỉ tư vấn và không thay đổi dữ liệu kho.");
@@ -397,12 +402,23 @@ public partial class MainWindow
         {
             bool handedToSpeaker=false;
             if(_geminiChatSending)return;
+            if(_geminiHandsFreeActive && !fromHandsFree)
+            {
+                activity.Text="Đang bật rảnh tay. Bấm Tắt rảnh tay trước khi gửi văn bản thủ công.";
+                return;
+            }
             if(fromHandsFree && !HandsFreeCurrent(session))return;
             var userText=(voiceText??question.Text).Trim();
-            if(userText.Length==0){activity.Text="Nhập câu hỏi trước khi gửi.";return;}
+            if(userText.Length==0)
+            {
+                if(fromHandsFree)StopHandsFreeSession();
+                activity.Text="Không nhận được câu hỏi. Đã tắt rảnh tay.";
+                return;
+            }
             if(userText.Length>GeminiChatService.MaxQuestionLength)
             {
-                activity.Text="Câu hỏi không được quá 3.000 ký tự.";return;
+                if(fromHandsFree)StopHandsFreeSession();
+                activity.Text="Câu hỏi quá 3.000 ký tự. Đã tắt rảnh tay.";return;
             }
             string? key;
             try { key=new GeminiCredentialStore().ReadKey(); }
