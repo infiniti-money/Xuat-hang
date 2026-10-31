@@ -93,9 +93,9 @@ public partial class MainWindow
             {
                 // Recording has stopped before this cloud-upload decision.
                 if(_page!="gemini-chat"){Array.Clear(wav);return;}
-                if(!Ask("GỬI GIỌNG NÓI ĐẾN GEMINI?\\n\\n"+
+                if(!Ask("GỬI GIỌNG NÓI ĐẾN GEMINI?\n\n"+
                     "HISA đã dừng micro. Chỉ khi anh đồng ý, bản ghi âm ngắn sẽ "+
-                    "được gửi tới Google Gemini qua Internet để chuyển tiếng Việt thành chữ.\\n"+
+                    "được gửi tới Google Gemini qua Internet để chuyển tiếng Việt thành chữ.\n"+
                     "Âm thanh không được lưu vào Excel hoặc lịch sử HISA. "+
                     "Anh có thể chọn Không để hủy toàn bộ bản ghi."))
                 {
@@ -154,11 +154,11 @@ public partial class MainWindow
             }
             if(!_geminiMicrophoneConsent)
             {
-                if(!Ask("CHO PHÉP HISA DÙNG MICRO?\\n\\n"+
+                if(!Ask("CHO PHÉP HISA DÙNG MICRO?\n\n"+
                     "HISA chỉ mở micro khi anh bấm Bắt đầu, ghi tối đa 25 giây. "+
-                    "Âm thanh được giữ trong bộ nhớ và không tự gửi đi.\\n\\n"+
+                    "Âm thanh được giữ trong bộ nhớ và không tự gửi đi.\n\n"+
                     "Sau khi dừng, HISA sẽ hỏi xác nhận thêm một lần trước khi "+
-                    "gửi âm thanh đến Google Gemini để nhận dạng tiếng Việt.\\n\\n"+
+                    "gửi âm thanh đến Google Gemini để nhận dạng tiếng Việt.\n\n"+
                     "Đây là xác nhận trong HISA, không phải hộp thoại quyền của Windows. "+
                     "Windows vẫn có thể chặn truy cập micro trong Cài đặt."))
                 {
