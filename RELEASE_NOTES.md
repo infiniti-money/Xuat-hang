@@ -1,3 +1,14 @@
+# HISA v1.9.13 — Cột Ngày bàn giao tự động trong danh sách Máy kéo
+
+- Khi xác nhận **Đã xuất** trong Phiếu bàn giao, ghi **ngày bàn giao** (ngày trên phiếu) vào dòng **từng seri máy kéo** trong file `Danh sách sản xuất/MÁY KÉO.xlsx`.
+- Cột Excel được dùng lại nếu đã có tiêu đề `Ngày bàn giao`, hoặc tự tạo một cột mới ở sau cột cuối đã sử dụng, giữ nguyên các cột và dữ liệu hiện hữu.
+- Chỉ cập nhật nếu khớp duy nhất số HĐ, công trình, đơn vị, seri; không tự ghi cho nhiều máy cùng một HĐ, không ghi từ phiếu Chờ xuất hoặc Hồng Yên gia công chưa xuất kho. Seri thiếu, sai công trình hoặc ngày khác được nhập thủ công đều cảnh báo/không ghi đè.
+- Lưu bản sao nguyên gốc trước khi viết, Excel atomic save; nếu file khóa, phiếu đã xuất vẫn được giữ nguyên và HISA sẽ thử lại qua đồng bộ. Ngày đã ghi bởi HISA tự đổi nếu ngày phiếu được sửa, hoặc được hoàn tác khi phiếu bị hủy (nếu chưa chỉnh tay).
+- Bổ sung file receipt `motor_handover_excel_sync.json` cho theo dõi/hoàn tác, tự đưa vào ZIP sao lưu cùng trạng thái phiếu.
+- Bộ regression tạo Excel tạm và kiểm tra ghi ngày, phiếu chưa xuất, nhiều seri, trùng/mất seri, Excel đang khóa, dữ liệu thủ công và chuyển trạng thái hủy. Không có dữ liệu khách hàng nào được sửa trong GitHub Actions.
+
+---
+
 # HISA v1.9.12 — Cấu hình bằng một thư mục duy nhất
 
 - Chỉ cần chọn **thư mục gốc Kho HISA** một lần; HISA tự đọc 3 Excel trong `Kho chính`, chỉ lấy cont trong `CONT ĐI`, đọc 3 Excel thiết bị trong `Danh sách sản xuất`. Không còn nút hoặc ô chọn riêng từng Excel máy kéo/tủ điện/đầu cửa car.
