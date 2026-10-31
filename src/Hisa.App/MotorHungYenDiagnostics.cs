@@ -97,8 +97,8 @@ public static class MotorHungYenDiagnostics
         };
         var ambiguous=reopened.List([row2,row3,movedRow,duplicateSerial]);
         Check(ambiguous.Count==5 && ambiguous.Count(x=>x.State==MotorHungYenStore.HandedOver)==1 &&
-              ambiguous.Count(x=>x.Serial==row1.Serial&&x.PresentInSource)==2 &&
-              ambiguous.Where(x=>x.Serial==row1.Serial&&x.PresentInSource)
+              ambiguous.Count(x=>x.Serial==row1.Serial&&x.Project==row1.Project&&x.PresentInSource)==2 &&
+              ambiguous.Where(x=>x.Serial==row1.Serial&&x.Project==row1.Project&&x.PresentInSource)
                   .All(x=>x.State==MotorHungYenStore.Pending),
             "Duplicate physical serial in Excel does not give another row someone else's handed-over status");
         var old=reopened.List([row2,row3]);
