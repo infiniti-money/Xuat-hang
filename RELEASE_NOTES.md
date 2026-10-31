@@ -1,11 +1,9 @@
-# HISA v1.9.20 — Điều chỉnh nguồn cont: đọc trực tiếp trang Excel, không kiểm tra thư mục
+# HISA v1.9.20 — Nguồn CONT ĐI HƯNG YÊN và ngày về thực tế
 
-- Bỏ điều kiện phải có/quét thư mục vật lý **CONT ĐI HƯNG YÊN** trong luồng tìm theo ảnh Zalo hoặc số HĐ nhập tay. Đọc lại trực tiếp trang **Cont đi Hưng Yên** của **Tổng hợp.xlsx**, vẫn xác minh ID kiện, vật tư và số lượng trước khi ghi.
-- Chấp nhận chữ **HƯNG YÊN**, **HUNG YEN**, **hung yen** và viết xuống dòng ở ô dấu hiệu kiện, không phân biệt dấu/hoa/thường. Không lấy hàng vùng khác và không ghép nhầm hợp đồng tương tự.
-- Cho người dùng chọn **từng kiện đã về thực tế**, nhập **ngày về**, kiểm tra lại nguồn sau khi chọn và xác nhận; chỉ lúc đó mới sao chép vật tư, số lượng đúng kiện vào trang **chi tiết** của Tổng hợp.xlsx. Không chuyển nhầm ngày cont đi thành ngày về; không đối chiếu KT; không sửa bảng nguồn cont đi.
-- Kiểm thử workbook mẫu không cấu hình thư mục CONT ĐI, với nhãn HƯNG YÊN/hung yen/HUNG YEN; xác nhận nhập đúng ngày và chặn nhập trùng. Không thực hiện thao tác trên Excel thực của khách hàng.
-
-*Các đoạn ghi chú v1.9.20 cũ bên dưới mô tả luồng quét thư mục trước khi có điều chỉnh này; hướng dẫn mới ở trên thay thế yêu cầu đó.*
+- **Ưu tiên file vật lý:** ảnh Zalo hoặc số HĐ nhập tay sẽ tìm từng kiện HƯNG YÊN trong các file Excel ở **thư mục CONT ĐI HƯNG YÊN** đã cấu hình, đối chiếu HĐ, công trình/T1/T2, ngày cont đi, vật tư và số lượng với bảng Cont đi của Tổng hợp.xlsx. Không lấy dữ liệu master cũ nếu file nguồn không còn.
+- **Tương thích khi thiếu thư mục:** chỉ khi chưa cấu hình đường dẫn thư mục, phần mềm có thể đọc trực tiếp trang `Cont đi Hưng Yên` của Tổng hợp.xlsx, đồng thời ghi rõ đang dùng nguồn này trên giao diện.
+- **Ngày về thực tế:** chọn từng kiện đã nhận và ngày về, kiểm tra lại nguồn ngay trước khi ghi, chỉ sao chép các dòng vật tư thuộc đúng kiện vào trang chi tiết của Tổng hợp.xlsx. Sao lưu workbook và kiểm tra chống nhập trùng.
+- Không lấy hàng gửi đi nơi khác, không nạp tự động từ ngày dự kiến Zalo và không đối chiếu KT tổng hợp.
 
 ---
 
