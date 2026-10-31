@@ -285,7 +285,7 @@ public sealed partial class WarehouseService : IDisposable
             try
             {
                 var files=Directory.Exists(source)?Directory.EnumerateFiles(source,"*.xlsx",SearchOption.AllDirectories):File.Exists(source)?[source]:Array.Empty<string>();
-                stamps.AddRange(files.Where(p=>!Path.GetFileName(p).StartsWith("~$")&&!ContFileOrganizer.IsHangGuiFolder(p)&&!p.Contains(Path.DirectorySeparatorChar+".hisa-backups"+Path.DirectorySeparatorChar)&&!p.Equals(Settings.MasterPath,StringComparison.OrdinalIgnoreCase)&&!p.Equals(Settings.KtPath,StringComparison.OrdinalIgnoreCase)&&!p.Equals(Settings.ProductExportPath,StringComparison.OrdinalIgnoreCase)&&!p.Contains(Path.DirectorySeparatorChar+"XUẤT HÀNG"+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase)).Select(FileStamp));
+                stamps.AddRange(files.Where(p=>!Path.GetFileName(p).StartsWith("~$")&&!ContFileOrganizer.IsHangGuiFolder(p)&&!EquipmentListReader.IsConfiguredEquipmentFile(p,Settings)&&!p.Contains(Path.DirectorySeparatorChar+".hisa-backups"+Path.DirectorySeparatorChar)&&!p.Equals(Settings.MasterPath,StringComparison.OrdinalIgnoreCase)&&!p.Equals(Settings.KtPath,StringComparison.OrdinalIgnoreCase)&&!p.Equals(Settings.ProductExportPath,StringComparison.OrdinalIgnoreCase)&&!p.Contains(Path.DirectorySeparatorChar+"XUẤT HÀNG"+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase)).Select(FileStamp));
                 // Sibling received workbooks must participate in source fingerprints;
                 // otherwise sync can accidentally drop historical source packages.
                 if(Directory.Exists(source))
