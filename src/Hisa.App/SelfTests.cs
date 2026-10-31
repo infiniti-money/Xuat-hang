@@ -205,6 +205,7 @@ public static class SelfTests
             result.Checks.AddRange(await AuditExcelDiagnostics.RunAsync());
             result.Checks.AddRange(AuditPrintDiagnostics.Run());
             result.Checks.AddRange(await AuditStateDiagnostics.RunAsync());
+            result.Checks.AddRange(ContDiArrivalLookupDiagnostics.Run());
             result.Checks.AddRange(AiScheduleDiagnostics.Run());
             result.Checks.AddRange(AiWorkspaceDiagnostics.Run());
             result.Checks.AddRange(AiMaterialDiagnostics.Run());
