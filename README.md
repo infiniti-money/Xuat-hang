@@ -1,3 +1,15 @@
+## HISA v1.9.20 · Tìm và sao chép kiện Hưng Yên theo ngày cont về
+
+**Từ ảnh Zalo:** mở **Ảnh Zalo → nhập cont / làm phiếu**, chọn ảnh và phân tích Gemini. Màn hình cùng lúc tìm nguồn theo số HĐ vừa trích xuất từ các file Excel của **CONT ĐI HƯNG YÊN**, liệt kê các kiện riêng biệt. Nếu nguồn thay đổi, nhấn **Tìm kiện Hưng Yên trong CONT ĐI** để quét mới.
+
+**Từ số hợp đồng:** mở **Cont & kiện Hưng Yên → Nhập cont thủ công**, nhập các HĐ (mỗi dòng một mã). Chọn **ngày cont thực tế về kho** rồi bấm Tìm. Nếu một hợp đồng có nhiều kiện, T1/T2 hoặc ngày cont đi khác nhau, kiểm tra và tích **từng kiện thực tế đã về**; kiện chưa nhận giữ nguyên ở CONT ĐI.
+
+**Ghi Excel:** bấm **Sao chép kiện đã về → Tổng hợp.xlsx**, đọc lại toàn bộ nguồn và kiểm tra ID, vật tư, số lượng một lần nữa, xem bảng xác nhận hợp đồng/kiện/ngày/vật tư. Chỉ khi xác nhận mới ghi đúng các dòng kiện HƯNG YÊN vào trang **chi tiết** theo ngày về, lưu bản sao workbook trước khi thay thế. Không sao chép KT, hàng ngoài Hưng Yên, hay các hợp đồng không tích. Đã nhập và nguồn thay đổi sẽ bị chặn ghi trùng.
+
+**Lưu ý:** Ảnh Zalo và ngày dự kiến không phải chứng từ hàng thực nhập. Những hàng chưa đủ công trình, đơn vị hoặc ngày cont đi phải đối chiếu nguồn trước khi xác nhận. Cần đóng Excel khi ghi.
+
+---
+
 ## HISA v1.9.19 — Cập nhật quy trình nhập kho và trợ lý AI
 
 **Máy kéo:** trạng thái **Chưa làm / Đã làm / Ngày xuất kho** được đọc và ghi hai chiều tại **cột K** của `Danh sách sản xuất/MÁY KÉO.xlsx`. Trước khi ghi cần xác minh duy nhất hợp đồng, công trình, đơn vị và seri; ngày xuất chỉ theo phiếu Đã xuất. Giá trị lịch sử tại cột L/N giữ nguyên, không tự chuyển hoặc xóa.
