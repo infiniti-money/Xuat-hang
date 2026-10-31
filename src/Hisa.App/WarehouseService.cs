@@ -382,14 +382,12 @@ public sealed partial class WarehouseService : IDisposable
                 // OriginPackageId. Keep partially received workbooks in CONT ĐI.
                 if(sourceScan!=null && sourceFilesStable && sourceStamp==SourceFingerprint())
                 {
-                    var received=loaded.DetailPackages.Where(p=>p.OriginPackageId.Length>0)
-                        .Select(p=>p.OriginPackageId).ToHashSet(StringComparer.Ordinal);
                     warnings.AddRange(ContFileOrganizer.RelocateLegacyFolders(
-                        Settings.DataSources,sourceScan.Packages,received));
+                        Settings.DataSources,sourceScan.Packages,loaded));
                     if(importSaved)
                     {
                         var confirmed=ContFileOrganizer.ConfirmedCandidates(
-                            sourceScan.ImportedHungYenFiles,sourceScan.Packages,received);
+                            sourceScan.ImportedHungYenFiles,sourceScan.Packages,loaded);
                         warnings.AddRange(ContFileOrganizer.MoveFiles(confirmed,"Đã nhập kho"));
                     }
                     warnings.AddRange(ContFileOrganizer.MoveFiles(sourceScan.HangGuiFiles,"Hàng gửi"));
