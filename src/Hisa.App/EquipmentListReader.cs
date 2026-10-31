@@ -8,7 +8,7 @@ namespace Hisa.App;
 /// Read-only production lists: Tủ điện, Máy kéo, Đầu cửa car.
 /// A production record is NOT a confirmed warehouse arrival, nor material
 /// available for issuing a delivery slip. The reader is read-only; only the
-/// explicitly approved MotorHandoverExcel workflow writes machine column L.
+/// explicitly approved MotorHandoverExcel workflow writes machine column K.
 /// </summary>
 public static class EquipmentListReader
 {
@@ -30,7 +30,7 @@ public static class EquipmentListReader
         public int SourceRow { get; set; }
         public string Sheet { get; set; } = "";
         public string Verification { get; set; } = "";
-        public string MotorColumnL { get; set; } = "";
+        public string MotorColumnK { get; set; } = "";
     }
 
     /// <summary>The three production workbooks are independent, optional inputs.</summary>
@@ -163,7 +163,7 @@ public static class EquipmentListReader
         Material=x.Material,Unit=x.Unit,Quantity=x.Quantity,Serial=x.Serial,Lot=x.Lot,
         ProductionDate=x.ProductionDate,Code=x.Code,Note=x.Note,Source=x.Source,
         Sheet=x.Sheet,SourceRow=x.SourceRow,Verification=x.Verification,
-        MotorColumnL=x.MotorColumnL
+        MotorColumnK=x.MotorColumnK
     };
 
     private static string Txt(IXLWorksheet ws,int row,int col)
@@ -256,7 +256,7 @@ public static class EquipmentListReader
                         Unit=Txt(sheet,i,6),Quantity=Qty(sheet,i,7),
                         Lot=Txt(sheet,i,8),Serial=Txt(sheet,i,9),
                         Note="Thông tin cont đi / trạng thái ghi trong file: "+Txt(sheet,i,10),
-                        MotorColumnL=ExcelDay(sheet,i,12),
+                        MotorColumnK=ExcelDay(sheet,i,11),
                         Source=source,Sheet=sheet.Name,SourceRow=i
                     });
                 }
