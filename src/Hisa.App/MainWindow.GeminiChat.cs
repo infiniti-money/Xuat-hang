@@ -12,6 +12,8 @@ public partial class MainWindow
     private readonly List<GeminiChatMessage> _geminiChatHistory = [];
     private bool _geminiChatIncludeWarehouse;
     private bool _geminiChatSending;
+    private readonly GeminiVoice _geminiVoice=new();
+    private bool _geminiChatAutoSpeak;
 
     private void ShowGeminiChat()
     {
@@ -78,6 +80,39 @@ public partial class MainWindow
 
         var send=B("➤  Gửi câu hỏi",()=>{ },true);
         var activity=T("Sẵn sàng. Mỗi câu hỏi cần Internet và hạn mức Gemini API.",11,false,Muted);
+        var autoVoice=new CheckBox{Content="Tự đọc câu trả lời bằng loa hệ thống",
+            IsChecked=_geminiChatAutoSpeak};
+        autoVoice.Checked+=(_,_)=>_geminiChatAutoSpeak=true;
+        autoVoice.Unchecked+=(_,_)=>_geminiChatAutoSpeak=false;
+        var listen=B("🎙  Mic nhập câu hỏi",()=>
+        {
+            try
+            {
+                _geminiVoice.Listen(word=>Dispatcher.BeginInvoke(()=>
+                {
+                    if(question.Text.Length>0)question.Text+=" ";
+                    question.Text+=word;question.CaretIndex=question.Text.Length;
+                }),message=>Dispatcher.BeginInvoke(()=>activity.Text=message));
+            }
+            catch(Exception ex)when(ex is InvalidOperationException or
+                System.Speech.Recognition.InvalidOperationException or
+                System.Runtime.InteropServices.COMException)
+            {activity.Text="Không thể truy cập mic/nhận dạng Windows: "+ex.Message;}
+        });
+        var speak=B("🔊  Đọc câu trả lời",()=>
+        {
+            var latest=_geminiChatHistory.LastOrDefault(x=>x.Role=="model")?.Text;
+            if(string.IsNullOrWhiteSpace(latest))
+            {activity.Text="Chưa có câu trả lời Gemini để phát.";return;}
+            try{_geminiVoice.Speak(latest,message=>Dispatcher.BeginInvoke(()=>
+                    activity.Text=message));}
+            catch(Exception ex) {activity.Text="Loa hệ thống: "+ex.Message;}
+        });
+        var stopVoice=B("◼ Dừng mic/loa",()=>
+        {
+            _geminiVoice.StopListening();_geminiVoice.StopSpeaking();
+            activity.Text="Đã dừng mic/loa.";
+        });
 
         void ClearChat()
         {
@@ -141,6 +176,12 @@ public partial class MainWindow
                     _geminiChatHistory.RemoveRange(0,_geminiChatHistory.Count-24);
                 Bubble("user",userText);
                 Bubble("model",reply);
+                if(_geminiChatAutoSpeak)
+                {
+                    try{_geminiVoice.Speak(reply,message=>Dispatcher.BeginInvoke(()=>
+                            activity.Text=message));}
+                    catch(Exception ex){activity.Text="Loa Windows: "+ex.Message;}
+                }
                 question.Clear();
                 ScrollToEnd();
                 activity.Text="Gemini đã trả lời. Trạng thái kho chỉ có giá trị sau khi anh kiểm tra nguồn.";
@@ -177,21 +218,25 @@ public partial class MainWindow
         var examples=Row(
             B("Hợp đồng nào cần chuẩn bị?",()=>question.Text="Hôm nay và ngày mai có hợp đồng nào dự kiến xuất, cần chuẩn bị vật tư?"),
             B("Tìm theo số hợp đồng",()=>{question.Text="Tra cứu hợp đồng ";question.Focus();question.CaretIndex=question.Text.Length;}),
+            B("Báo cáo công việc hôm nay",()=>{_geminiChatIncludeWarehouse=true;
+                contextToggle.IsChecked=true;question.Text="Dựa trên dữ liệu kho đã chia sẻ, tóm tắt công việc hôm nay, kiện cont chờ nhận, hợp đồng chờ xuất, máy kéo cần kiểm tra và việc cần ưu tiên. Nêu rõ những gì chưa có dữ liệu."; }),
             B("Quy tắc cont đi",()=>question.Text="Nếu cùng hợp đồng nhưng khác ngày cont đi và T1/T2 thì quản lý kiện thế nào?")
         );
         var head=Card(Stack(
             Row(T("✦  GEMINI CHAT  /  TRỢ LÝ HISA",19,true),
                 B("⚙  Gemini API Key",()=>Navigate("settings")),
                 B("Xóa hội thoại",ClearChat)),
-            T("Trò chuyện trực tiếp bằng tiếng Việt. Không tự thay đổi Tổng hợp.xlsx, phiếu bàn giao hay trạng thái xuất/nhập.",12,false,Muted),
-            contextToggle,privacyNote,
+            T("Gemini hiểu lịch xuất, nguồn kiện và công việc trong ngày khi bạn chủ động bật chia sẻ dữ liệu. Mic chỉ thu một câu khi bấm, lời nói được nhận dạng cục bộ trên Windows; loa đọc câu trả lời bằng giọng hệ thống. AI đề xuất sửa Excel riêng, phải xem trước và xác nhận.",12,false,Muted),
+            contextToggle,privacyNote,autoVoice,
+            Row(listen,speak,stopVoice),
             T("Chỉ bật chia sẻ dữ liệu khi muốn tra cứu hợp đồng, vật tư hoặc kế hoạch thực tế từ HISA.",11,false,Muted)
         ));
         var bottom=Card(Stack(
             T("CÂU HỎI GỢI Ý",11,true,Brush("#1D8E91")),
             examples,
             question,
-            Row(send,B("Lịch Zalo",()=>Navigate("ai-schedule")),
+            Row(send,B("AI đọc / đề xuất sửa Excel",()=>Navigate("gemini-excel")),
+                B("Lịch Zalo",()=>Navigate("ai-schedule")),
                 B("Kiểm tra xuất hàng",()=>Navigate("readiness"))),
             activity),new Thickness(16,12,16,12));
         var layout=new Grid();
@@ -201,7 +246,7 @@ public partial class MainWindow
         layout.Children.Add(head);
         Grid.SetRow(viewer,1);layout.Children.Add(viewer);
         Grid.SetRow(bottom,2);layout.Children.Add(bottom);
-        SetPage("Trợ lý Gemini AI","Trò chuyện tiếng Việt · tùy chọn đọc dữ liệu kho · chỉ hỗ trợ, không tự ghi",layout);
+        SetPage("Trợ lý Gemini AI","Mic & loa Windows · hiểu kế hoạch hằng ngày · đề xuất sửa Excel có phê duyệt",layout);
         ScrollToEnd();
     }
 }
