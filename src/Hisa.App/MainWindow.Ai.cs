@@ -227,35 +227,25 @@ public partial class MainWindow
         }
         incomingBody.Children.Add(T("Nếu cont THỰC TẾ đã về, tích đúng hợp đồng ở cột 'Cont đã về?', rồi đối chiếu và chọn từng kiện. Ngày dự kiến không phải ngày thực tế.",12,false,Muted));
         incomingBody.Children.Add(Row(
-            B("✓  1 · Đối chiếu cont đã về → Ghi Excel", () =>
+            B("⌕  Tìm kiện HĐ trong CONT ĐI", ()=>
             {
-                if (!_aiApproved || string.IsNullOrWhiteSpace(doc.ApprovedAt))
-                {
-                    Notify("Hãy kiểm tra và lưu duyệt danh sách trước khi nhập cont thực tế.");
-                    return;
-                }
                 Commit(incoming);
-                if(doc.Arrivals.All(x=>!x.SelectedForArrival))
-                {
-                    Notify("Tích ô 'Cont đã về?' của hợp đồng có hàng thực tế đã nhận. Sau đó kiểm tra từng kiện.");
-                    return;
-                }
-                // Real arrivals are confirmed in the same screen, directly below the plan.
                 ShowAiSchedules();
             }, true),
             B("Bỏ tích cont",()=>{foreach(var r in doc.Arrivals)r.SelectedForArrival=false;incoming.Items.Refresh();}),
-            B("Lịch dự kiến + xác nhận cont",()=>ShowAiSchedules()),
+            B("Xem bảng kiện nguồn",()=>ShowAiSchedules()),
             B("Trạng thái lịch xuất",()=>CycleSchedule(incoming))
         ));
         incomingBody.Children.Add(T("Nhấp MỘT LẦN vào ô vuông để tích. Chọn một dòng bất kỳ để xem từng vật tư, số lượng và tình trạng thực nhận ngay bên dưới.",12,false,Muted));
         incomingBody.Children.Add(incoming);
-        // Merge planned-arrival review and actual-arrival package verification.
-        // A just-approved in-memory schedule is the only eligible source;
-        // deliberately never reload an older approved AI document from disk.
-        if(_aiApproved && !string.IsNullOrWhiteSpace(doc.ApprovedAt))
+        // Exact source search is available as soon as the photo is analyzed
+        // or incoming contract codes are entered. Approval/receipt is a separate
+        // explicit action: the source file, date and each package are verified.
+        if(doc.Arrivals.Count>0)
         {
-            incomingBody.Children.Add(T("XÁC NHẬN CONT ĐÃ VỀ THỰC TẾ · NGAY DƯỚI LỊCH DỰ KIẾN",15,true));
-            incomingBody.Children.Add(BuildPlannedArrivalPanel(doc,true));
+            incomingBody.Children.Add(T("TÌM KIỆN HƯNG YÊN TỪ CONT ĐI · XÁC NHẬN VỀ KHO",16,true));
+            incomingBody.Children.Add(BuildContDiSourcePanel(
+                ()=>doc.Arrivals.ToList(),()=>Commit(incoming),searchWhenLoaded:true));
         }
 
         EquipmentListReader.Catalog? productionCache=null;
