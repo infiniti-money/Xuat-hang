@@ -47,7 +47,7 @@ public static class MotorHungYenDiagnostics
               allContracts.Single(x=>x.Project=="Công trình B").MachineCount==1,
             "Contract summary groups exact HĐ + công trình + đơn vị instead of merging T1/T2");
         Check(MotorHungYenContractOverview.Summarize(before,true).Count==0,
-            "Only confirmed sent contracts appear in Hồng Yên outsourcing list, never unverified Excel rows");
+            "Only confirmed sent contracts appear in Hưng Yên outsourcing list, never unverified Excel rows");
         var chosen=before[0];
         var d1=DateTime.Today.AddDays(-3).ToString("yyyy-MM-dd");
         var d2=DateTime.Today.AddDays(-2).ToString("yyyy-MM-dd");
@@ -96,7 +96,7 @@ public static class MotorHungYenDiagnostics
               handedContracts[0].HandedOverCount==1 &&
               handedContracts[0].PendingCount==1 &&
               handedContracts[0].MachineCount==2,
-            "One handed-over motor is visible under the Hồng Yên contract without making pending motor delivered");
+            "One handed-over motor is visible under the Hưng Yên contract without making pending motor delivered");
         Check(Rejected(()=>reopened.Advance(loaded[0],MotorHungYenStore.Sent,d3,"")),
             "Cannot silently reset handed-over machine to sent");
         var movedRow=new EquipmentListReader.Row

@@ -72,7 +72,7 @@ public partial class MainWindow
         var contractsSummary=T("",12,true,Muted);
         var confirmedOnly=new CheckBox
         {
-            Content="Chỉ hiện hợp đồng đã xác nhận gửi Hồng Yên gia công",
+            Content="Chỉ hiện hợp đồng đã xác nhận gửi gia công tại Hưng Yên",
             IsChecked=true,VerticalAlignment=VerticalAlignment.Center,
             Margin=new Thickness(0,0,16,0)
         };
@@ -149,7 +149,7 @@ public partial class MainWindow
             if(selectedContractKey.Length>0)
                 contractGrid.SelectedItem=shown.FirstOrDefault(x=>x.Key==selectedContractKey);
             contractsSummary.Text=$"{shown.Count:N0} hợp đồng đang hiển thị · "+
-                $"{MotorHungYenContractOverview.Summarize(items,true).Count:N0} hợp đồng đã gửi Hồng Yên · "+
+                $"{MotorHungYenContractOverview.Summarize(items,true).Count:N0} hợp đồng đã gửi gia công tại Hưng Yên · "+
                 $"{MotorHungYenContractOverview.Summarize(items,false).Count:N0} hợp đồng trong file Máy kéo";
             if(shown.Count==0 && confirmedOnly.IsChecked==true)
                 contractsSummary.Text+="\nChưa có hợp đồng được xác nhận gửi. Bỏ chọn bộ lọc để xem HĐ từ Excel, sau đó chọn máy và xác nhận gửi thực tế.";
@@ -183,7 +183,7 @@ public partial class MainWindow
                 Notify("Máy kéo này không còn trong Excel nguồn. Kiểm tra file trước khi cập nhật.");return;
             }
             var current=selected.StatusLabel;
-            if(!Ask($"XÁC NHẬN TRẠNG THÁI MÁY KÉO GIA CÔNG HỒNG YÊN\n"+
+            if(!Ask($"XÁC NHẬN TRẠNG THÁI MÁY KÉO GIA CÔNG TẠI HƯNG YÊN\n"+
                 $"HĐ: {selected.Contract}\nCông trình: {selected.Project}\n"+
                 $"Máy: {selected.Material}\nSeri: {selected.Serial}\n"+
                 $"Hiện tại: {current}\nChuyển sang: {MotorHungYenStore.Name(next)}\n"+
@@ -207,9 +207,9 @@ public partial class MainWindow
             }
         }
         var tools=Card(Stack(
-            T("HỢP ĐỒNG MÁY KÉO GIA CÔNG HỒNG YÊN",18,true),
+            T("HỢP ĐỒNG MÁY KÉO GIA CÔNG TẠI HƯNG YÊN",18,true),
             T("Chọn hợp đồng và từng seri máy kéo. Cột N nhận chữ Chưa làm / Đã làm; khi xác nhận Đã xuất mới đổi thành ngày thực tế.",12,false,Muted),
-            T("Chỉ hợp đồng đã được người thao tác xác nhận GỬI mới vào danh sách gia công; việc xuất hiện trong MÁY KÉO.xlsx hay ghi chú DXH không có nghĩa đã gửi Hồng Yên.",11,false,Muted),
+            T("Chỉ hợp đồng đã được người thao tác xác nhận GỬI mới vào danh sách gia công; việc xuất hiện trong MÁY KÉO.xlsx hay ghi chú DXH không có nghĩa đã gửi gia công tại Hưng Yên.",11,false,Muted),
             Row(Field("Tìm số HĐ / công trình / máy / seri",query),
                 Field("Trạng thái máy",stage),
                 B("Làm mới từ file Máy kéo",()=>ShowMotorHungYen())),
@@ -219,7 +219,7 @@ public partial class MainWindow
             selection,
             Row(Field("Ngày xác nhận thực tế",effectiveDay),
                 Field("Ghi chú / chứng từ / người nhận",note)),
-            Row(B("Xác nhận đã gửi Hồng Yên",()=>MoveTo(MotorHungYenStore.Sent)),
+            Row(B("Xác nhận đã gửi gia công tại Hưng Yên",()=>MoveTo(MotorHungYenStore.Sent)),
                 Field("Tình trạng gia công (chọn một)",workChoice),
                 A("Lưu trạng thái vào Excel cột N",async()=>
                 {
@@ -277,7 +277,7 @@ public partial class MainWindow
         tables.RowDefinitions.Add(new RowDefinition{Height=new GridLength(2,GridUnitType.Star)});
         tables.RowDefinitions.Add(new RowDefinition{Height=GridLength.Auto});
         tables.RowDefinitions.Add(new RowDefinition{Height=new GridLength(3,GridUnitType.Star)});
-        var contractHeading=T("1 · CÁC HỢP ĐỒNG MÁY KÉO GỬI HỒNG YÊN GIA CÔNG",14,true);
+        var contractHeading=T("1 · HỢP ĐỒNG MÁY KÉO GIA CÔNG TẠI HƯNG YÊN",14,true);
         tables.Children.Add(contractHeading);
         Grid.SetRow(contractGrid,1);tables.Children.Add(contractGrid);
         var machineHeading=T("2 · CHI TIẾT MÁY KÉO THEO HỢP ĐỒNG (CHỌN MÁY ĐỂ XÁC NHẬN)",14,true);
@@ -285,7 +285,7 @@ public partial class MainWindow
         Grid.SetRow(grid,3);tables.Children.Add(grid);
         RefreshContracts();
         FilterMachines();
-        SetPage("Theo dõi máy kéo Hồng Yên",
+        SetPage("Máy kéo gia công tại Hưng Yên",
             "Xem hợp đồng đã gửi gia công → đã làm xong → đã bàn giao · theo từng HĐ và seri",
             Layout(header,tables));
     }

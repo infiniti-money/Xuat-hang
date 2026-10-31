@@ -64,9 +64,19 @@ public static class UiWorkflowDiagnostics
                     x.Text.Contains("không phải chọn từng file",StringComparison.OrdinalIgnoreCase)),
                 "Source setup explains automatic lookup of the six Excel files");
             Check(navigation.Children.OfType<Button>().Any(b=>b.Content?.ToString()
-                    ?.Contains("HĐ máy kéo · gia công Hồng Yên")==true),
+                    ?.Contains("Máy kéo gia công tại Hưng Yên")==true),
                 "Motor Hưng Yên tracker has its own visible navigation menu");
             Call("ShowMotorHungYen");
+            Check(window.FindName("PageTitle") is TextBlock motorTitle &&
+                  motorTitle.Text=="Máy kéo gia công tại Hưng Yên",
+                "Motor outsourcing page title uses the corrected Hưng Yên location");
+            Check(MotorHungYenStore.Name(MotorHungYenStore.Sent)=="Đã gửi gia công tại Hưng Yên",
+                "Motor status label is corrected without altering persisted status codes");
+            Check(!Children(window).OfType<TextBlock>().Any(t=>t.Text.Contains("Hồng Yên",StringComparison.Ordinal)) &&
+                  !Children(window).OfType<Button>().Any(b=>b.Content is string name && name.Contains("Hồng Yên",StringComparison.Ordinal)) &&
+                  !Children(window).OfType<CheckBox>().Any(c=>c.Content is string label && label.Contains("Hồng Yên",StringComparison.Ordinal)),
+                "Motor screen contains no outdated Hồng Yên captions");
+
             Check(Children(window).OfType<DataGrid>().Any(g=>
                 g.Columns.OfType<DataGridTextColumn>().Any(c=>c.Header?.ToString()=="Tiến độ xác nhận") &&
                 g.Columns.OfType<DataGridTextColumn>().Any(c=>c.Header?.ToString()=="Chọn làm") &&
@@ -85,9 +95,9 @@ public static class UiWorkflowDiagnostics
                 g.Columns.OfType<DataGridTextColumn>().Any(c=>c.Header?.ToString()=="Bàn giao")),
                 "Motor tracker displays a separate contract-level outsourcing overview");
             Check(Children(window).OfType<CheckBox>().Any(c=>
-                c.Content?.ToString()?.Contains("Chỉ hiện hợp đồng đã xác nhận gửi Hồng Yên")==true &&
+                c.Content?.ToString()?.Contains("Chỉ hiện hợp đồng đã xác nhận gửi gia công tại Hưng Yên")==true &&
                 c.IsChecked==true),
-                "Contract overview defaults to confirmed Hồng Yên subcontracting only, never all unverified Excel rows");
+                "Contract overview defaults to confirmed Hưng Yên subcontracting only, never all unverified Excel rows");
             var simulated=AiScheduleWorkspace.NewDraft(new DateTime(2026,10,31));
             simulated.Arrivals.Add(new AiScheduleLine{Contract="05492026",Project="Công trình A",Company="Công ty A",PlannedDate=simulated.ArrivalDate});
             simulated.Dispatches.Add(new AiScheduleLine{Contract="20012026",Project="Công trình C",Company="Công ty A",PlannedDate=simulated.DispatchDate});

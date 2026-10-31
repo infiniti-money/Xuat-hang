@@ -1,5 +1,16 @@
 ## Phục hồi ZIP và xử lý lỗi cập nhật (v1.9.15)
 
+## Tên màn hình máy kéo từ HISA v1.9.17
+
+**Tên chính thức trên giao diện:** **Máy kéo gia công tại Hưng Yên**. Mở bằng menu bên trái cùng tên, hoặc tại **Quản lý & lịch sử → Máy kéo gia công tại Hưng Yên**.
+
+Chọn hợp đồng và máy/seri, ghi nhận giai đoạn **Đã gửi gia công tại Hưng Yên → Đã làm xong → Đã bàn giao**. Tình trạng **Chưa làm / Đã làm** được cập nhật vào cột N khi người vận hành xác nhận; ngày bàn giao theo phiếu **Đã xuất** vẫn do quy trình xuất kho kiểm soát. Phần **Cont & kiện Hưng Yên** là nghiệp vụ kho khác, không tự thay đổi theo trạng thái gia công.
+
+Đây là thay đổi **tên hiển thị**, không di chuyển/xóa `motor_hung_yen_tracking.json`, không đổi mã trạng thái và không ảnh hưởng dữ liệu của các phiên bản trước. Ghi chú cũ sử dụng tên “Hồng Yên” là cách gọi đã được đính chính từ v1.9.17.
+
+---
+
+
 1. Sao lưu dữ liệu hiện tại và đóng mọi file Excel đang mở. Vào **Cấu hình & sao lưu → Phục hồi từ ZIP**; kiểm tra tên file, phiên bản ZIP và số lượng mục.
 2. Chọn **Dữ liệu ứng dụng** (phiếu, trạng thái, cấu hình, lịch AI) hoặc **Excel**. Excel **không được chọn sẵn**, tránh ghi đè workbook kho ngoài ý muốn. Bấm xác nhận và chờ thông báo. HISA tạo thư mục Restore-Safety-* trong Backups chứa từng tệp gốc và restore-map.json; giữ thư mục này để có thể phục hồi thủ công.
 3. HISA đóng sau khi khôi phục; mở lại và kiểm tra **Cấu hình nguồn**, đặc biệt nếu ZIP lấy từ máy Windows khác. ZIP v1 cũ không có manifest và không chứa lịch AI; phải đối chiếu thủ công phần lịch thiếu. Gemini API Key được Windows Credential Manager quản lý riêng và không nằm trong bản ZIP.
