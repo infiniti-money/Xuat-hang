@@ -731,11 +731,59 @@ public partial class MainWindow : Window
             model.AutoRefresh=auto.IsChecked==true;model.AutoSyncCont=cont.IsChecked==true;
             model.AutoSyncKt=syncKt.IsChecked==true;model.PollSeconds=seconds;
             await _service.SaveSettingsAsync(model);await _service.RefreshAsync(true);Notify("Đã lưu cấu hình nguồn.");ShowSettings();
-        },true),A("Sao lưu vào Thư viện",async()=>{var path=System.IO.Path.Combine(_service.BackupDirectory,$"HISA-sao-luu-{DateTime.Now:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}.zip");await _service.BackupAsync(path);Notify("Đã sao lưu vào Thư viện → Tài liệu:\n"+path);}),B("Mở thư mục Backup",()=>System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(_service.BackupDirectory){UseShellExecute=true})),B("Mở thư mục dữ liệu",()=>System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(_service.DataDirectory){UseShellExecute=true}))));
+        },true),A("Sao lưu vào Thư viện",async()=>{var path=System.IO.Path.Combine(_service.BackupDirectory,$"HISA-sao-luu-{DateTime.Now:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}.zip");await _service.BackupAsync(path);Notify("Đã sao lưu vào Thư viện → Tài liệu:\n"+path);}),A("Phục hồi từ ZIP",RestoreFromZipAsync),B("Mở thư mục Backup",()=>System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(_service.BackupDirectory){UseShellExecute=true})),B("Mở thư mục dữ liệu",()=>System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(_service.DataDirectory){UseShellExecute=true}))));
         p.Children.Add(GeminiSettingsCard());
         p.Children.Add(Alert($"Dữ liệu ứng dụng: {_service.DataDirectory}\nSao lưu (ZIP và Excel): {_service.BackupDirectory}\nCác bản sao lưu cũ tại nguồn sẽ được giữ nguyên."));
         SetPage("Cấu hình & sao lưu","Gemini AI · lưu / xóa API Key · đồng bộ dữ liệu Excel · sao lưu",new ScrollViewer{Content=p,VerticalScrollBarVisibility=ScrollBarVisibility.Auto});
     }
+    private async Task RestoreFromZipAsync()
+    {
+        var picker=new Microsoft.Win32.OpenFileDialog
+        {
+            Title="Chọn bản sao lưu HISA cần phục hồi",
+            Filter="Bản sao lưu HISA (*.zip)|*.zip",
+            CheckFileExists=true,Multiselect=false,
+            InitialDirectory=_service.BackupDirectory
+        };
+        if(picker.ShowDialog(this)!=true)return;
+        var info=await Task.Run(()=>BackupRestore.Inspect(picker.FileName));
+        var appData=new CheckBox{Content=$"Phục hồi dữ liệu ứng dụng ({info.DataCount} JSON: phiếu, lịch AI, cấu hình...)",
+            IsChecked=true,Margin=new Thickness(0,6,0,10)};
+        var excel=new CheckBox{Content=$"Phục hồi file Excel chuẩn ({info.ExcelCount} workbook)",
+            IsChecked=false,Margin=new Thickness(0,6,0,10)};
+        var warning=info.Legacy?
+            "ZIP v1 cũ KHÔNG có SHA-256 và KHÔNG chứa lịch AI đã duyệt. Chỉ các file hiện có được khôi phục.":
+            "ZIP v2 có manifest SHA-256; kiểm tra toàn vẹn và cấu trúc trước khi thay đổi dữ liệu.";
+        var confirm=new Window
+        {
+            Title="HISA · Xem trước và chọn phục hồi",Owner=this,Width=740,Height=370,
+            WindowStartupLocation=WindowStartupLocation.CenterOwner,ResizeMode=ResizeMode.NoResize,
+            Background=Brush("#F3F6FA")
+        };
+        confirm.Content=new Border
+        {
+            Padding=new Thickness(22),Child=Stack(
+                T("PHỤC HỒI DỮ LIỆU TỪ ZIP",19,true),
+                T("Nguồn: "+System.IO.Path.GetFileName(picker.FileName),12,false,Muted),
+                T("Ngày tạo/ghi file: "+info.CreatedAt+" · "+warning,12,false,Muted),
+                appData,excel,
+                Alert("HISA sẽ tự tạo bản sao an toàn trước khi ghi; nếu gặp lỗi sẽ hoàn tác. "+
+                    "Nên đóng các file Excel đang mở. Phục hồi cấu hình từ máy khác có thể thay đổi đường dẫn nguồn."),
+                Row(B("Phục hồi nhóm đã chọn",()=>confirm.DialogResult=true,true),
+                    B("Hủy",()=>confirm.DialogResult=false))
+            )
+        };
+        if(confirm.ShowDialog()!=true)return;
+        if(appData.IsChecked!=true && excel.IsChecked!=true)
+            throw new InvalidOperationException("Chọn dữ liệu ứng dụng và/hoặc Excel trước khi phục hồi.");
+        var safety=await _service.RestoreBackupAsync(picker.FileName,appData.IsChecked==true,excel.IsChecked==true);
+        MessageBox.Show(this,
+            "Phục hồi thành công. Bản sao an toàn trước phục hồi nằm tại:\n"+safety+
+            "\n\nHISA sẽ đóng để nạp lại dữ liệu khi mở lần tới.",
+            "HISA · Phục hồi hoàn tất",MessageBoxButton.OK,MessageBoxImage.Information);
+        System.Windows.Application.Current.Shutdown();
+    }
+
     private static FrameworkElement DockWithButton(FrameworkElement input,Button button)
     {var p=new DockPanel();DockPanel.SetDock(button,Dock.Right);p.Children.Add(button);p.Children.Add(input);return p;}
     private string? Prompt(string title,string message,bool multiline=false)
