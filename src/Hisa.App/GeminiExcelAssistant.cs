@@ -146,8 +146,9 @@ public static class GeminiExcelAssistant
             throw new IOException("File Excel đã thay đổi sau lúc xem trước. Hãy đọc lại trước khi xác nhận.");
         using var book=new XLWorkbook(preview.Path);
         var sheet=book.Worksheet(preview.Sheet);
-        bool machine=Path.GetFullPath(preview.Path).Equals(
-            Path.GetFullPath(settings.TractionMachineListPath),StringComparison.OrdinalIgnoreCase);
+        bool machine=!string.IsNullOrWhiteSpace(settings.TractionMachineListPath) &&
+            Path.GetFullPath(preview.Path).Equals(Path.GetFullPath(settings.TractionMachineListPath),
+                StringComparison.OrdinalIgnoreCase);
         foreach(var edit in proposal.Changes)
         {
             var cell=sheet.Cell(edit.Row,edit.Column);
@@ -164,7 +165,8 @@ public static class GeminiExcelAssistant
             }
             // Other warehouse Excel contracts and protected material/date cells
             // require deterministic workflow, not generic AI cell editing.
-            if(Path.GetFullPath(preview.Path).Equals(Path.GetFullPath(settings.MasterPath),
+            if(!string.IsNullOrWhiteSpace(settings.MasterPath) &&
+               Path.GetFullPath(preview.Path).Equals(Path.GetFullPath(settings.MasterPath),
                 StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException(
                     "Tổng hợp.xlsx là sổ kho chính. Hãy dùng chức năng nhập/xuất đã kiểm tra để ghi; AI chỉ đọc và đề xuất.");
