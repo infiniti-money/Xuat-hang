@@ -147,7 +147,7 @@ public static class MotorHandoverExcel
         var receiptPath=Path.Combine(dataDirectory,ReceiptFile);
         var allReceipts=ReadReceipts(receiptPath);
         var legacy=allReceipts.Where(x=>!string.Equals(x.Column,"K",StringComparison.OrdinalIgnoreCase)).ToList();
-        var prior=allReceipts.Where(x=>string.Equals(x.Column,"L",StringComparison.OrdinalIgnoreCase)).ToList();
+        var prior=allReceipts.Where(x=>string.Equals(x.Column,"K",StringComparison.OrdinalIgnoreCase)).ToList();
         var incomplete=slips.Where(x=>x.Status=="delivered")
             .SelectMany(x=>x.Lines.Where(MotorSerials.IsMotor))
             .Any(x=>x.Quantity is >0);
@@ -238,7 +238,7 @@ public static class MotorHandoverExcel
             var cell=sheet.Cell(candidates[0].SourceRow,dateColumn);
             var existing=DateText(cell);
             priorByKey.TryGetValue(identity,out var owned);
-            // Excel is also an input: a human's change in L must not be
+            // Excel is also an input: a human's change in K must not be
             // silently reverted by background reconciliation with stale JSON.
             // Only an explicit click in HISA may replace one work word with another.
             bool explicitWork=explicitWorkIdentity==identity && IsWorkText(day) &&
