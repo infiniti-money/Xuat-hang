@@ -578,41 +578,25 @@ public partial class MainWindow : Window
     private void ShowArrival()
     {
         _page="arrival";
-        var codes=Input("",true);codes.Width=410;
-        var day=DateInput(DateTime.Today.ToString("yyyy-MM-dd"));
-        var info=T("Nhập các hợp đồng nguồn cont đi để xem đúng kiện và vật tư; không đối chiếu KT tổng hợp.",12,false,Muted);
-        var content=new ContentControl();
-        List<Package> packages=[];
-        void preview()
-        {
-            if(Rules.Tokens(codes.Text).Count==0)
-                throw new InvalidOperationException("Hãy nhập số hợp đồng cần nhập kho.");
-            packages=_service.SelectContPackages(codes.Text);
-            var found=packages.Select(p=>Rules.Contract(p.Contract)).ToHashSet();
-            var missing=Rules.Tokens(codes.Text).Where(x=>!found.Contains(Rules.Contract(x))).ToList();
-            content.Content=Tabs(("Kiện nguồn cont đi",PackageGrid(packages)),
-                ("Mã chưa có dữ liệu",Table(missing.Select(x=>new{Contract=x,
-                    Warning="Chưa có kiện trong Cont đi Hưng Yên"}).ToList(),
-                    ("Hợp đồng","Contract",160),("Cảnh báo","Warning",-1))));
-            info.Text=$"{found.Count} hợp đồng có nguồn · {packages.Count} kiện · "+
-                $"{missing.Count} mã chưa có dữ liệu. Chọn đúng kiện trước khi xác nhận.";
-        }
-        var tools=Card(Stack(
-            Row(Field("HỢP ĐỒNG NHẬP KHO",codes),Field("Ngày cont thực về",day)),
-            Row(B("Xem kiện nguồn",preview,true),A("Xác nhận ghi ngày cont về",async()=>
-            {
-                if(Day(day).Length==0)throw new InvalidOperationException("Chọn ngày thực tế về.");
-                preview();
-                if(packages.Count==0)throw new InvalidOperationException("Không có kiện nguồn.");
-                if(!Ask($"Xác nhận {packages.Count} kiện về ngày {Rules.Day(Day(day))}? "+
-                    "Chỉ dùng thông tin vật tư từ Cont đi Hưng Yên; không đọc hoặc đối chiếu KT. "+
-                    "Tổng hợp.xlsx được sao lưu trước khi ghi."))return;
-                var result=await _service.RecordArrivalAsync(codes.Text,day.SelectedDate!.Value,false);
-                Notify($"Đã ghi {result.Contracts} HĐ · {result.Packages} kiện · "+
-                    $"{result.Lines} dòng.\n"+string.Join("\n",result.Warnings));
-            })),info));
-        content.Content=Alert("Nguồn ghi nhận: Cont đi Hưng Yên. Không sử dụng KT tổng hợp.xlsx.");
-        SetPage("Nhập cont về kho","Ngày thực tế · kiện nguồn · xác nhận trước khi ghi Tổng hợp.xlsx",Layout(tools,content));
+        var codes=Input("",true);
+        codes.Width=510;codes.Height=84;
+        var top=Card(Stack(
+            T("NHẬP SỐ HỢP ĐỒNG → TÌM ĐÚNG KIỆN HƯNG YÊN",18,true),
+            T("Nhập một hoặc nhiều HĐ (mỗi dòng một số). HISA đọc trực tiếp trang "+
+              "Cont đi Hưng Yên trong Tổng hợp.xlsx, không kiểm tra thư mục CONT ĐI. "+
+              "Chỉ lấy kiện ghi HƯNG YÊN / HUNG YEN đúng số HĐ, giữ riêng "+
+              "công trình/T1/T2, ngày cont đi, kiện và số lượng.",12,false,Muted),
+            Field("Số hợp đồng cont về kho Hưng Yên",codes),
+            T("Đúng hợp đồng chưa có nghĩa là đã nhận tất cả kiện. Tích từng kiện thực tế đã về, "+
+              "chọn ngày về và xác nhận trước khi ghi vào Tổng hợp.xlsx. Không đối chiếu KT.",11,false,Muted)));
+        var matching=BuildContDiSourcePanel(
+            ()=>ContDiArrivalLookup.FromContracts(codes.Text));
+        SetPage("Tìm kiện & nhập cont Hưng Yên",
+            "Trang Cont đi Hưng Yên → chọn kiện về thực tế → trang chi tiết Excel",
+            new ScrollViewer{
+                Content=Stack(top,matching),
+                VerticalScrollBarVisibility=ScrollBarVisibility.Auto
+            });
     }
 
     private void ShowArrivalPackages()

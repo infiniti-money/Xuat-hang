@@ -33,6 +33,7 @@ public sealed partial class WarehouseService : IDisposable
     private WorkbookSnapshot _snapshot = new();
     private bool _initialized;
     private bool _dataAvailable;
+    private List<Package>? _freshContDiSources;
     private string _sourceFingerprint = "";
     private string _masterFingerprint = "";
     private string _ktFingerprint = "";
@@ -47,6 +48,52 @@ public sealed partial class WarehouseService : IDisposable
     public string BackupDirectory { get; }
     public AppSettings Settings { get; private set; }
     public WorkbookSnapshot Snapshot { get { lock(_stateLock) return _snapshot; } }
+    private static string ContDiPhysicalKey(Package package) =>
+        package.Identity+"|"+package.SourceDate+"|"+
+        string.Join(";",package.Items.Where(x=>x.IsHungYen)
+            .Select(x=>Rules.Code(x.Material)+"|"+Rules.Code(x.Unit)+"|"+
+                (x.Quantity?.ToString("0.################",CultureInfo.InvariantCulture)??"?"))
+            .Order(StringComparer.Ordinal));
+
+    /// <summary>
+    /// Show only master Cont packages proven to exist in freshly scanned CONT ĐI
+    /// source Excel. This is a read-only overlay: original receipts keep their
+    /// existing master source IDs for rollback and deduplication.
+    /// </summary>
+    public WorkbookSnapshot ContDiLookupSnapshot
+    {
+        get
+        {
+            lock(_stateLock)
+            {
+                if(_freshContDiSources==null)return _snapshot;
+                var sources=_freshContDiSources
+                    .GroupBy(ContDiPhysicalKey,StringComparer.Ordinal)
+                    .ToDictionary(g=>g.Key,g=>new Queue<Package>(
+                        g.OrderBy(x=>x.SourcePath,StringComparer.OrdinalIgnoreCase)),
+                        StringComparer.Ordinal);
+                var live=new List<Package>();
+                foreach(var master in _snapshot.ContPackages)
+                {
+                    if(!sources.TryGetValue(ContDiPhysicalKey(master),out var matches) ||
+                       matches.Count==0)continue;
+                    var original=matches.Dequeue();
+                    var copy=Clone(master);
+                    copy.SourceFile=Path.GetFileName(original.SourcePath.Length>0
+                        ?original.SourcePath:original.SourceFile);
+                    copy.SourcePath=original.SourcePath;
+                    live.Add(copy);
+                }
+                return new WorkbookSnapshot {
+                    ContPackages=live,
+                    DetailPackages=_snapshot.DetailPackages,
+                    Packages=_snapshot.Packages,
+                    Warnings=_snapshot.Warnings
+                };
+            }
+        }
+    }
+
     public List<Slip> Slips { get { lock(_stateLock) return [.._slips]; } }
     public List<PrintTemplate> Templates { get { lock(_stateLock) return [.._templates]; } }
     public List<ContractFlag> Flags { get { lock(_stateLock) return [.._flags]; } }
@@ -82,6 +129,9 @@ public sealed partial class WarehouseService : IDisposable
         ImportLegacyOnce();
         Settings = Load<AppSettings>("settings.json") ?? DefaultSettings();
         NormalizeSettings(Settings);
+        // When a real source folder exists, never fall back to stale Cont đi
+        // master data before the first successful physical folder scan.
+        if(Settings.DataSources.Any(Directory.Exists))_freshContDiSources=[];
         _slips = Load<List<Slip>>("slips.json") ?? [];
         _templates = Load<List<PrintTemplate>>("templates.json") ?? [];
         _flags = Load<List<ContractFlag>>("contract_flags.json") ?? [];
@@ -339,7 +389,35 @@ public sealed partial class WarehouseService : IDisposable
         }
     }
     public Task RefreshAsync(bool force=false)=>RefreshCoreAsync(force&&Settings.AutoSyncCont,false);
-    private async Task RefreshCoreAsync(bool scanCont,bool syncKt)
+    /// <summary>
+    /// Prefer real CONT ĐI source workbooks when the folder is configured.
+    /// Legacy installations without that folder may inspect the already built
+    /// Cont đi worksheet; the UI must explicitly distinguish the source mode.
+    /// </summary>
+    public async Task RefreshContDiForArrivalAsync()
+    {
+        if(Settings.DataSources.Any(Directory.Exists))
+        {
+            await RefreshCoreAsync(true,false);
+            if(LastError.Length>0)
+                throw new IOException("Không quét được thư mục CONT ĐI HƯNG YÊN: "+LastError);
+            if(Warnings.Any(x=>x.Contains("Nguồn có cảnh báo; giữ nguyên trang cont",
+                StringComparison.OrdinalIgnoreCase)))
+                throw new IOException("Các file CONT ĐI có cảnh báo. Chưa lấy dữ liệu cache để nhập kho.");
+        }
+        else
+        {
+            lock(_stateLock)_freshContDiSources=null;
+            await RefreshCoreAsync(false,false);
+            if(LastError.Length>0)
+                throw new IOException("Không đọc được trang Cont đi Hưng Yên trong Tổng hợp.xlsx: "+LastError);
+            if(Snapshot.Warnings.Any(w=>w.Contains("chưa có trang Cont đi Hưng Yên",
+                StringComparison.OrdinalIgnoreCase)))
+                throw new InvalidDataException("Tổng hợp.xlsx chưa có trang Cont đi Hưng Yên.");
+        }
+    }
+
+        private async Task RefreshCoreAsync(bool scanCont,bool syncKt)
     {
         await _gate.WaitAsync(); IsBusy=true;LastError="";Notify();
         var watch=Stopwatch.StartNew();
@@ -360,9 +438,13 @@ public sealed partial class WarehouseService : IDisposable
                     sourceStamp=sourceBefore;
                     var scan=_excel.ScanSources(Settings,progress,_stop.Token);
                     sourceScan=scan;
+                    lock(_stateLock)_freshContDiSources=[];
                     warnings.AddRange(scan.Warnings);
                     var stable=sourceBefore==SourceFingerprint();
                     sourceFilesStable=stable && scan.Warnings.Count==0;
+                    if(sourceFilesStable)
+                        lock(_stateLock)_freshContDiSources=scan.Packages
+                            .Where(x=>x.Items.Any(i=>i.IsHungYen)).ToList();
                     _sourceSyncPending=scan.Warnings.Count>0||!stable;
                     if(!stable)warnings.Add("Nguồn cont đang thay đổi; ứng dụng sẽ quét lại sau khi sao chép/cập nhật file hoàn tất.");
                     if(stable && scan.Warnings.Count==0 && scan.FileCount>0 && scan.Packages.Count>0 && File.Exists(Settings.MasterPath))
@@ -602,9 +684,9 @@ public sealed partial class WarehouseService : IDisposable
         IReadOnlyList<Package> verified, DateTime actualArrivalDay, bool useKt = false)
     {
         if (verified.Count==0) throw new InvalidOperationException("Chưa chọn kiện Hưng Yên đã về.");
-        if (verified.Any(x=>x.Id.Length==0 || x.ContainerNumber.Length==0 ||
+        if (verified.Any(x=>x.Id.Length==0 ||
             x.OriginPackageId!=x.Id))
-            throw new InvalidOperationException("Kiện chưa có đầy đủ ID nguồn và container.");
+            throw new InvalidOperationException("Kiện chưa có mã ID nguồn để xác minh.");
         if (verified.DistinctBy(x=>x.Id).Count()!=verified.Count)
             throw new InvalidOperationException("Trùng ID kiện nguồn, chưa ghi kho.");
         // Keep every package separate; selecting one does not select the whole contract.
@@ -626,7 +708,8 @@ public sealed partial class WarehouseService : IDisposable
         // The underlying Excel operation re-reads the workbook and checks source IDs
         // under its lock before writing. Never replace rows by contract identity.
         var result=await MutateAsync(()=>
-            _excel.RecordSelectedArrival(Settings.MasterPath,verified,actualArrivalDay));
+            _excel.RecordSelectedArrival(Settings.MasterPath,verified,actualArrivalDay,
+                requireContainer:false));
         // A second source scan archives only the fully received originals. A
         // partial container remains pending; a failed classification never
         // reverses the already committed Excel receipt.

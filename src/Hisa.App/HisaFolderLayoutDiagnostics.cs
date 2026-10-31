@@ -127,6 +127,17 @@ public static class HisaFolderLayoutDiagnostics
               another.Cabinet.StartsWith(otherRoot,StringComparison.OrdinalIgnoreCase) &&
               another.Motor.StartsWith(otherRoot,StringComparison.OrdinalIgnoreCase),
             "Switching one root relocates all six paths to the new warehouse without stale files");
+        // The physical CONT ĐI folder is optional when the workflow uses
+        // the "Cont đi Hưng Yên" worksheet in Tổng hợp.xlsx directly.
+        Directory.Delete(otherCont);
+        var noContFolder=HisaFolderLayout.RequireCompleteRoot(otherRoot,original);
+        var noContSettings=new AppSettings();
+        HisaFolderLayout.Apply(noContSettings,noContFolder);
+        Check(noContFolder.Master==Path.Combine(otherMain,"Tổng hợp.xlsx") &&
+              noContSettings.DataSources.Count==0,
+            "Valid Kho HISA root without CONT ĐI folder keeps master Excel available and disables folder scanning");
+        Check(HisaFolderLayout.PreferredSelection(noContSettings)==otherRoot,
+            "Settings can reopen the warehouse root without a physical CONT ĐI folder");
         var temporarilyMissing=master+".unavailable";
         File.Move(master,temporarilyMissing);
         try

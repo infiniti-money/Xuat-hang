@@ -47,14 +47,12 @@ public static class HisaFolderLayout
         if(!Directory.Exists(selected))return null;
         var folder=Path.GetFullPath(selected);
         string root;
-        if(Directory.Exists(Path.Combine(folder,"Kho chính")) &&
-           Directory.Exists(Path.Combine(folder,"CONT ĐI")))
+        if(Directory.Exists(Path.Combine(folder,"Kho chính")))
             root=folder;
         else if(new[]{"CONT DI","KHO CHINH","DANH SACH SAN XUAT"}
             .Select(Rules.Code).Contains(Rules.Code(Path.GetFileName(folder))) &&
             Directory.GetParent(folder) is { } parent &&
-            Directory.Exists(Path.Combine(parent.FullName,"Kho chính")) &&
-            Directory.Exists(Path.Combine(parent.FullName,"CONT ĐI")))
+            Directory.Exists(Path.Combine(parent.FullName,"Kho chính")))
             root=parent.FullName;
         else return null;
 
@@ -105,7 +103,8 @@ public static class HisaFolderLayout
         // Excel canonical data, without changing the selected settings.
         var probe=new AppSettings{
             MasterPath=layout.Master,KtPath=layout.Kt,
-            ProductExportPath=layout.Product,DataSources=[layout.Cont],
+            ProductExportPath=layout.Product,
+            DataSources=Directory.Exists(layout.Cont)?[layout.Cont]:[],
             ElectricalCabinetListPath=layout.Cabinet,
             TractionMachineListPath=layout.Motor,CarDoorListPath=layout.Door
         };
@@ -116,7 +115,20 @@ public static class HisaFolderLayout
     public static string PreferredSelection(AppSettings settings)
     {
         var source=settings.DataSources.FirstOrDefault();
-        if(string.IsNullOrWhiteSpace(source))return "";
+        if(string.IsNullOrWhiteSpace(source))
+        {
+            // An installation that uses only the existing Cont đi Excel sheet
+            // has no physical CONT ĐI folder; still display its warehouse root.
+            if(!string.IsNullOrWhiteSpace(settings.MasterPath) &&
+               File.Exists(settings.MasterPath))
+            {
+                var parent=Directory.GetParent(Path.GetDirectoryName(
+                    Path.GetFullPath(settings.MasterPath))!);
+                if(parent!=null && Directory.Exists(Path.Combine(parent.FullName,"Kho chính")))
+                    source=parent.FullName;
+            }
+            if(string.IsNullOrWhiteSpace(source))return "";
+        }
         try
         {
             if(Detect(source,settings) is { } layout)
@@ -133,7 +145,7 @@ public static class HisaFolderLayout
 
     public static void Apply(AppSettings settings,Paths layout)
     {
-        settings.DataSources=[layout.Cont];
+        settings.DataSources=Directory.Exists(layout.Cont)?[layout.Cont]:[];
         settings.MasterPath=layout.Master;
         settings.KtPath=layout.Kt;
         settings.ProductExportPath=layout.Product;

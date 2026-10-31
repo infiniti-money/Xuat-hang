@@ -112,14 +112,18 @@ public static class UiWorkflowDiagnostics
             Check(headings.Any(x=>x.Contains("1 · CONT DỰ KIẾN VỀ")) &&
                   headings.Any(x=>x.Contains("2 · HỢP ĐỒNG DỰ KIẾN BÀN GIAO")),
                 "Gemini result separates potential container arrival and waiting handover slips");
-            Check(Children(aiPanel).OfType<Button>().Any(b=>b.Content?.ToString()?.Contains("Đối chiếu cont đã về")==true) &&
+            Check(Children(aiPanel).OfType<Button>().Any(b=>b.Content?.ToString()?.Contains("Tìm kiện Hưng Yên trong CONT ĐI")==true) &&
                   Children(aiPanel).OfType<Button>().Any(b=>b.Content?.ToString()?.Contains("Lập phiếu từ hợp đồng")==true),
                 "Arrival verification and draft handover have direct buttons next to their lists");
             var aiGrids=Children(aiPanel).OfType<DataGrid>().ToList();
-            Check(aiGrids.Count==2 &&
-                  aiGrids[0].Columns.OfType<DataGridTemplateColumn>().Any(c=>c.Header?.ToString()=="Cont đã về?") &&
-                  aiGrids[1].Columns.OfType<DataGridTemplateColumn>().Any(c=>c.Header?.ToString()=="Làm phiếu"),
-                "Both Zalo workflow lists expose first-click interactive checkbox templates");
+            var incomingGrid=aiGrids.Single(g=>
+                g.Columns.OfType<DataGridTemplateColumn>().Any(c=>c.Header?.ToString()=="Cont đã về?"));
+            var outgoingGrid=aiGrids.Single(g=>
+                g.Columns.OfType<DataGridTemplateColumn>().Any(c=>c.Header?.ToString()=="Làm phiếu"));
+            Check(aiGrids.Count>=3 &&
+                  aiGrids.Any(g=>g.Columns.OfType<DataGridTemplateColumn>()
+                     .Any(c=>c.Header?.ToString()=="Đã về")),
+                "Zalo lists and physical source package selection stay visible on one screen");
             void AssertCheckbox(DataGrid source,string header,AiScheduleLine data,string flag)
             {
                 var column=source.Columns.OfType<DataGridTemplateColumn>()
@@ -152,13 +156,13 @@ public static class UiWorkflowDiagnostics
                 Check(flag=="SelectedForArrival"?!data.SelectedForArrival:!data.SelectedForHandover,
                     header+" can be unchecked without editing another cell");
             }
-            AssertCheckbox(aiGrids[0],"Cont đã về?",simulated.Arrivals[0],"SelectedForArrival");
-            AssertCheckbox(aiGrids[1],"Làm phiếu",simulated.Dispatches[0],"SelectedForHandover");
+            AssertCheckbox(incomingGrid,"Cont đã về?",simulated.Arrivals[0],"SelectedForArrival");
+            AssertCheckbox(outgoingGrid,"Làm phiếu",simulated.Dispatches[0],"SelectedForHandover");
             Check(Children(aiPanel).OfType<Button>().Any(b=>b.Content?.ToString()?.Contains("Xem toàn bộ vật tư cont")==true) &&
                   Children(aiPanel).OfType<Button>().Any(b=>b.Content?.ToString()?.Contains("Xem toàn bộ vật tư HĐ bàn giao")==true),
                 "Both lists allow browsing material details for every Zalo contract");
-            aiGrids[0].SelectedIndex=0;
-            var materialGrids=Children(aiPanel).OfType<DataGrid>().Where(g=>g!=aiGrids[0]&&g!=aiGrids[1]).ToList();
+            incomingGrid.SelectedIndex=0;
+            var materialGrids=Children(aiPanel).OfType<DataGrid>().Where(g=>g!=incomingGrid&&g!=outgoingGrid).ToList();
             Check(materialGrids.Any(g=>g.ItemsSource is List<AiMaterialLookup.Row> items &&
                   items.Any(i=>i.Material=="Máy kéo M1"&&i.Quantity==2)),
                 "Clicking a schedule row shows original workbook goods and quantities");
