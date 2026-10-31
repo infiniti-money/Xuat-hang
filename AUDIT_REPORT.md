@@ -1,3 +1,33 @@
+# BÁO CÁO RÀ SOÁT TOÀN DIỆN · HISA v1.9.9 → v1.9.10 · 31/10/2026
+
+**Phạm vi:** repo `infiniti-money/Xuat-hang`, WPF/.NET 10, cài đặt và updater GitHub Releases, bảo vệ JSON/ZIP, file `Tổng hợp.xlsx` / `KT tổng hợp.xlsx` / `Thành phẩm xuất kho.xlsx`, thư mục `CONT ĐI` / `Đã nhập kho` / `Hàng gửi`, Gemini/Zalo, phiếu chờ/đã bàn giao, Tủ điện/Máy kéo/Đầu cửa car, lịch máy kéo Hưng Yên.
+
+## Phát hiện xác minh được và xử lý
+
+| Ưu tiên | Hạng mục | Hiện trạng và tác động | Xử lý ở v1.9.10 |
+| --- | --- | --- | --- |
+| **Cao** | ZIP sao lưu lịch AI | `WarehouseService.BackupAsync` trước đây chỉ thêm JSON trực tiếp dưới `native_data`, không bao gồm thư mục `ai_schedules`; lịch đã duyệt sẽ không có trong bản sao | Thêm `ai_schedules/lich-kho-*.json`, manifest v2 và SHA-256 mỗi entry, kiểm tra lại ZIP trước khi thay bản cũ; regression cố tình sửa nội dung entry phải bị phát hiện |
+| **Cao** | Lịch sử máy kéo mất liên kết | `MotorHungYenStore.MachineKey` gồm **số dòng Excel**, khiến chèn hoặc sắp lại dòng máy đã gửi/làm/bàn giao bị hiển thị như máy mới chưa ghi nhận | Giữ khóa cũ, khôi phục ánh xạ theo duy nhất HĐ + công trình + công ty + loại máy + số lô + seri; không tự khớp thiếu seri hoặc seri/định danh bị trùng; thêm regression |
+| **Trung bình** | Cấu hình nguồn Excel | `HisaFolderLayout.PreferredSelection` có thể ném `FileNotFoundException` khi cấu trúc vẫn có thư mục nhưng `Tổng hợp.xlsx` biến mất; ảnh hưởng khả năng mở Cấu hình để sửa | Giữ nguyên đường dẫn cấu hình cho người dùng chỉnh, không làm văng màn hình |
+| **Đang mở** | Phục hồi ZIP | Chưa có luồng chọn tệp ZIP, kiểm tra bản sao, rollback và phục hồi an toàn | Giữ issue [#11](https://github.com/infiniti-money/Xuat-hang/issues/11) mở; v1.9.10 không tự kích hoạt thao tác nguy cơ ghi đè |
+| **Đang mở** | Tải/cài cập nhật gián đoạn | Có báo cáo user bị dừng tải và lỗi nâng cấp; v1.9.9 xác minh SHA-256 nhưng chưa xác nhận giải pháp trên thiết bị thật | Giữ issue [#13](https://github.com/infiniti-money/Xuat-hang/issues/13) mở; cần log UAC/Inno Setup và thử lỗi mạng/Windows thực tế |
+
+## Các bất biến nghiệp vụ đã đối chiếu trong mã nguồn và bộ kiểm thử
+
+- Chọn **Kho HISA** phải ánh xạ `Kho chính` tới ba workbook, `CONT ĐI` chỉ là nguồn kiện, `Danh sách sản xuất` chỉ đọc, không trộn bảng thiết bị thành vật tư đã nhập.
+- Lịch **dự kiến cont về** từ ảnh Gemini không tự ghi trạng thái nhập kho; chỉ chọn đúng kiện thực nhận/ngày thực tế rồi xác nhận mới ghi chi tiết.
+- Tích **Làm phiếu** chỉ chuẩn bị phiếu chờ, không tự xác nhận **Đã xuất**. Hợp đồng cùng mã nhưng công trình T1/T2, cont và ngày đi khác nhau phải được đối chiếu chính xác.
+- Phân loại `Đã nhập kho` chỉ khi đầy đủ bằng chứng kiện thực nhận; **Hàng gửi** ở ngang cấp `CONT ĐI`. Không tự ghi đè file có tên trùng.
+- Không đưa Gemini API Key vào ZIP; khóa thuộc Windows Credential Manager, người dùng sẽ phải cấu hình lại trên máy hoặc tài khoản Windows khác.
+
+## Giới hạn xác minh
+
+Kiểm tra mã GitHub + bộ regression CI Windows dùng **workbook tạm**, không thao tác trực tiếp các file Excel thực tế và không gọi Gemini API thật. Những điều chưa được xác minh: chạy GUI trên màn hình/DPI Windows của người dùng, độ tin cậy mạng khi cập nhật, file Excel bị khóa trong sản xuất, quyền/antivirus/UAC và thực tế ánh xạ tất cả file tháng. Kết quả CI phản ánh kiểm thử tự động, **không phải chứng nhận không còn lỗi**.
+
+Báo cáo này là phần bổ sung của audit cũ; không thay thế các ghi nhận lịch sử bên dưới.
+
+---
+
 # Báo cáo rà soát HISA v1.8.1 – 30/10/2026
 
 **Phạm vi:** mã nguồn GitHub `infiniti-money/Xuat-hang`, WPF/.NET 10, dữ liệu Excel/phiếu, luồng cont Hưng Yên, lịch Zalo Gemini, xác nhận nhập–xuất, Gemini Chat/credential, updater và Windows GitHub Actions.
