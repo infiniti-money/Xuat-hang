@@ -44,6 +44,7 @@ public static class EquipmentListDiagnostics
             ws.Cell(3,4).Value="12342026";ws.Cell(3,5).Value="Máy kéo Montanary";
             ws.Cell(3,6).Value="Cái";ws.Cell(3,7).Value=1;ws.Cell(3,8).Value="Lô 999";
             ws.Cell(3,9).Value=123456;ws.Cell(3,10).Value="DXH";
+            ws.Cell(2,12).Value="Ngày xuất kho";ws.Cell(3,12).Value="Đã làm";
             ws.Cell(4,1).Value=2;ws.Cell(4,2).Value="Công trình T2";ws.Cell(4,3).Value="HISA";
             ws.Cell(4,4).Value="12342026";ws.Cell(4,5).Value="Máy kéo T2";
             ws.Cell(4,6).Value="Cái";ws.Cell(4,7).Value=2;
@@ -92,6 +93,9 @@ public static class EquipmentListDiagnostics
         Check(matched.Count(x=>x.Category=="Đầu cửa car" && x.ProductionDate=="2026-10-01" &&
               x.Quantity==1 && x.Code=="C10408")==2,
             "Real manufacturing dates, quantities and material codes come from door workbook");
+        Check(catalog.Rows.Single(x=>x.Category=="Máy kéo" &&
+                x.Serial=="123456").MotorColumnL=="Đã làm",
+            "Production machine status is read from column L, not old column N");
         Check(matched.Single(x=>x.Category=="Tủ điện").Quantity is null,
             "Missing electrical cabinet quantity is NOT fabricated as one");
         var again=EquipmentListReader.Load(paths);

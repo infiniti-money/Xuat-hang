@@ -30,6 +30,19 @@ public sealed partial class WarehouseService
             if(MotorHandoverExcel.ConfirmedDates(_slips).ContainsKey(identity))
                 throw new InvalidOperationException(
                     "Máy đã bàn giao theo phiếu Đã xuất. Chỉ sửa ngày bàn giao trên phiếu.");
+            // An Excel-entered dispatch date is protected even if an HISA slip
+            // has not yet been linked to this serial. Never replace it with text.
+            var original=rows.Single(row=>
+                MotorHandoverExcel.IdentityFor(new MotorHungYenStore.Item
+                {
+                    Contract=row.Contract,Project=row.Project,Company=row.Company,
+                    Serial=row.Serial
+                })==identity);
+            if(DateTime.TryParseExact(original.MotorColumnL,"yyyy-MM-dd",
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None,out _))
+                throw new InvalidOperationException(
+                    "Cột L đã có ngày xuất kho. Không ghi đè bằng Chưa làm / Đã làm; cần đối chiếu phiếu đã xuất.");
             var tracker=new MotorHungYenStore(_data);
             // A changed original source row is never accepted as a new identity.
             if(!tracker.List(rows).Any(x=>x.Key==item.Key && x.PresentInSource &&
@@ -39,7 +52,7 @@ public sealed partial class WarehouseService
             try
             {
                 return MotorHandoverExcel.Sync(Settings,_slips,_data,
-                    Path.Combine(BackupDirectory,"Excel"));
+                    Path.Combine(BackupDirectory,"Excel"),identity);
             }
             catch(Exception)
             {
