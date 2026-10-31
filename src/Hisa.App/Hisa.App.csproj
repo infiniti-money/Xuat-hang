@@ -7,7 +7,7 @@
     <Nullable>enable</Nullable>
     <AssemblyName>HISA Kho Vat Tu</AssemblyName>
     <RootNamespace>Hisa.App</RootNamespace>
-    <Version>1.9.14</Version>
+    <Version>1.9.15</Version>
     <Product>Quản lý kho</Product>
     <AssemblyTitle>Quản lý kho</AssemblyTitle>
     <Authors>Trịnh Phương Tân</Authors>
