@@ -15,14 +15,24 @@ public static class ContDiArrivalIntegrationDiagnostics
             checks.Add("CONT ĐI: "+label);
         }
         var workspace=SelfTests.CreateDemoWorkspace();
-        var source=Path.Combine(workspace,"CONT ĐI");
+        var source=Path.Combine(workspace,"Container");
+        Directory.CreateDirectory(source);
+        var settings=new AppSettings
+        {
+            MasterPath=Path.Combine(workspace,"Tổng hợp.xlsx"),
+            KtPath=Path.Combine(workspace,"KT tổng hợp.xlsx"),
+            ProductExportPath=Path.Combine(workspace,"Thành phẩm xuất kho.xlsx"),
+            DataSources=[source],AutoRefresh=false,AutoSyncCont=false,AutoSyncKt=false
+        };
+        File.WriteAllText(Path.Combine(workspace,"native_data","settings.json"),
+            System.Text.Json.JsonSerializer.Serialize(settings,WarehouseService.Json));
         using var service=new WarehouseService(workspace);
         await service.InitializeAsync();
         Check(service.ContDiLookupSnapshot.ContPackages.Count==0,
-            "Existing master Cont summary does not count as a physically scanned source");
+            "Startup never scans Container or uses historical master Cont rows");
         await service.RefreshContDiForArrivalAsync();
         Check(service.ContDiLookupSnapshot.ContPackages.Count==0,
-            "Empty CONT ĐI directory cannot authorize old master packages");
+            "Empty Container directory cannot authorize historical master packages");
 
         var month=Path.Combine(source,"29.10");
         Directory.CreateDirectory(month);
@@ -54,7 +64,7 @@ public static class ContDiArrivalIntegrationDiagnostics
         Check(fresh.ContPackages.Count==1 &&
               fresh.ContPackages[0].SourceFile=="29102026.xlsx" &&
               fresh.ContPackages[0].Items.Count==2,
-            "Fresh CONT ĐI workbook supplies exact Hưng Yên goods and source filename");
+            "Fresh Container workbook supplies exact Hưng Yên goods and source filename");
         const string actualDay="2026-11-03";
         var requests=ContDiArrivalLookup.FromContracts("29102026\n88882026");
         var found=ContDiArrivalLookup.Preview(requests,fresh,actualDay);
@@ -66,16 +76,29 @@ public static class ContDiArrivalIntegrationDiagnostics
         var output=await service.RecordVerifiedArrivalAsync(selected,
             new DateTime(2026,11,3),false);
         Check(output.Packages==1&&output.Contracts==1&&output.Lines==2,
-            "Selected physical package copies only its Hưng Yên materials into master");
+            "Selected physical Container package copies only its Hưng Yên materials into master");
         var after=new ExcelStore().ReadMaster(service.Settings.MasterPath);
         Check(after.DetailPackages.Any(x=>x.Contract=="29102026"&&
               x.ArrivalDate==actualDay&&x.OriginPackageId==selected[0].Id&&
               x.Items.Count==2),
             "Master chi tiết records confirmed actual arrival date, original source ID and two goods");
+        var archived=Path.Combine(workspace,"Đã nhập kho","29.10","29102026.xlsx");
+        Check(File.Exists(archived)&&!File.Exists(original),
+            "Confirmed workbook moved to sibling Đã nhập kho preserving the source date folder");
+        using(var workbook=new XLWorkbook(service.Settings.MasterPath))
+        {
+            var detail=workbook.Worksheet("chi tiết");
+            var arrival=after.DetailPackages.Single(x=>x.OriginPackageId==selected[0].Id);
+            var line=arrival.SourceRowStart;
+            Check(detail.Cell(line,2).DataType==XLDataType.DateTime &&
+                  detail.Cell(line,5).DataType==XLDataType.Number &&
+                  detail.Cell(line,5).GetDouble()==29102026,
+                "Detail B is native Excel date and E is numeric contract");
+        }
         await service.RefreshContDiForArrivalAsync();
-        Check(ContDiArrivalLookup.Preview(requests,service.ContDiLookupSnapshot,actualDay)
-              .Any(x=>x.Status=="Kiện đã nhập kho"),
-            "Re-scan flags already imported source and cannot import it twice");
+        Check(service.ContDiLookupSnapshot.ContPackages.Count==0 &&
+              service.Snapshot.DetailPackages.Any(x=>x.OriginPackageId==selected[0].Id),
+            "Archived workbook is excluded from active Container scan; saved receipt remains");
         return checks;
     }
 }
