@@ -155,23 +155,14 @@ public partial class MainWindow
             _aiImagePath="";
             ShowAiSchedules();
         });
-        var openApproved=B("Mở lịch đã duyệt",()=>{
-            var loaded=AiScheduleWorkspace.LatestApproved(_service.DataDirectory);
-            if(loaded==null){Notify("Chưa có lịch nhập hoặc xuất đã duyệt được lưu.");return;}
-            if(_aiDocument!=null && !Ask("Mở lịch đã lưu? Những chỉnh sửa chưa lưu sẽ mất."))return;
-            _aiDocument=loaded;
-            _aiApproved=true;
-            _aiImagePath="";
-            ShowAiSchedules();
-        });
         var top = Card(Stack(
             T("ẢNH ZALO → NHẬN CONT / LÀM PHIẾU", 18, true),
             T("① Chọn ảnh  →  ② Gemini đọc danh sách  →  ③ Kiểm tra và lưu duyệt  →  ④ Tích chọn công việc cần làm.",13,true,Brush("#177E89")),
             T("Ngày cont dự kiến về chỉ là dự báo, KHÔNG phải hàng đã nhập. Nhận cont và làm phiếu là hai thao tác độc lập.",12,false,Muted),
             status,
             Row(choose,upload,analyze),
-            Row(createManual,openApproved,B("⚙  Cấu hình Gemini", () => Navigate("settings"))),
-            T("Ảnh chỉ gửi đến Gemini sau khi nhấn Phân tích. Không tự sửa Excel hoặc tạo phiếu từ kết quả AI.",11,false,Muted)
+            Row(createManual,B("⚙  Cấu hình Gemini", () => Navigate("settings"))),
+            T("Chỉ dùng lịch đang làm việc trong phiên này; không nạp lại lịch AI đã duyệt cũ. Mọi nhập kho phải xác nhận đúng kiện thực tế.",11,false,Muted)
         ));
         var panel = Stack();
         if (_aiDocument == null)
@@ -249,14 +240,23 @@ public partial class MainWindow
                     Notify("Tích ô 'Cont đã về?' của hợp đồng có hàng thực tế đã nhận. Sau đó kiểm tra từng kiện.");
                     return;
                 }
-                ShowPlannedArrivals(true);
+                // Real arrivals are confirmed in the same screen, directly below the plan.
+                ShowAiSchedules();
             }, true),
             B("Bỏ tích cont",()=>{foreach(var r in doc.Arrivals)r.SelectedForArrival=false;incoming.Items.Refresh();}),
-            B("Xem cont dự kiến",()=>ShowPlannedArrivals()),
+            B("Lịch dự kiến + xác nhận cont",()=>ShowAiSchedules()),
             B("Trạng thái lịch xuất",()=>CycleSchedule(incoming))
         ));
         incomingBody.Children.Add(T("Nhấp MỘT LẦN vào ô vuông để tích. Chọn một dòng bất kỳ để xem từng vật tư, số lượng và tình trạng thực nhận ngay bên dưới.",12,false,Muted));
         incomingBody.Children.Add(incoming);
+        // Merge planned-arrival review and actual-arrival package verification.
+        // A just-approved in-memory schedule is the only eligible source;
+        // deliberately never reload an older approved AI document from disk.
+        if(_aiApproved && !string.IsNullOrWhiteSpace(doc.ApprovedAt))
+        {
+            incomingBody.Children.Add(T("XÁC NHẬN CONT ĐÃ VỀ THỰC TẾ · NGAY DƯỚI LỊCH DỰ KIẾN",15,true));
+            incomingBody.Children.Add(BuildPlannedArrivalPanel(doc,true));
+        }
 
         EquipmentListReader.Catalog? productionCache=null;
         EquipmentListReader.Catalog Production()=>
@@ -456,6 +456,7 @@ public partial class MainWindow
             saved.Text = "Đã lưu kế hoạch: " + Path.GetFileName(path);
             Notify("Đã lưu kế hoạch dự kiến vào:\n" + path +
                 "\n\nKhông có phiếu Đã xuất hoặc ngày cont về nào được ghi tự động.");
+            ShowAiSchedules();
         }, true);
         var toPlan = A("✓  Lập phiếu từ hợp đồng đã tích", async () =>
         {
