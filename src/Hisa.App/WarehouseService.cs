@@ -704,6 +704,17 @@ public sealed partial class WarehouseService : IDisposable
     {
         _exportsPending=true;
         _excel.SyncExportLedgers(Settings,_slips);
+        // Delivery is committed in slips.json first. The companion MÁY KÉO
+        // workbook is updated only for exact machine serials in delivered
+        // slips, never while planning. A locked file keeps the export pending
+        // and is retried safely by the existing background refresh mechanism.
+        var motorDates=MotorHandoverExcel.Sync(Settings,_slips,_data,
+            Path.Combine(BackupDirectory,"Excel"));
+        foreach(var warning in motorDates.Warnings)
+        {
+            lock(_stateLock)_warnings.Add("Ngày bàn giao máy kéo: "+warning);
+            Log("motor-handover",new InvalidOperationException(warning));
+        }
         foreach(var s in _slips)s.ProductExportPending=false;
         Persist("slips.json",_slips);_exportsPending=false;
         _shipments=_excel.ReadShipments(Settings);
