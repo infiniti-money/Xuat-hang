@@ -13,14 +13,11 @@ public partial class MainWindow
         Func<List<AiScheduleLine>> requests,Action? commitInput=null,bool searchWhenLoaded=false)
     {
         var actualDate=DateInput(DateTime.Today.ToString("yyyy-MM-dd"));
-        bool HasSourceFolder()=>_service.Settings.DataSources.Any(System.IO.Directory.Exists);
-        string SourceLabel()=>HasSourceFolder()
-            ? "các file Excel trong thư mục CONT ĐI HƯNG YÊN"
-            : "trang Cont đi Hưng Yên trong Tổng hợp.xlsx (chưa cấu hình thư mục CONT ĐI)";
-        var explanation=T("Chọn ngày cont THỰC TẾ về kho. HISA ưu tiên quét trực tiếp "+
-            "file vật tư ở thư mục CONT ĐI HƯNG YÊN và lọc đúng nhãn HƯNG YÊN/HUNG YEN. "+
-            "Nếu chưa cấu hình thư mục, ứng dụng chỉ tra cứu trang Cont đi trong Tổng hợp.xlsx "+
-            "và thông báo rõ nguồn. Mỗi kiện giữ riêng công trình/T1/T2, ngày cont đi và số lượng.",12,false,Muted);
+        string SourceLabel()=>"các file Excel trong thư mục Container";
+        var explanation=T("HISA CHỈ quét Container khi bạn bấm Tìm kiện, không quét lúc khởi động. "+
+            "Chọn ngày thực tế đã nhận và từng kiện ghi HƯNG YÊN/HUNG YEN; "+
+            "giữ riêng công trình, thang 1/2, T1/T2, hậu tố (1)/(2) và ngày cont đi. "+
+            "Không tra cứu hay ghi trang Cont đi Hưng Yên trong Tổng hợp.xlsx.",12,false,Muted);
         var feedback=T("Bấm Tìm kiện để đọc mới "+SourceLabel()+".",12,false,Muted);
         var rows=new List<PlannedArrivalRow>();
         var scanned=false;
@@ -64,7 +61,7 @@ public partial class MainWindow
                 "Sửa file nguồn hoặc số HĐ thì bấm Tìm kiện lại.";
         }
         var buttons=Row(
-            A("⌕ Tìm kiện Hưng Yên trong CONT ĐI",SearchAsync,true),
+            A("⌕ Tìm kiện Hưng Yên trong Container",SearchAsync,true),
             B("Bỏ chọn",()=>{foreach(var x in rows)x.Selected=false;grid.Items.Refresh();}),
             A("✓ Sao chép kiện đã về → Tổng hợp.xlsx",async()=>
             {
@@ -91,7 +88,7 @@ public partial class MainWindow
                         " · cont đi "+Rules.Day(x.SourceDate)))+
                     "\n\nHISA sẽ sao chép các dòng vật tư HƯNG YÊN của các kiện đã chọn "+
                     "từ "+SourceLabel()+" sang trang 'chi tiết' trong Tổng hợp.xlsx theo NGÀY VỀ trên. "+
-                    "Không lấy hàng khác HĐ, không sửa KT tổng hợp; trước khi ghi sẽ sao lưu. Tiếp tục?"))
+                    "Không lấy kiện khác, không sửa KT hoặc trang Cont đi. Trước khi ghi sẽ sao lưu; file nhận đủ kiện chuyển sang Đã nhập kho, file hàng gửi phân loại riêng. Tiếp tục?"))
                 {
                     InvalidateSearch();return;
                 }
@@ -105,7 +102,7 @@ public partial class MainWindow
             })
         );
         var panel=Stack(Card(Stack(
-            T("CONT ĐI HƯNG YÊN → KIỆN ĐÃ VỀ → TỔNG HỢP.XLSX",16,true),
+            T("CONTAINER → XÁC NHẬN KIỆN → TỔNG HỢP.XLSX / CHI TIẾT",16,true),
             explanation,
             Row(Field("Ngày cont thực tế về kho",actualDate)),
             buttons,feedback)),
