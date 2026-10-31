@@ -149,6 +149,7 @@ public static class SelfTests
             result.Checks.AddRange(await SlipWarningDiagnostics.RunAsync());
             result.Checks.AddRange(await SlipStateDiagnostics.RunAsync());
             result.Checks.AddRange(InfoDiagnostics.Run());
+            result.Checks.AddRange(await UpdateDiagnostics.RunAsync());
             result.Checks.AddRange(await UiWorkflowDiagnostics.RunAsync());
             result.Checks.AddRange(await MotorSerialDiagnostics.RunAsync());
             result.Checks.AddRange(LogoDiagnostics.Run());
