@@ -2,180 +2,286 @@ using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Windows;
 
 namespace Hisa.App;
 
 /// <summary>
-/// Downloads and verifies the official Inno Setup installer in the background.
-/// Installation runs on normal application exit to avoid interrupting Excel writes.
-/// Installing into Program Files still requires the Windows UAC elevation prompt.
+/// Download and validate a signed-off GitHub Release asset without touching warehouse data.
+/// Downloading is NOT consent to installation: only an explicit click can install on exit.
 /// </summary>
 public static class AutoUpdater
 {
     private const string LatestReleaseApi = "https://api.github.com/repos/infiniti-money/Xuat-hang/releases/latest";
+    private const long MaximumInstallerBytes = 512L * 1024 * 1024;
     private static readonly HttpClient Http = CreateClient();
-    private static string? _readyInstaller;
+    private static readonly SemaphoreSlim CheckGate = new(1, 1);
     private static readonly object Sync = new();
-    private static readonly SemaphoreSlim CheckGate = new(1,1);
-
+    private static string? _readyInstaller;
+    private static bool _installRequested;
+    public static event Action<long, long>? DownloadProgress;
     public static string? ReadyVersion { get; private set; }
+
+    public static string LogDirectory => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "HISA Kho Vat Tu", "Updater");
+    public static string InstallerLogPath => Path.Combine(LogDirectory, "HISA-setup.log");
 
     private static HttpClient CreateClient()
     {
-        var client = new HttpClient {Timeout=TimeSpan.FromMinutes(5)};
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("HISA-Kho-Vat-Tu/"+SoftwareInfo.Version);
+        var client = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("HISA-Kho-Vat-Tu/" + SoftwareInfo.Version);
         client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
         return client;
     }
 
     private static Uri TrustedAssetUri(string value)
     {
-        if(!Uri.TryCreate(value, UriKind.Absolute, out var uri)
-            || uri.Scheme!=Uri.UriSchemeHttps
-            || uri.Host!="github.com"
-            || !uri.AbsolutePath.StartsWith("/infiniti-money/Xuat-hang/releases/download/", StringComparison.Ordinal))
-            throw new InvalidDataException("Đường dẫn cập nhật không thuộc GitHub Releases chính thức.");
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri)
+            || uri.Scheme != Uri.UriSchemeHttps || uri.Host != "github.com"
+            || !uri.AbsolutePath.StartsWith(
+                "/infiniti-money/Xuat-hang/releases/download/", StringComparison.Ordinal))
+            throw new InvalidDataException("Đường dẫn không thuộc GitHub Releases HISA.");
         return uri;
     }
 
     private sealed record Release(string Version, string InstallerName, Uri InstallerUrl,
-        Uri ChecksumUrl, string? GithubAssetDigest);
+        Uri ChecksumUrl, string? GithubAssetDigest, long Size);
 
-    private static async Task<Release?> CheckLatestAsync(CancellationToken cancellationToken)
+    private static async Task<Release?> CheckLatestAsync(CancellationToken token)
     {
-        using var response=await Http.GetAsync(LatestReleaseApi,HttpCompletionOption.ResponseHeadersRead,cancellationToken);
-        if(response.StatusCode==HttpStatusCode.NotFound)return null;
+        using var response = await Http.GetAsync(
+            LatestReleaseApi, HttpCompletionOption.ResponseHeadersRead, token);
+        if (response.StatusCode == HttpStatusCode.NotFound) return null;
         response.EnsureSuccessStatusCode();
-        await using var body=await response.Content.ReadAsStreamAsync(cancellationToken);
-        using var doc=await JsonDocument.ParseAsync(body,cancellationToken:cancellationToken);
-        var root=doc.RootElement;
-        if(root.GetProperty("draft").GetBoolean()||root.GetProperty("prerelease").GetBoolean())return null;
-        var tag=root.GetProperty("tag_name").GetString()??"";
-        if(!tag.StartsWith("v",StringComparison.OrdinalIgnoreCase)
-            || !Version.TryParse(tag[1..],out var available)
-            || !Version.TryParse(SoftwareInfo.Version,out var current)
-            || available<=current)return null;
+        await using var body = await response.Content.ReadAsStreamAsync(token);
+        using var doc = await JsonDocument.ParseAsync(body, cancellationToken: token);
+        var root = doc.RootElement;
+        if (root.GetProperty("draft").GetBoolean() || root.GetProperty("prerelease").GetBoolean())
+            return null;
+        var tag = root.GetProperty("tag_name").GetString() ?? "";
+        if (!tag.StartsWith('v', StringComparison.OrdinalIgnoreCase)
+            || !Version.TryParse(tag[1..], out var available)
+            || !Version.TryParse(SoftwareInfo.Version, out var current)
+            || available <= current) return null;
 
-        var name="HISA-Kho-Vat-Tu-"+available.ToString(3)+"-Setup.exe";
-        Uri? setup=null,checksum=null;
-        string? assetDigest=null;
-        foreach(var asset in root.GetProperty("assets").EnumerateArray())
+        var name = "HISA-Kho-Vat-Tu-" + available.ToString(3) + "-Setup.exe";
+        Uri? setup = null, checksum = null;
+        string? digest = null;
+        long size = 0;
+        foreach (var asset in root.GetProperty("assets").EnumerateArray())
         {
-            var filename=asset.GetProperty("name").GetString()??"";
-            var url=asset.GetProperty("browser_download_url").GetString()??"";
-            if(filename.Equals(name,StringComparison.Ordinal))
+            var filename = asset.GetProperty("name").GetString() ?? "";
+            var url = asset.GetProperty("browser_download_url").GetString() ?? "";
+            if (filename.Equals(name, StringComparison.Ordinal))
             {
-                setup=TrustedAssetUri(url);
-                if(asset.TryGetProperty("digest",out var digest)&&digest.ValueKind==JsonValueKind.String)
-                    assetDigest=digest.GetString();
+                setup = TrustedAssetUri(url);
+                size = asset.GetProperty("size").GetInt64();
+                if (asset.TryGetProperty("digest", out var sha)
+                    && sha.ValueKind == JsonValueKind.String) digest = sha.GetString();
             }
-            else if(filename.Equals(name+".sha256",StringComparison.Ordinal))
-                checksum=TrustedAssetUri(url);
+            else if (filename.Equals(name + ".sha256", StringComparison.Ordinal))
+                checksum = TrustedAssetUri(url);
         }
-        if(setup==null||checksum==null)return null;
-        return new Release(available.ToString(3),name,setup,checksum,assetDigest);
+        if (setup == null || checksum == null) return null;
+        if (size <= 0 || size > MaximumInstallerBytes)
+            throw new InvalidDataException("Kích thước bộ cài không hợp lệ.");
+        return new Release(available.ToString(3), name, setup, checksum, digest, size);
     }
 
-    private static async Task<string> DownloadTextAsync(Uri uri,CancellationToken cancellationToken)
+    private static async Task<string> DownloadTextAsync(Uri uri, CancellationToken token)
     {
-        using var response=await Http.GetAsync(uri,HttpCompletionOption.ResponseHeadersRead,cancellationToken);
+        using var response = await Http.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, token);
         response.EnsureSuccessStatusCode();
-        if(response.Content.Headers.ContentLength is > 2048)
-            throw new InvalidDataException("Tệp SHA-256 không hợp lệ.");
-        var value=await response.Content.ReadAsStringAsync(cancellationToken);
-        if(value.Length>2048)throw new InvalidDataException("Tệp SHA-256 quá dài.");
+        if (response.Content.Headers.ContentLength is > 2048)
+            throw new InvalidDataException("Tệp SHA-256 quá dài.");
+        var value = await response.Content.ReadAsStringAsync(token);
+        if (value.Length > 2048) throw new InvalidDataException("Tệp SHA-256 quá dài.");
         return value;
     }
 
-    private static async Task DownloadInstallerAsync(Uri uri,string destination,CancellationToken cancellationToken)
+    internal static string ParseChecksum(string content, string installerName)
     {
-        using var response=await Http.GetAsync(uri,HttpCompletionOption.ResponseHeadersRead,cancellationToken);
-        response.EnsureSuccessStatusCode();
-        const long maximum=512L*1024*1024;
-        if(response.Content.Headers.ContentLength is long contentLength && contentLength>maximum)
-            throw new InvalidDataException("Bản cập nhật vượt dung lượng cho phép.");
-        await using var input=await response.Content.ReadAsStreamAsync(cancellationToken);
-        await using var output=new FileStream(destination,FileMode.CreateNew,FileAccess.Write,FileShare.None,81920,true);
-        var buffer=new byte[81920];
-        long total=0;
-        int read;
-        while((read=await input.ReadAsync(buffer,cancellationToken))>0)
-        {
-            total+=read;
-            if(total>maximum)throw new InvalidDataException("Bản cập nhật vượt dung lượng cho phép.");
-            await output.WriteAsync(buffer.AsMemory(0,read),cancellationToken);
-        }
-        if(total==0)throw new InvalidDataException("Bản cập nhật rỗng.");
+        var lines = content.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
+        var line = lines.SingleOrDefault()?.Trim() ?? "";
+        var match = Regex.Match(line, @"^(?<hash>[a-fA-F0-9]{64})\s+\*?(?<name>[^\\/]+)$");
+        if (!match.Success || !string.Equals(match.Groups["name"].Value,
+                installerName, StringComparison.Ordinal))
+            throw new InvalidDataException("Tệp checksum không đúng tên hoặc định dạng bộ cài.");
+        return match.Groups["hash"].Value;
     }
 
-    // Shared by automatic and manual checks; returns the verified downloaded version.
-    public static async Task<string?> CheckAndStageAsync(CancellationToken cancellationToken=default)
+    internal static bool ValidRange(HttpResponseMessage response, long start, long expected)
     {
-        await CheckGate.WaitAsync(cancellationToken);
-        try { return await StageCoreAsync(cancellationToken); }
+        if (response.StatusCode != HttpStatusCode.PartialContent || start <= 0) return false;
+        var range = response.Content.Headers.ContentRange;
+        return range != null && range.HasLength && range.Length == expected
+               && range.HasRange && range.From == start
+               && range.To == expected - 1;
+    }
+
+    /// <summary>
+    /// On interruption a .partial file is retained. A 206 must match the exact byte boundary;
+    /// if the server ignores Range and returns 200, restart the same file from byte zero.
+    /// </summary>
+    internal static async Task DownloadInstallerAsync(
+        HttpClient client, Uri uri, string partial, long expected, CancellationToken token)
+    {
+        if (expected <= 0 || expected > MaximumInstallerBytes)
+            throw new InvalidDataException("Dung lượng bộ cài không hợp lệ.");
+        long offset = File.Exists(partial) ? new FileInfo(partial).Length : 0;
+        if (offset >= expected)
+        {
+            if (offset == expected) return;
+            File.Delete(partial);
+            offset = 0;
+        }
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, uri);
+        if (offset > 0) request.Headers.Range = new RangeHeaderValue(offset, null);
+        using var response = await client.SendAsync(request,
+            HttpCompletionOption.ResponseHeadersRead, token);
+        response.EnsureSuccessStatusCode();
+        bool resume = offset > 0 && ValidRange(response, offset, expected);
+        if (response.StatusCode == HttpStatusCode.PartialContent && !resume)
+            throw new InvalidDataException("Máy chủ trả sai đoạn dữ liệu. Không nối tệp tải bị lệch.");
+        if (response.StatusCode != HttpStatusCode.OK && !resume)
+            throw new InvalidDataException("Máy chủ không trả bộ cài hoàn chỉnh.");
+
+        long received = resume ? offset : 0;
+        if (response.Content.Headers.ContentLength is long size
+            && (size <= 0 || size != expected - received))
+            throw new InvalidDataException("Dung lượng phản hồi không khớp bản phát hành.");
+
+        await using var input = await response.Content.ReadAsStreamAsync(token);
+        await using var output = new FileStream(partial, FileMode.OpenOrCreate,
+            FileAccess.Write, FileShare.None, 81920, FileOptions.Asynchronous);
+        if (!resume) output.SetLength(0);
+        output.Position = received;
+        DownloadProgress?.Invoke(received, expected);
+        var buffer = new byte[81920];
+        int read;
+        while ((read = await input.ReadAsync(buffer, token)) > 0)
+        {
+            received += read;
+            if (received > expected) throw new InvalidDataException("Tải vượt dung lượng dự kiến.");
+            await output.WriteAsync(buffer.AsMemory(0, read), token);
+            DownloadProgress?.Invoke(received, expected);
+        }
+        await output.FlushAsync(token);
+        if (received != expected)
+            throw new IOException("Tải bị gián đoạn; đã giữ phần dữ liệu để tiếp tục ở lần thử sau.");
+    }
+
+    public static async Task<string?> CheckAndStageAsync(CancellationToken token = default)
+    {
+        await CheckGate.WaitAsync(token);
+        try { return await StageCoreAsync(token); }
         finally { CheckGate.Release(); }
     }
 
-    private static async Task<string?> StageCoreAsync(CancellationToken cancellationToken)
+    private static async Task<string?> StageCoreAsync(CancellationToken token)
     {
-        var release=await CheckLatestAsync(cancellationToken);
-        if(release==null)return null;
-        var expectedContent=await DownloadTextAsync(release.ChecksumUrl,cancellationToken);
-        var lines=expectedContent.Split(['\r','\n'],StringSplitOptions.RemoveEmptyEntries);
-        var line=lines.SingleOrDefault()?.Trim()??"";
-        var match=Regex.Match(line,@"^(?<hash>[a-fA-F0-9]{64})\s+\*?(?<name>[^\\/]+)$");
-        if(!match.Success||!string.Equals(match.Groups["name"].Value,release.InstallerName,StringComparison.Ordinal))
-            throw new InvalidDataException("Tệp checksum cập nhật không khớp với bộ cài.");
-        var expected=match.Groups["hash"].Value;
-        if(release.GithubAssetDigest is string digest && digest.Length>0 &&
-            !string.Equals(digest,"sha256:"+expected,StringComparison.OrdinalIgnoreCase))
-            throw new InvalidDataException("SHA-256 trên GitHub và tệp checksum không khớp.");
+        var release = await CheckLatestAsync(token);
+        if (release == null) return null;
+        var expected = ParseChecksum(await DownloadTextAsync(release.ChecksumUrl, token),
+            release.InstallerName);
+        if (!string.IsNullOrWhiteSpace(release.GithubAssetDigest) &&
+            !string.Equals(release.GithubAssetDigest, "sha256:" + expected,
+                StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("SHA-256 GitHub và tệp checksum không khớp.");
 
-        // Only installer cache is temporary; all warehouse state and backups remain in Documents.
-        var root=Path.Combine(Path.GetTempPath(),"HISA-Verified-Updates");
-        Directory.CreateDirectory(root);
-        var file=Path.Combine(root,release.InstallerName);
-        var staging=file+"."+Guid.NewGuid().ToString("N")+".download";
-        try
+        var folder = Path.Combine(Path.GetTempPath(), "HISA-Verified-Updates");
+        Directory.CreateDirectory(folder);
+        var file = Path.Combine(folder, release.InstallerName);
+        var partial = file + ".partial";
+
+        async Task<bool> HashMatches(string path)
         {
-            await DownloadInstallerAsync(release.InstallerUrl,staging,cancellationToken);
-            await using(var stream=File.OpenRead(staging))
-            {
-                var actual=Convert.ToHexString(await SHA256.HashDataAsync(stream,cancellationToken));
-                if(!actual.Equals(expected,StringComparison.OrdinalIgnoreCase))
-                    throw new InvalidDataException("Sai mã SHA-256; đã từ chối cài bản cập nhật.");
-            }
-            File.Move(staging,file,true);
-            lock(Sync){_readyInstaller=file;ReadyVersion=release.Version;}
+            if (!File.Exists(path) || new FileInfo(path).Length != release.Size) return false;
+            await using var stream = File.OpenRead(path);
+            var hash = Convert.ToHexString(await SHA256.HashDataAsync(stream, token));
+            return hash.Equals(expected, StringComparison.OrdinalIgnoreCase);
         }
-        finally{if(File.Exists(staging))File.Delete(staging);}
+
+        if (!await HashMatches(file))
+        {
+            if (File.Exists(file)) File.Delete(file);
+            await DownloadInstallerAsync(Http, release.InstallerUrl, partial, release.Size, token);
+            if (!await HashMatches(partial))
+            {
+                File.Delete(partial);
+                throw new InvalidDataException("SHA-256 bộ cài không khớp; đã xóa tệp lỗi.");
+            }
+            File.Move(partial, file, true);
+        }
+        lock (Sync)
+        {
+            _readyInstaller = file;
+            ReadyVersion = release.Version;
+        }
         return release.Version;
     }
 
-    /// <summary>Starts an unattended upgrade only after the warehouse application exits.</summary>
+    /// <summary>Only an explicit action in the UI authorizes the installer on application exit.</summary>
+    public static bool RequestInstall()
+    {
+        lock (Sync)
+        {
+            if (_readyInstaller == null || ReadyVersion == null
+                || !File.Exists(_readyInstaller)) return false;
+            _installRequested = true;
+            return true;
+        }
+    }
+
+    private static void LogLaunchError(Exception ex)
+    {
+        try
+        {
+            Directory.CreateDirectory(LogDirectory);
+            File.AppendAllText(Path.Combine(LogDirectory, "HISA-update-errors.log"),
+                DateTime.Now.ToString("O") + " " + ex.GetType().Name + ": " + ex.Message
+                + Environment.NewLine);
+        }
+        catch { /* Never block warehouse shutdown for diagnostics. */ }
+    }
+
     public static void InstallWhenExiting()
     {
         string? setup;
-        lock(Sync){setup=_readyInstaller;_readyInstaller=null;}
-        if(setup==null||!File.Exists(setup))return;
+        lock (Sync)
+        {
+            if (!_installRequested) return;
+            setup = _readyInstaller;
+            _installRequested = false;
+        }
+        if (setup == null || !File.Exists(setup)) return;
         try
         {
-            // /VERYSILENT hides the wizard; UAC consent is required by Windows for Program Files.
+            Directory.CreateDirectory(LogDirectory);
+            // The normal Inno Setup UI shows any installation error and keeps its /LOG trace.
+            // Do not silently restart or install merely because the download finished.
             Process.Start(new ProcessStartInfo
             {
-                FileName=setup,
-                Arguments="/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS /AUTORESTARTAPP",
-                UseShellExecute=true,
-                Verb="runas",
-                WorkingDirectory=Path.GetDirectoryName(setup)!
-            });
+                FileName = setup,
+                Arguments = "/NORESTART /CLOSEAPPLICATIONS /LOG=\"" + InstallerLogPath + "\"",
+                UseShellExecute = true,
+                Verb = "runas",
+                WorkingDirectory = Path.GetDirectoryName(setup)!
+            }) ?? throw new InvalidOperationException("Windows không khởi chạy được bộ cài.");
         }
-        catch(Exception)
+        catch (Exception ex)
         {
-            // If elevation is rejected, the current installation and data remain untouched.
+            LogLaunchError(ex);
+            MessageBox.Show("Không mở được trình cài đặt: " + ex.Message
+                + "\nNhật ký: " + LogDirectory
+                + "\nDữ liệu kho và phiên bản cũ vẫn được giữ nguyên.",
+                "HISA · Lỗi nâng cấp", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 }
