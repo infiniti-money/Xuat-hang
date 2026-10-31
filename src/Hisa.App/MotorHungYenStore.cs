@@ -75,10 +75,12 @@ public sealed class MotorHungYenStore
         public string Serial { get; set; }="";
         public string SourceNote { get; set; }="";
         public string SourcePosition { get; set; }="";
+        public string SourceWorkValue { get; set; }="";
         public string State { get; set; }=Pending;
         public string StatusLabel => Name(State);
         public string WorkChoice { get; set; }="";
-        public string WorkLabel => WorkChoice.Length>0?WorkChoice:
+        public string WorkLabel => SourceWorkValue is "Đã làm" or "Chưa làm"
+            ? SourceWorkValue : WorkChoice.Length>0?WorkChoice:
             State is Completed or HandedOver?"Đã làm":"Chưa làm";
         public string SentDay { get; set; }="";
         public string CompletedDay { get; set; }="";
@@ -183,6 +185,7 @@ public sealed class MotorHungYenStore
                     Key=key,Contract=row.Contract,Project=row.Project,Company=row.Company,
                     Material=row.Material,Quantity=row.Quantity,Lot=row.Lot,Serial=row.Serial,
                     SourceNote=row.Note,SourcePosition=row.Sheet+" · dòng "+row.SourceRow,
+                    SourceWorkValue=row.MotorColumnN,
                     State=state?.State??Pending,WorkChoice=state?.WorkChoice??"",
                     SentDay=state?.SentDay??"",CompletedDay=state?.CompletedDay??"",
                     HandoverDay=state?.HandoverDay??"",LastNote=state?.LastNote??"",
