@@ -119,11 +119,16 @@ public static class MotorHandoverExcel
         var incomplete=slips.Where(x=>x.Status=="delivered")
             .SelectMany(x=>x.Lines.Where(MotorSerials.IsMotor))
             .Any(x=>x.Quantity is >0);
-        if(string.IsNullOrWhiteSpace(path)||!File.Exists(path))
+        if(string.IsNullOrWhiteSpace(path))
+        {
+            if(incomplete)warnings.Add("Chưa cấu hình MÁY KÉO.xlsx; không thể đồng bộ ngày bàn giao theo seri.");
+            return new Outcome(0,0,0,warnings);
+        }
+        if(!File.Exists(path))
         {
             if(prior.Count==0&&!incomplete)return new Outcome(0,0,0,warnings);
-            throw new IOException("Chưa tìm thấy MÁY KÉO.xlsx để ghi ngày bàn giao. "+
-                "Phiếu đã xác nhận xuất được giữ nguyên; cần chọn lại Kho HISA rồi đồng bộ.");
+            throw new IOException("Không tìm thấy MÁY KÉO.xlsx ở đường dẫn đã lưu. "+
+                "Phiếu đã xác nhận xuất được giữ nguyên; cần kiểm tra Kho HISA rồi đồng bộ lại.");
         }
         var wished=new Dictionary<string,string>(StringComparer.Ordinal);
         var conflict=new HashSet<string>(StringComparer.Ordinal);
