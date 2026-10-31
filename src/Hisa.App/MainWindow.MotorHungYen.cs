@@ -242,6 +242,9 @@ public partial class MainWindow
                         "\n\nChỉ khi xác nhận phiếu Đã xuất mới đổi chữ thành ngày bàn giao."))return;
                     var result=await _service.SetMotorWorkAsync(selected,workChoice.SelectedIndex==1,
                         Day(effectiveDay),note.Text);
+                    // Refresh the original L cells immediately after writing:
+                    // the equipment catalog loaded when this page opened is stale.
+                    machineRows=EquipmentListReader.Read(_service.Settings.TractionMachineListPath,"Máy kéo");
                     items=ReadVisibleItems();
                     RefreshContracts();FilterMachines();
                     grid.SelectedItem=(grid.ItemsSource as IEnumerable<MotorHungYenStore.Item>)
