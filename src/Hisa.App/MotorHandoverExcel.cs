@@ -81,7 +81,7 @@ public static class MotorHandoverExcel
         finally{if(File.Exists(temp))File.Delete(temp);}
     }
 
-    private static void SaveExcel(XLWorkbook book,string excelPath,string backupDir)
+    internal static void SaveExcel(XLWorkbook book,string excelPath,string backupDir)
     {
         var folder=Path.GetDirectoryName(Path.GetFullPath(excelPath))!;
         var temp=Path.Combine(folder,"."+Path.GetFileNameWithoutExtension(excelPath)+"."+
@@ -92,7 +92,7 @@ public static class MotorHandoverExcel
             // complete pre-write bytes before updating the actual original.
             using(var locked=new FileStream(excelPath,FileMode.Open,FileAccess.ReadWrite,FileShare.None)){}
             Directory.CreateDirectory(backupDir);
-            var backup=Path.Combine(backupDir,"MAY-KEO-truoc-ngay-ban-giao-"+
+            var backup=Path.Combine(backupDir,"MAY-KEO-truoc-cap-nhat-"+
                 DateTime.Now.ToString("yyyyMMdd-HHmmss-fff")+"-"+
                 Guid.NewGuid().ToString("N")[..8]+".xlsx");
             File.Copy(excelPath,backup,false);
@@ -150,13 +150,39 @@ public static class MotorHandoverExcel
         var sheet=book.Worksheets.First();
         if(Rules.Code(sheet.Cell(2,4).GetString())!="HD")
             throw new InvalidDataException("MÁY KÉO.xlsx không có tiêu đề HĐ tại cột D, dòng 2. Không sửa file.");
+        // The user-selected canonical field is N, not an appended arbitrary column.
+        // Legacy v1.9.13 workbooks may have an older 'Ngày bàn giao' header in K/L.
+        var dateColumn=MotorProductionExcel.ProgressColumn;
+        var targetHeading=sheet.Cell(2,dateColumn).GetString().Trim();
+        if(targetHeading.Length>0 && Rules.Code(targetHeading)!="NGAYBANGIAO")
+            throw new InvalidDataException("Cột N đang thuộc dữ liệu khác. Không ghi đè file.");
+        var newlyAdded=targetHeading.Length==0;
         var lastColumn=Math.Min(sheet.LastColumnUsed()?.ColumnNumber()??10,160);
-        var dateColumn=Enumerable.Range(1,lastColumn)
-            .FirstOrDefault(c=>Rules.Code(sheet.Cell(2,c).GetString())=="NGAYBANGIAO");
-        var newlyAdded=dateColumn==0;
-        if(newlyAdded)dateColumn=Math.Max(11,lastColumn+1);
-        if(dateColumn>160)throw new InvalidDataException("Không tìm được cột trống phù hợp để ghi ngày bàn giao.");
+        var legacyColumn=Enumerable.Range(1,lastColumn)
+            .FirstOrDefault(c=>c!=dateColumn &&
+                Rules.Code(sheet.Cell(2,c).GetString())=="NGAYBANGIAO");
         var rows=EquipmentListReader.Read(path,"Máy kéo");
+        var migrated=0;
+        if(legacyColumn>0)
+        {
+            foreach(var row in rows)
+            {
+                var target=sheet.Cell(row.SourceRow,dateColumn);
+                var old=sheet.Cell(row.SourceRow,legacyColumn);
+                if(target.IsEmpty()&&!old.IsEmpty())
+                {
+                    target.Value=old.Value;
+                    target.Style.NumberFormat.Format=old.Style.NumberFormat.Format;
+                    migrated++;
+                }
+                else if(!target.IsEmpty()&&!old.IsEmpty() && DateText(target)!=DateText(old))
+                    warnings.Add("Cột N khác ngày bàn giao cũ; giữ N và không xóa dữ liệu cũ: "+
+                        row.Contract+" / "+row.Serial);
+            }
+        }
+        if(newlyAdded && rows.Any(row=>
+            MotorProductionExcel.Status(DateText(sheet.Cell(row.SourceRow,dateColumn)))=="Cần đối chiếu"))
+            throw new InvalidDataException("Cột N chứa dữ liệu không nhận diện được. Chưa sửa file.");
         var indexed=rows.Where(x=>!string.IsNullOrWhiteSpace(x.Serial))
             .GroupBy(Key).ToDictionary(x=>x.Key,x=>x.ToList(),StringComparer.Ordinal);
         var next=new Dictionary<string,Receipt>(StringComparer.Ordinal);
@@ -181,7 +207,8 @@ public static class MotorHandoverExcel
             var cell=sheet.Cell(candidates[0].SourceRow,dateColumn);
             var existing=DateText(cell);
             priorByKey.TryGetValue(identity,out var owned);
-            if(owned==null && existing.Length>0 && existing!=day)
+            if(owned==null && existing.Length>0 && existing!=day &&
+                MotorProductionExcel.Status(existing) is not ("Đã làm" or "Chưa làm"))
             {
                 unmatched++;
                 warnings.Add("Dòng máy kéo đã có ngày bàn giao nhập thủ công khác ngày phiếu. Không ghi đè: "+identity);
@@ -238,8 +265,14 @@ public static class MotorHandoverExcel
                 cell.Style.NumberFormat.Format="dd/MM/yyyy";
                 written++;
             }
+            else if(MotorProductionExcel.Status(action.NewDay) is "Đã làm" or "Chưa làm")
+            {
+                // Cancelling a delivery restores the operator's original text.
+                cell.Value=action.NewDay;
+                written++;
+            }
         }
-        if(newlyAdded||written>0||cleared>0)
+        if(newlyAdded||migrated>0||written>0||cleared>0)
             SaveExcel(book,path,excelBackupDirectory);
         // The receipt file only changes after Excel was safely committed.
         if(prior.Count!=next.Count || prior.Any(x=>!next.TryGetValue(x.Identity,out var y)||
