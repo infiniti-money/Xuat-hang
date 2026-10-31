@@ -20,6 +20,9 @@ public static class ContDiArrivalLookupDiagnostics
             checks.Add("Cont đi worksheet: "+label);
         }
         var root=SelfTests.CreateDemoWorkspace();
+        // Prove the workflow works even when the physical CONT ĐI directory
+        // does not exist at all; the Cont đi worksheet is the source.
+        Directory.Delete(Path.Combine(root,"CONT ĐI"));
         try
         {
             var master=Path.Combine(root,"Tổng hợp.xlsx");
