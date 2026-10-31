@@ -17,6 +17,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="ClosedXML" Version="0.105.0" />
+    <PackageReference Include="System.Speech" Version="10.0.14" />
     <Resource Include="Assets\hisa-logo.jpg" />
     <Resource Include="Assets\hisa.ico" />
   </ItemGroup>
