@@ -6,29 +6,15 @@ namespace Hisa.App;
 
 public partial class MainWindow
 {
+    // The preview and actual-receipt confirmation now live inside the AI schedule.
+    // Reuse the existing package-ID verifier; do not import a separate old schedule.
     private void ShowPlannedArrivals(bool onlyMarkedContracts=false)
     {
-        _page = "planned-arrivals";
-        // A changed but unapproved on-screen schedule must never be used to record real arrivals.
-        var approved = _aiApproved && _aiDocument is { ApprovedAt: { Length: > 0 } }
-            ? _aiDocument : AiScheduleWorkspace.LatestApproved(_service.DataDirectory);
-        if(onlyMarkedContracts && (approved==null || approved.Arrivals.All(x=>!x.SelectedForArrival)))
-        {
-            Notify("Không có hợp đồng phần cont về nào được tích chọn. Mở màn lịch để chọn đúng hợp đồng trước.");
-            return;
-        }
-        if (approved is null)
-        {
-            SetPage("Cont đã về kho",
-                "Từ lịch Gemini đã duyệt đến cập nhật thực tế trong Tổng hợp.xlsx",
-                Card(Stack(
-                    T("CHƯA CÓ LỊCH CONT ĐƯỢC DUYỆT", 18, true),
-                    T("Hãy đọc ảnh Zalo bằng Gemini, kiểm tra và lưu lịch dự kiến trước. " +
-                      "Không tự ghi nhập kho từ ngày dự kiến.", 12, false, Muted),
-                    Row(B("Đọc ảnh Zalo với Gemini", () => Navigate("ai-schedule"), true),
-                        B("Nhập kho thủ công", () => Navigate("arrival"))))));
-            return;
-        }
+        ShowAiSchedules();
+    }
+
+    private FrameworkElement BuildPlannedArrivalPanel(AiScheduleDocument approved,bool onlyMarkedContracts=false)
+    {
         var date = DateInput(DateTime.Today.ToString("yyyy-MM-dd"));
 
         var feedback = T("Chọn đúng ngày cont THỰC TẾ đã về và tích TỪNG kiện hàng đã nhận.", 12, false, Muted);
@@ -69,7 +55,7 @@ public partial class MainWindow
         date.SelectedDateChanged += (_, _) => preview();
         var actions = Row(
             B("↻  Đối chiếu lại", preview),
-            B("Xem tất cả kiện trong lịch",()=>ShowPlannedArrivals()),
+            B("Xem tất cả kiện trong lịch",()=>ShowAiSchedules()),
             B("Bỏ chọn", () =>
             {
                 foreach (var r in rows) r.Selected = false;
@@ -99,7 +85,7 @@ public partial class MainWindow
                 Notify($"Đã nhập {output.Contracts} HĐ · {output.Packages} kiện · " +
                        $"{output.Lines} dòng vào Tổng hợp.xlsx.\n" +
                        string.Join("\n", output.Warnings));
-                ShowPlannedArrivals();
+                ShowAiSchedules();
             }, true)
         );
         var explanation = Card(Stack(
@@ -112,9 +98,7 @@ public partial class MainWindow
             feedback,
             actions
         ));
-        SetPage("Cont đã về kho",
-            "Tích container thực tế đã nhận · đối chiếu HĐ/kiện · cập nhật Tổng hợp.xlsx",
-            Layout(explanation, grid));
         preview();
+        return Layout(explanation,grid);
     }
 }
