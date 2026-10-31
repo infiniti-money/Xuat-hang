@@ -1,3 +1,14 @@
+# HISA v1.9.14 — Trạng thái máy kéo và ngày bàn giao thống nhất tại cột N
+
+- Trong **Theo dõi máy kéo**, chọn đúng HĐ, công trình, đơn vị, seri rồi chọn một tình trạng **Chưa làm / Đã làm** trong danh sách xổ xuống; nhấn **Lưu trạng thái vào Excel cột N** để ghi đúng chữ, không điền ngày khi chỉ mới làm xong.
+- Cột **N** của **Danh sách sản xuất/MÁY KÉO.xlsx** là vị trí cố định: cột N trống được đặt tiêu đề **Ngày bàn giao**, các cột khác (kể cả cột ngày v1.9.13 ở vị trí cũ) không tự xóa hoặc di chuyển. Nếu cột N đã có tiêu đề khác hay dữ liệu không rõ nguồn, HISA chặn ghi để người dùng kiểm tra; không chèn cột ở nơi khác.
+- Khi phiếu xuất được xác nhận **Đã xuất**, chỉ những máy kéo có **HĐ + công trình + đơn vị + seri duy nhất** mới đổi chữ tại N thành **ngày thực tế trên phiếu**. Trạng thái **Đã bàn giao** ở màn hình máy kéo được hiển thị theo phiếu xuất đã chốt, không còn nút tự xác nhận bàn giao thủ công.
+- Khi hủy phiếu, HISA phục hồi tình trạng đã làm trước đó (nếu chính HISA đã ghi) hoặc ô gốc; ngày Excel sửa tay không được tùy tiện ghi đè. Từng lần sửa workbook đều tạo bản sao trước khi thay thế, có file receipt và khả năng thử lại khi file khóa.
+- Bổ sung regression trên workbook mô phỏng cho chữ **Đã làm**, đổi ngày thực xuất, hủy phiếu/khôi phục chữ, quay về **Chưa làm**, xung đột ô nhập tay, cột N bị chiếm dụng và giữ nguyên cột khác.
+- **Lưu ý:** Chưa có công cụ tự chuyển các cột ngày bàn giao cũ sang N. Đối chiếu một lần với file MÁY KÉO.xlsx thực tế trước khi vận hành trên dữ liệu chính.
+
+---
+
 # HISA v1.9.13 — Cột Ngày bàn giao tự động trong danh sách Máy kéo
 
 - Khi xác nhận **Đã xuất** trong Phiếu bàn giao, ghi **ngày bàn giao** (ngày trên phiếu) vào dòng **từng seri máy kéo** trong file `Danh sách sản xuất/MÁY KÉO.xlsx`.
