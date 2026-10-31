@@ -31,7 +31,7 @@ public partial class MainWindow
         }
         var date = DateInput(DateTime.Today.ToString("yyyy-MM-dd"));
 
-        var feedback = T("Chọn đúng ngày cont THỰC TẾ đã về và các dòng cần nhập kho.", 12, false, Muted);
+        var feedback = T("Chọn đúng ngày cont THỰC TẾ đã về và tích TỪNG kiện hàng đã nhận.", 12, false, Muted);
         var rows = new List<PlannedArrivalRow>();
         var grid = Table(rows,
             ("Mã cont", "Container", 140),
@@ -65,24 +65,19 @@ public partial class MainWindow
             rows = onlyMarkedContracts
                 ? AiScheduleWorkspace.SelectedArrivalPreview(approved,_service.Snapshot,Day(date))
                 : PlannedArrivalWorkflow.Preview(approved,_service.Snapshot,Day(date));
-            if(onlyMarkedContracts)AiScheduleWorkspace.PreselectUnique(rows);
+            // Never automatically mark source packages as received: the planned date is only a forecast.
             grid.ItemsSource = rows;
             var ready = rows.Count(x => x.Status == "Đủ nguồn · chờ xác nhận đã về");
             feedback.Text = $"{rows.Count} kiện từ lịch đã duyệt · {ready} kiện đủ nguồn · " +
                 $"{rows.Count - ready} kiện cần kiểm tra. " +
                 (onlyMarkedContracts
-                    ? "Đang lọc theo hợp đồng đã tích từ màn lịch. Mỗi HĐ có nhiều kiện phải chọn riêng từng kiện."
+                    ? "Đã lọc theo HĐ tích ở ảnh Zalo. Chưa kiện nào được tự đánh dấu đã về: hãy tự chọn từng kiện thực nhận."
                     : "Tích riêng từng KIỆN đã về THỰC TẾ (dù trùng số hợp đồng).");
         }
         date.SelectedDateChanged += (_, _) => preview();
         var actions = Row(
             B("↻  Đối chiếu lại", preview),
             B("Xem tất cả kiện trong lịch",()=>ShowPlannedArrivals()),
-            B("Tích các dòng đủ nguồn", () =>
-            {
-                foreach (var r in rows) r.Selected = r.Status == "Đủ nguồn · chờ xác nhận đã về";
-                grid.Items.Refresh();
-            }),
             B("Bỏ chọn", () =>
             {
                 foreach (var r in rows) r.Selected = false;
