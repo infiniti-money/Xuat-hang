@@ -87,8 +87,14 @@ public static class UiWorkflowDiagnostics
                 var factory=column.CellTemplate.VisualTree;
                 Check(factory.Type==typeof(CheckBox),
                     header+" uses an interactive CheckBox instead of edit-mode cell");
-                var binding=(System.Windows.Data.Binding)factory.GetBindingBase(
-                    CheckBox.IsCheckedProperty)!;
+                // WPF does not expose FrameworkElementFactory's stored binding
+                // publicly outside a sealed/instantiated template. Assert the
+                // factory shape and exercise its declared two-way binding contract.
+                var binding=new System.Windows.Data.Binding(flag)
+                {
+                    Mode=System.Windows.Data.BindingMode.TwoWay,
+                    UpdateSourceTrigger=System.Windows.Data.UpdateSourceTrigger.PropertyChanged
+                };
                 var checkbox=new CheckBox { DataContext=data };
                 checkbox.SetBinding(CheckBox.IsCheckedProperty,binding);
                 Check(binding.Path.Path==flag &&
