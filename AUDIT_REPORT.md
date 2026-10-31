@@ -1,3 +1,19 @@
+# BÁO CÁO RÀ SOÁT TIẾP THEO · HISA v1.9.15 → v1.9.16 · 31/10/2026
+
+**Phạm vi:** kiểm tra mã GitHub và kết quả Windows CI, ZIP restore, JSON schema, GitHub updater, nguồn Excel, Gemini credential. Không sử dụng dữ liệu kho thật.
+
+| Ưu tiên | Phát hiện trong v1.9.15 | Khắc phục v1.9.16 / giới hạn |
+|---|---|---|
+| Cao | Tệp cài đặt trong cache sai SHA-256 được xóa khi luồng File.OpenRead còn mở; Windows có thể khóa việc xóa và làm kẹt cập nhật. | Đóng luồng trước khi xóa; thêm thử nghiệm cache chuẩn và bị hỏng. |
+| Cao | Khôi phục có thể chấp nhận JSON đúng cú pháp nhưng sai mô hình (ví dụ slips.json là đối tượng thay vì danh sách), khiến HISA lỗi khi nạp dữ liệu. | Validate kiểu dữ liệu đã biết trước khi thay đổi tệp, kiểm thử JSON sai kiểu và mục null. |
+| Trung bình | Tên đường dẫn Excel trong ZIP chỉ phân biệt chữ hoa/thường ở một số bước, tạo lỗi restore với ZIP cũ. | Nhất quán không phân biệt hoa/thường khi đếm, lựa chọn và ánh xạ workbook. |
+| Trung bình | Nút kiểm tra cập nhật chưa thể hiện trực tiếp chức năng thử lại khi mạng gián đoạn. | Đổi nhãn "Kiểm tra / Thử lại"; tiếp tục xác minh SHA-256 và tải phần còn thiếu. |
+| Cần kiểm chứng máy thật | GitHub Actions không thử UAC bị từ chối, antivirus, tốc độ mạng thực tế hay file Excel của người dùng. | Giữ issue #13 mở; yêu cầu log lỗi khi tái hiện. |
+
+**Nguyên tắc:** Không tự sửa nguồn Excel khi kiểm tra cập nhật; bản phục hồi chỉ thực hiện sau khi chọn nhóm, xem trước, xác nhận; lưu bản sao an toàn và rollback. API Key Gemini thuộc Windows Credential Manager, không xuất ra ZIP. CI tự động không thay thế thử nghiệm trên máy thật.
+
+---
+
 # BÁO CÁO RÀ SOÁT TOÀN DIỆN · HISA v1.9.9 → v1.9.10 · 31/10/2026
 
 **Phạm vi:** repo `infiniti-money/Xuat-hang`, WPF/.NET 10, cài đặt và updater GitHub Releases, bảo vệ JSON/ZIP, file `Tổng hợp.xlsx` / `KT tổng hợp.xlsx` / `Thành phẩm xuất kho.xlsx`, thư mục `CONT ĐI` / `Đã nhập kho` / `Hàng gửi`, Gemini/Zalo, phiếu chờ/đã bàn giao, Tủ điện/Máy kéo/Đầu cửa car, lịch máy kéo Hưng Yên.
