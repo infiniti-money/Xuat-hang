@@ -81,9 +81,16 @@ public static class UiWorkflowDiagnostics
             {
                 var column=source.Columns.OfType<DataGridTemplateColumn>()
                     .Single(c=>c.Header?.ToString()==header);
-                var checkbox=(CheckBox)column.CellTemplate.LoadContent();
-                var binding=System.Windows.Data.BindingOperations.GetBinding(
-                    checkbox,CheckBox.IsCheckedProperty)!;
+                // FrameworkElementFactory.LoadContent cannot be called until WPF
+                // seals a live template. Inspect the factory's actual binding and
+                // recreate the control for a direct first-click binding test.
+                var factory=column.CellTemplate.VisualTree;
+                Check(factory.Type==typeof(CheckBox),
+                    header+" uses an interactive CheckBox instead of edit-mode cell");
+                var binding=(System.Windows.Data.Binding)factory.GetBindingBase(
+                    CheckBox.IsCheckedProperty)!;
+                var checkbox=new CheckBox { DataContext=data };
+                checkbox.SetBinding(CheckBox.IsCheckedProperty,binding);
                 Check(binding.Path.Path==flag &&
                       binding.Mode==System.Windows.Data.BindingMode.TwoWay &&
                       binding.UpdateSourceTrigger==System.Windows.Data.UpdateSourceTrigger.PropertyChanged,
