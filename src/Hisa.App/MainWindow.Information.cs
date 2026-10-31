@@ -35,7 +35,7 @@ public partial class MainWindow
             T("Kiểm tra bản chính thức trên GitHub Releases. HISA tải và xác minh SHA-256; chỉ cài khi bạn đồng ý. Không thay đổi dữ liệu Excel, phiếu và API Key.",12,false,Muted),
             T(AutoUpdater.ReadyVersion is string ready?"ĐÃ SẴN SÀNG CÀI PHIÊN BẢN "+ready:"PHIÊN BẢN ĐANG SỬ DỤNG: "+SoftwareInfo.Version,13,true,Brush("#117D83")),
             Row(
-                A("Kiểm tra cập nhật",async()=>
+                A("Kiểm tra / Thử lại",async()=>
                 {
                     var version=await AutoUpdater.CheckAndStageAsync();
                     if(version==null)Notify("Bạn đang dùng phiên bản "+SoftwareInfo.Version+" hoặc chưa có bản phát hành mới hơn.");

@@ -14,7 +14,7 @@ public static class BackupRestore
     public sealed record Preview(bool Legacy, string CreatedAt, IReadOnlyList<string> Files)
     {
         public int DataCount => Files.Count(x=>x.EndsWith(".json",StringComparison.OrdinalIgnoreCase) && x!="backup-manifest.json");
-        public int ExcelCount => Files.Count(x=>x.StartsWith("Excel/",StringComparison.Ordinal));
+        public int ExcelCount => Files.Count(x=>x.StartsWith("Excel/",StringComparison.OrdinalIgnoreCase));
     }
 
     private static readonly string[] Workbooks =
@@ -26,7 +26,7 @@ public static class BackupRestore
         (path.EndsWith(".json",StringComparison.OrdinalIgnoreCase)
             && path!="backup-manifest.json"
             && (path.IndexOf('/')<0 ||
-                (path.StartsWith("ai_schedules/",StringComparison.Ordinal) &&
+                (path.StartsWith("ai_schedules/",StringComparison.OrdinalIgnoreCase) &&
                  path["ai_schedules/".Length..].StartsWith("lich-kho-",StringComparison.OrdinalIgnoreCase) &&
                  !path["ai_schedules/".Length..].Contains('/'))))
         || Workbooks.Contains(path,StringComparer.OrdinalIgnoreCase);
@@ -74,17 +74,17 @@ public static class BackupRestore
 
     private static string Destination(string entryName,string dataDirectory,AppSettings settings)
     {
-        if(entryName.StartsWith("ai_schedules/",StringComparison.Ordinal))
+        if(entryName.StartsWith("ai_schedules/",StringComparison.OrdinalIgnoreCase))
             return Path.Combine(dataDirectory,"ai_schedules",Path.GetFileName(entryName));
         if(!entryName.Contains('/'))
             return Path.Combine(dataDirectory,entryName);
-        return entryName switch
-        {
-            "Excel/Tổng hợp.xlsx"=>settings.MasterPath,
-            "Excel/Thành phẩm xuất kho.xlsx"=>settings.ProductExportPath,
-            "Excel/KT tổng hợp.xlsx"=>settings.KtPath,
-            _=>throw new InvalidDataException("Đường dẫn ZIP không được phép phục hồi.")
-        };
+        if(entryName.Equals("Excel/Tổng hợp.xlsx",StringComparison.OrdinalIgnoreCase))
+            return settings.MasterPath;
+        if(entryName.Equals("Excel/Thành phẩm xuất kho.xlsx",StringComparison.OrdinalIgnoreCase))
+            return settings.ProductExportPath;
+        if(entryName.Equals("Excel/KT tổng hợp.xlsx",StringComparison.OrdinalIgnoreCase))
+            return settings.KtPath;
+        throw new InvalidDataException("Đường dẫn ZIP không được phép phục hồi.");
     }
 
     public static string Restore(string zipPath,string dataDirectory,string backupDirectory,
@@ -94,7 +94,7 @@ public static class BackupRestore
             throw new ArgumentException("Phải chọn ít nhất một nhóm dữ liệu cần phục hồi.");
         var preview=Inspect(zipPath);
         var selected=preview.Files.Where(x=>
-            x.StartsWith("Excel/",StringComparison.Ordinal)?includeExcel:includeData).ToList();
+            x.StartsWith("Excel/",StringComparison.OrdinalIgnoreCase)?includeExcel:includeData).ToList();
         if(selected.Count==0)throw new InvalidDataException("Không có tệp nào thuộc nhóm đã chọn.");
 
         Directory.CreateDirectory(backupDirectory);
@@ -122,9 +122,7 @@ public static class BackupRestore
                         throw new InvalidDataException("Giải nén không đủ dữ liệu: "+name);
                     if(name.EndsWith(".json",StringComparison.OrdinalIgnoreCase))
                     {
-                        using var json=JsonDocument.Parse(File.ReadAllText(stage));
-                        if(json.RootElement.ValueKind is not (JsonValueKind.Object or JsonValueKind.Array))
-                            throw new InvalidDataException("JSON không có cấu trúc hợp lệ: "+name);
+                        BackupSchemaValidator.Validate(name,stage);
                     }
                     else
                     {

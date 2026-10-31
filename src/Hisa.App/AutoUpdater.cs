@@ -182,6 +182,19 @@ public static class AutoUpdater
         finally { CheckGate.Release(); }
     }
 
+    // Validate the cached setup with the file handle closed before a failed cache is removed.
+    // On Windows deleting the file while File.OpenRead still holds it causes IOException.
+    internal static bool ReuseVerifiedCachedInstaller(string path,string expected)
+    {
+        if(!File.Exists(path))return false;
+        string actual;
+        using(var stream=File.OpenRead(path))
+            actual=Convert.ToHexString(SHA256.HashData(stream));
+        if(actual.Equals(expected,StringComparison.OrdinalIgnoreCase))return true;
+        File.Delete(path);
+        return false;
+    }
+
     private static async Task<string?> StageCoreAsync(CancellationToken cancellationToken)
     {
         var release=await CheckLatestAsync(cancellationToken);
@@ -194,18 +207,12 @@ public static class AutoUpdater
         Directory.CreateDirectory(root);
         var file=Path.Combine(root,release.InstallerName);
         var staging=file+".partial";
-        if(File.Exists(file))
+        if(ReuseVerifiedCachedInstaller(file,expected))
         {
-            await using var existing=File.OpenRead(file);
-            var cached=Convert.ToHexString(await SHA256.HashDataAsync(existing,cancellationToken));
-            if(cached.Equals(expected,StringComparison.OrdinalIgnoreCase))
-            {
-                lock(Sync){_readyInstaller=file;_readyHash=expected;ReadyVersion=release.Version;}
-                UpdateStaged?.Invoke(release.Version);
-                UpdateProgress?.Invoke("Bản "+release.Version+" đã tải và xác minh. Sẵn sàng cài.");
-                return release.Version;
-            }
-            File.Delete(file);
+            lock(Sync){_readyInstaller=file;_readyHash=expected;ReadyVersion=release.Version;}
+            UpdateStaged?.Invoke(release.Version);
+            UpdateProgress?.Invoke("Bản "+release.Version+" đã tải và xác minh. Sẵn sàng cài.");
+            return release.Version;
         }
         UpdateProgress?.Invoke("Đang chuẩn bị tải bản "+release.Version+"...");
         await DownloadInstallerAsync(release.InstallerUrl,staging,cancellationToken);
