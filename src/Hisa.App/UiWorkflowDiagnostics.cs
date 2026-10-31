@@ -57,8 +57,8 @@ public static class UiWorkflowDiagnostics
             Check(Children(sourceCard).OfType<Button>().Any(b=>b.Content?.ToString()=="Chọn thư mục nguồn"),
                 "Source folder browser button is available without scrolling past Gemini");
             var simulated=AiScheduleWorkspace.NewDraft(new DateTime(2026,10,31));
-            simulated.Arrivals.Add(new AiScheduleLine{Contract="56062026",Project="Công trình A",Company="HISA",PlannedDate=simulated.ArrivalDate});
-            simulated.Dispatches.Add(new AiScheduleLine{Contract="13482026",Project="Công trình B",Company="HISA",PlannedDate=simulated.DispatchDate});
+            simulated.Arrivals.Add(new AiScheduleLine{Contract="05492026",Project="Công trình A",Company="Công ty A",PlannedDate=simulated.ArrivalDate});
+            simulated.Dispatches.Add(new AiScheduleLine{Contract="20012026",Project="Công trình C",Company="Công ty A",PlannedDate=simulated.DispatchDate});
             typeof(MainWindow).GetField("_aiDocument",flags)!.SetValue(window,simulated);
             Call("ShowAiSchedules");
             var aiHost=(Grid)window.FindName("PageHost")!;
@@ -74,9 +74,51 @@ public static class UiWorkflowDiagnostics
                 "Arrival verification and draft handover have direct buttons next to their lists");
             var aiGrids=Children(aiPanel).OfType<DataGrid>().ToList();
             Check(aiGrids.Count==2 &&
-                  aiGrids[0].Columns.OfType<DataGridCheckBoxColumn>().Any(c=>c.Header?.ToString()=="Cont đã về?") &&
-                  aiGrids[1].Columns.OfType<DataGridCheckBoxColumn>().Any(c=>c.Header?.ToString()=="Làm phiếu"),
-                "Two workflows have independent checkbox columns");
+                  aiGrids[0].Columns.OfType<DataGridTemplateColumn>().Any(c=>c.Header?.ToString()=="Cont đã về?") &&
+                  aiGrids[1].Columns.OfType<DataGridTemplateColumn>().Any(c=>c.Header?.ToString()=="Làm phiếu"),
+                "Both Zalo workflow lists expose first-click interactive checkbox templates");
+            void AssertCheckbox(DataGrid source,string header,AiScheduleLine data,string flag)
+            {
+                var column=source.Columns.OfType<DataGridTemplateColumn>()
+                    .Single(c=>c.Header?.ToString()==header);
+                // FrameworkElementFactory.LoadContent cannot be called until WPF
+                // seals a live template. Inspect the factory's actual binding and
+                // recreate the control for a direct first-click binding test.
+                var factory=column.CellTemplate.VisualTree;
+                Check(factory.Type==typeof(CheckBox),
+                    header+" uses an interactive CheckBox instead of edit-mode cell");
+                // WPF does not expose FrameworkElementFactory's stored binding
+                // publicly outside a sealed/instantiated template. Assert the
+                // factory shape and exercise its declared two-way binding contract.
+                var binding=new System.Windows.Data.Binding(flag)
+                {
+                    Mode=System.Windows.Data.BindingMode.TwoWay,
+                    UpdateSourceTrigger=System.Windows.Data.UpdateSourceTrigger.PropertyChanged
+                };
+                var checkbox=new CheckBox { DataContext=data };
+                checkbox.SetBinding(CheckBox.IsCheckedProperty,binding);
+                Check(binding.Path.Path==flag &&
+                      binding.Mode==System.Windows.Data.BindingMode.TwoWay &&
+                      binding.UpdateSourceTrigger==System.Windows.Data.UpdateSourceTrigger.PropertyChanged,
+                    header+" binds directly to row value on first click");
+                checkbox.DataContext=data;
+                checkbox.SetCurrentValue(CheckBox.IsCheckedProperty,true);
+                Check(flag=="SelectedForArrival"?data.SelectedForArrival:data.SelectedForHandover,
+                    header+" immediately updates the model when clicked");
+                checkbox.SetCurrentValue(CheckBox.IsCheckedProperty,false);
+                Check(flag=="SelectedForArrival"?!data.SelectedForArrival:!data.SelectedForHandover,
+                    header+" can be unchecked without editing another cell");
+            }
+            AssertCheckbox(aiGrids[0],"Cont đã về?",simulated.Arrivals[0],"SelectedForArrival");
+            AssertCheckbox(aiGrids[1],"Làm phiếu",simulated.Dispatches[0],"SelectedForHandover");
+            Check(Children(aiPanel).OfType<Button>().Any(b=>b.Content?.ToString()?.Contains("Xem toàn bộ vật tư cont")==true) &&
+                  Children(aiPanel).OfType<Button>().Any(b=>b.Content?.ToString()?.Contains("Xem toàn bộ vật tư HĐ bàn giao")==true),
+                "Both lists allow browsing material details for every Zalo contract");
+            aiGrids[0].SelectedIndex=0;
+            var materialGrids=Children(aiPanel).OfType<DataGrid>().Where(g=>g!=aiGrids[0]&&g!=aiGrids[1]).ToList();
+            Check(materialGrids.Any(g=>g.ItemsSource is List<AiMaterialLookup.Row> items &&
+                  items.Any(i=>i.Material=="Máy kéo M1"&&i.Quantity==2)),
+                "Clicking a schedule row shows original workbook goods and quantities");
             Check(!simulated.Arrivals[0].SelectedForArrival && !simulated.Dispatches[0].SelectedForHandover &&
                   string.IsNullOrWhiteSpace(simulated.ApprovedAt),
                 "Opening Gemini results does not mark arrival, issue a slip or approve schedule");

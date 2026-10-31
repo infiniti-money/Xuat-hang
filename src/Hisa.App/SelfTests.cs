@@ -159,6 +159,7 @@ public static class SelfTests
             result.Checks.AddRange(await AuditStateDiagnostics.RunAsync());
             result.Checks.AddRange(AiScheduleDiagnostics.Run());
             result.Checks.AddRange(AiWorkspaceDiagnostics.Run());
+            result.Checks.AddRange(AiMaterialDiagnostics.Run());
             result.Checks.AddRange(GeminiCredentialDiagnostics.Run());
             result.Checks.AddRange(GeminiChatDiagnostics.Run());
             result.Checks.AddRange(WorkflowUiDiagnostics.Run());

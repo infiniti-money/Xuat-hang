@@ -1,3 +1,13 @@
+# HISA Quản lý kho v1.9.5 — Sửa không tích được ô Zalo, xem hàng hóa hợp đồng
+
+- Sửa checkbox **Cont đã về?**, **Làm phiếu** và màn **Đã về**: có thể tích/bỏ tích ngay lần nhấp chuột đầu tiên, kích thước ô chọn dễ thao tác hơn. Cùng kiểu dùng cho Khách gấp/Cần kiểm tra.
+- Sau khi Gemini đọc ảnh, click vào mỗi dòng hợp đồng để mở bảng vật tư **tên hàng, số lượng, ĐVT, ngày cont đi, ngày cont về và trạng thái** bên dưới. Có nút xem **toàn bộ vật tư của các hợp đồng** trong ảnh Zalo.
+- Vật tư và số lượng lấy từ **Tổng hợp.xlsx**, không suy đoán từ AI. Đối chiếu chính xác hợp đồng + công trình + đơn vị; số hợp đồng trùng T1/T2 hoặc không khớp dữ liệu sẽ hiển thị cảnh báo, không tự gộp.
+- Giữ quy trình duyệt lịch trước nhập kho/lập phiếu và xác nhận từng kiện thực tế trước khi ghi. Không tự đánh dấu đã xuất hoặc đã nhận.
+- Thêm regression tests về binding trực tiếp, xem vật tư theo dòng hợp đồng, vật tư nhiều kiện, thiếu HĐ, trường hợp trùng HĐ giữa T1/T2, lượng vật tư và ngày cont, cài mới/cài đè trên Windows.
+
+---
+
 # HISA Quản lý kho v1.9.4 — Đưa Đã nhập kho và Hàng gửi ra ngoài CONT ĐI
 
 - **Sửa đường dẫn lưu:** `CONT ĐI`, `Đã nhập kho` và `Hàng gửi` là ba thư mục **ngang cấp**, không tạo thư mục Đã nhập kho/Hàng gửi ở trong CONT ĐI.

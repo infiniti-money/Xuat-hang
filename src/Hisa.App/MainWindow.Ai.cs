@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
+using System.Windows.Media;
 using Microsoft.Win32;
 
 namespace Hisa.App;
@@ -14,7 +15,36 @@ public partial class MainWindow
     private string? _aiDispatchDay;
     private bool _aiApproved;
 
-    private static DataGrid ScheduleEditor(List<AiScheduleLine> rows, bool incoming)
+    // DataGridCheckBoxColumn makes operators click once to edit and again to
+    // check. This display template contains a real, immediately interactive
+    // CheckBox and writes to the per-row flag on the very first mouse click.
+    private static DataGridTemplateColumn OneClickCheckColumn(
+        string header,string path,double width,Action? onDataEdited=null)
+    {
+        var factory=new FrameworkElementFactory(typeof(CheckBox));
+        factory.SetValue(FrameworkElement.HorizontalAlignmentProperty,HorizontalAlignment.Center);
+        factory.SetValue(FrameworkElement.VerticalAlignmentProperty,VerticalAlignment.Center);
+        factory.SetValue(FrameworkElement.LayoutTransformProperty,new ScaleTransform(1.4,1.4));
+        var binding=new Binding(path)
+        {
+            Mode=BindingMode.TwoWay,
+            UpdateSourceTrigger=UpdateSourceTrigger.PropertyChanged,
+            NotifyOnSourceUpdated=onDataEdited!=null
+        };
+        factory.SetBinding(CheckBox.IsCheckedProperty,binding);
+        if(onDataEdited!=null)
+            factory.AddHandler(Binding.SourceUpdatedEvent,
+                new EventHandler<DataTransferEventArgs>((_,_)=>onDataEdited()));
+        return new DataGridTemplateColumn
+        {
+            Header=header,
+            CellTemplate=new DataTemplate {VisualTree=factory},
+            Width=width,
+            IsReadOnly=true
+        };
+    }
+
+    private static DataGrid ScheduleEditor(List<AiScheduleLine> rows, bool incoming,Action? onDataEdited=null)
     {
         var grid = new DataGrid
         {
@@ -41,31 +71,10 @@ public partial class MainWindow
                                   : new DataGridLength(width)
             });
         }
-        if (incoming)
-        {
-            grid.Columns.Add(new DataGridCheckBoxColumn
-            {
-                Header="Cont đã về?",
-                Binding=new Binding("SelectedForArrival")
-                {
-                    Mode=BindingMode.TwoWay,
-                    UpdateSourceTrigger=UpdateSourceTrigger.PropertyChanged
-                },
-                Width=88
-            });
-        }
-        else
-        {
-            grid.Columns.Add(new DataGridCheckBoxColumn
-            {
-                Header = "Làm phiếu",
-                Binding = new Binding("SelectedForHandover") {
-                    Mode = BindingMode.TwoWay,
-                    UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
-                },
-                Width = 88
-            });
-        }
+        // Selection flags are transient and must NOT invalidate approval.
+        grid.Columns.Add(incoming
+            ? OneClickCheckColumn("Cont đã về?","SelectedForArrival",110)
+            : OneClickCheckColumn("Làm phiếu","SelectedForHandover",100));
         TextColumn("Nguồn", "EntrySource", 92, false);
         TextColumn("Số HĐ", "Contract", 110);
         TextColumn("Công trình", "Project", -1);
@@ -77,19 +86,9 @@ public partial class MainWindow
             TextColumn("Ngày xuất cont", "ContainerExportDate", 125);
         }
         TextColumn("Ghi chú", "Note", 185);
-        grid.Columns.Add(new DataGridCheckBoxColumn
-        {
-            Header = "Khách gấp",
-            Binding = new Binding("Urgent") { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged },
-            Width = 80
-        });
+        grid.Columns.Add(OneClickCheckColumn("Khách gấp","Urgent",86,onDataEdited));
         TextColumn("Trạng thái lịch xuất", "ScheduleLabel", 158, false);
-        grid.Columns.Add(new DataGridCheckBoxColumn
-        {
-            Header = "Cần kiểm tra",
-            Binding = new Binding("NeedsReview") { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged },
-            Width = 95
-        });
+        grid.Columns.Add(OneClickCheckColumn("Cần kiểm tra","NeedsReview",108,onDataEdited));
         TextColumn("Lý do kiểm tra", "ReviewNote", 230);
         return grid;
     }
@@ -188,8 +187,9 @@ public partial class MainWindow
         dayArrival.Width = 150;
         var dayDispatch = Input(doc.DispatchDate);
         dayDispatch.Width = 150;
-        var incoming = ScheduleEditor(doc.Arrivals, true);
-        var outgoing = ScheduleEditor(doc.Dispatches, false);
+        Action? invalidateEditedCheck = null;
+        var incoming = ScheduleEditor(doc.Arrivals, true,()=>invalidateEditedCheck?.Invoke());
+        var outgoing = ScheduleEditor(doc.Dispatches, false,()=>invalidateEditedCheck?.Invoke());
         var saved = T(_aiApproved ? "✓ Lịch đã duyệt. Có thể chọn nhập cont hoặc làm phiếu." :
             "Chưa duyệt. Mọi dòng có thể chỉnh sửa trước khi lưu.", 12, true);
         // An approved snapshot is immutable. Changing even just the header date
@@ -201,6 +201,7 @@ public partial class MainWindow
             doc.ApprovedAt = "";
             saved.Text = "Lịch đã thay đổi sau lần duyệt. Kiểm tra và lưu duyệt lại trước khi lập phiếu hoặc nhập kho.";
         }
+        invalidateEditedCheck=InvalidateApproval;
         dayArrival.TextChanged += (_, _) => InvalidateApproval();
         dayDispatch.TextChanged += (_, _) => InvalidateApproval();
         incoming.CellEditEnding += (_, e) =>
@@ -254,7 +255,66 @@ public partial class MainWindow
             B("Xem cont dự kiến",()=>ShowPlannedArrivals()),
             B("Trạng thái lịch xuất",()=>CycleSchedule(incoming))
         ));
+        incomingBody.Children.Add(T("Nhấp MỘT LẦN vào ô vuông để tích. Chọn một dòng bất kỳ để xem từng vật tư, số lượng và tình trạng thực nhận ngay bên dưới.",12,false,Muted));
         incomingBody.Children.Add(incoming);
+
+        var arrivalMaterials=new ContentControl{Margin=new Thickness(0,9,0,10)};
+        var dispatchMaterials=new ContentControl{Margin=new Thickness(0,9,0,10)};
+        FrameworkElement MaterialDetail(AiScheduleLine line)
+        {
+            var match=AiMaterialLookup.ForContract(line,_service.Snapshot);
+            var grid=Table(match.Items,
+                ("Số HĐ","Contract",112),("Công trình","Project",175),
+                ("Tên vật tư","Material",-1),("ĐVT","Unit",70),("SL","Quantity",85),
+                ("Kiện","PackageNo",65),("Ngày cont đi","SourceDate",115),
+                ("Ngày cont về","ArrivalDate",115),("Trạng thái","Status",155),
+                ("Ghi chú","Note",220));
+            grid.MinHeight=108;
+            grid.MaxHeight=265;
+            return Card(Stack(
+                T("VẬT TƯ CỦA HĐ "+line.Contract+" · "+line.Project,14,true),
+                T(match.Message,12,false,match.Exact?Brush("#177E89"):Brush("#AB6A37")),
+                grid));
+        }
+        void UpdateMaterialDetail(DataGrid source,ContentControl host)
+        {
+            host.Content=source.SelectedItem is AiScheduleLine line
+                ? MaterialDetail(line)
+                : Alert("Chọn một dòng hợp đồng trong bảng để xem danh sách vật tư từ Tổng hợp.xlsx.");
+        }
+        incoming.SelectionChanged+=(_,_)=>UpdateMaterialDetail(incoming,arrivalMaterials);
+        outgoing.SelectionChanged+=(_,_)=>UpdateMaterialDetail(outgoing,dispatchMaterials);
+        incoming.CellEditEnding+=(_,_)=>Dispatcher.BeginInvoke(
+            new Action(()=>UpdateMaterialDetail(incoming,arrivalMaterials)));
+        outgoing.CellEditEnding+=(_,_)=>Dispatcher.BeginInvoke(
+            new Action(()=>UpdateMaterialDetail(outgoing,dispatchMaterials)));
+        void OpenAllMaterials(List<AiScheduleLine> lines,string title)
+        {
+            Commit(incoming);
+            Commit(outgoing);
+            var materialRows=AiMaterialLookup.ForAll(lines,_service.Snapshot);
+            var allGrid=Table(materialRows,
+                ("Số HĐ","Contract",115),("Công trình","Project",185),
+                ("Đơn vị","Company",130),("Tên vật tư","Material",-1),
+                ("ĐVT","Unit",70),("Số lượng","Quantity",95),
+                ("Kiện","PackageNo",66),("Cont đi","SourceDate",110),
+                ("Cont về","ArrivalDate",110),("Tình trạng","Status",155),
+                ("Ghi chú đối chiếu","Note",230));
+            allGrid.IsReadOnly=true;
+            var dialogBody=new Grid();
+            dialogBody.RowDefinitions.Add(new RowDefinition{Height=GridLength.Auto});
+            dialogBody.RowDefinitions.Add(new RowDefinition{Height=new GridLength(1,GridUnitType.Star)});
+            dialogBody.Children.Add(Card(Stack(
+                T(title,17,true),
+                T(lines.Count+" hợp đồng · "+materialRows.Count+" dòng vật tư / cảnh báo. Đây là dữ liệu đọc từ Excel, không phải số lượng Gemini dự đoán.",12,false,Muted))));
+            Grid.SetRow(allGrid,1);
+            dialogBody.Children.Add(allGrid);
+            ShowDialogContent(title,dialogBody);
+        }
+        incomingBody.Children.Add(Row(B("▤ Xem toàn bộ vật tư cont dự kiến",()=>OpenAllMaterials(doc.Arrivals,"Vật tư các hợp đồng cont dự kiến về"))));
+        incomingBody.Children.Add(arrivalMaterials);
+        UpdateMaterialDetail(incoming,arrivalMaterials);
+
         outgoingBody.Children.Add(T("Tích ô 'Làm phiếu' của các hợp đồng cần bàn giao. Sau khi đối chiếu vật tư, chỉ tạo phiếu CHỜ XUẤT, không tự đánh dấu Đã xuất.",12,false,Muted));
         outgoingBody.Children.Add(Row(
             B("Bỏ tích làm phiếu",()=>{foreach(var r in doc.Dispatches)r.SelectedForHandover=false;outgoing.Items.Refresh();}),
@@ -371,6 +431,9 @@ public partial class MainWindow
         }, true);
         outgoingBody.Children.Insert(1, Row(toPlan));
         outgoingBody.Children.Add(outgoing);
+        outgoingBody.Children.Add(Row(B("▤ Xem toàn bộ vật tư HĐ bàn giao",()=>OpenAllMaterials(doc.Dispatches,"Vật tư các hợp đồng làm phiếu"))));
+        outgoingBody.Children.Add(dispatchMaterials);
+        UpdateMaterialDetail(outgoing,dispatchMaterials);
         var tools = Card(Stack(
             T("KIỂM TRA NGÀY · DUYỆT DANH SÁCH TRƯỚC KHI THAO TÁC", 16, true),
             Row(Field("Dự kiến nhập kho · yyyy-MM-dd", dayArrival),

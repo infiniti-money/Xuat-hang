@@ -45,16 +45,8 @@ public partial class MainWindow
             ("Chi tiết", "Notes", 245));
         grid.IsReadOnly = false;
         grid.CanUserAddRows = false;
-        grid.Columns.Insert(0, new DataGridCheckBoxColumn
-        {
-            Header = "Đã về",
-            Binding = new Binding("Selected")
-            {
-                Mode = BindingMode.TwoWay,
-                UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
-            },
-            Width = 70
-        });
+        // The second confirmation screen must also accept one-click selection.
+        grid.Columns.Insert(0,OneClickCheckColumn("Đã về","Selected",83));
         void preview()
         {
             if (Day(date).Length == 0)
