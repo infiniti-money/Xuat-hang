@@ -14,7 +14,7 @@ public static class BackupRestore
     public sealed record Preview(bool Legacy, string CreatedAt, IReadOnlyList<string> Files)
     {
         public int DataCount => Files.Count(x=>x.EndsWith(".json",StringComparison.OrdinalIgnoreCase) && x!="backup-manifest.json");
-        public int ExcelCount => Files.Count(x=>x.StartsWith("Excel/",StringComparison.Ordinal));
+        public int ExcelCount => Files.Count(x=>x.StartsWith("Excel/",StringComparison.OrdinalIgnoreCase));
     }
 
     private static readonly string[] Workbooks =
