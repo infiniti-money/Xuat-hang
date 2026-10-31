@@ -82,17 +82,40 @@ public static class ContFileOrganizer
         return string.Join(Path.DirectorySeparatorChar,parts.Where((_,i)=>i!=index));
     }
 
-    /// <summary>Only relocate a file if all its source package IDs were actually received.</summary>
+    // Master "Cont đi Hưng Yên" generates its own IDs. The source workbook IDs
+    // are path-based, so a direct equality check between them is NOT valid.
+    // Match through unique physical package signatures, but be conservative:
+    // two identical packages in separate source files require two confirmed
+    // master receipts before either file can be considered fully received.
+    private static string PhysicalSignature(Package package) =>
+        package.Identity+"|"+package.SourceDate+"|"+
+        PlannedArrivalWorkflow.MaterialFingerprint(package);
+
+    private static HashSet<string> FullyReceivedFiles(IEnumerable<Package> scan,
+        WorkbookSnapshot master)
+    {
+        var sources=scan.Where(p=>p.SourcePath.Length>0&&p.Id.Length>0).ToList();
+        var sourceCounts=sources.GroupBy(PhysicalSignature)
+            .ToDictionary(g=>g.Key,g=>g.Count(),StringComparer.Ordinal);
+        var receivedIds=master.DetailPackages.Where(p=>p.OriginPackageId.Length>0)
+            .Select(p=>p.OriginPackageId).ToHashSet(StringComparer.Ordinal);
+        var receivedCounts=master.ContPackages.Where(p=>receivedIds.Contains(p.Id))
+            .DistinctBy(p=>p.Id).GroupBy(PhysicalSignature)
+            .ToDictionary(g=>g.Key,g=>g.Count(),StringComparer.Ordinal);
+        return sources.GroupBy(p=>Path.GetFullPath(p.SourcePath),StringComparer.OrdinalIgnoreCase)
+            .Where(group=>group.All(p=>
+                receivedCounts.GetValueOrDefault(PhysicalSignature(p)) >=
+                sourceCounts[PhysicalSignature(p)]))
+            .Select(g=>g.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>Only move workbooks with all physical packages recorded in master detail.</summary>
     public static List<Candidate> ConfirmedCandidates(
         IEnumerable<Candidate> candidates,IEnumerable<Package> sourcePackages,
-        IEnumerable<string> persistedOriginIds)
+        WorkbookSnapshot master)
     {
-        var received=persistedOriginIds.ToHashSet(StringComparer.Ordinal);
-        var groups=sourcePackages.Where(p=>p.SourcePath.Length>0)
-            .GroupBy(p=>Path.GetFullPath(p.SourcePath),StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g=>g.Key,g=>g.ToList(),StringComparer.OrdinalIgnoreCase);
-        return candidates.Where(c=>groups.TryGetValue(Path.GetFullPath(c.Source),out var packages) &&
-                packages.Count>0 && packages.All(p=>p.Id.Length>0 && received.Contains(p.Id)))
+        var confirmed=FullyReceivedFiles(sourcePackages,master);
+        return candidates.Where(c=>confirmed.Contains(Path.GetFullPath(c.Source)))
             .DistinctBy(c=>c.Source,StringComparer.OrdinalIgnoreCase).ToList();
     }
 
@@ -143,13 +166,10 @@ public static class ContFileOrganizer
     /// into the sibling Đã nhập kho folder. Old Hàng gửi files go to sibling Hàng gửi.
     /// </summary>
     public static List<string> RelocateLegacyFolders(IEnumerable<string> roots,
-        IEnumerable<Package> scannedPackages,IEnumerable<string> persistedOriginIds)
+        IEnumerable<Package> scannedPackages,WorkbookSnapshot master)
     {
         var warnings=new List<string>();
-        var received=persistedOriginIds.ToHashSet(StringComparer.Ordinal);
-        var packages=scannedPackages.Where(p=>p.SourcePath.Length>0)
-            .GroupBy(p=>Path.GetFullPath(p.SourcePath),StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g=>g.Key,g=>g.ToList(),StringComparer.OrdinalIgnoreCase);
+        var confirmed=FullyReceivedFiles(scannedPackages,master);
         foreach(var root in roots.Where(Directory.Exists).Select(Path.GetFullPath))
         foreach(var category in new[]{"Hàng gửi","Đã nhập kho"})
         {
@@ -160,8 +180,7 @@ public static class ContFileOrganizer
                 try
                 {
                     var relative=Path.GetRelativePath(legacy,file);
-                    bool wasReceived=packages.TryGetValue(Path.GetFullPath(file),out var found) &&
-                        found.Count>0 && found.All(p=>p.Id.Length>0 && received.Contains(p.Id));
+                    bool wasReceived=confirmed.Contains(Path.GetFullPath(file));
                     var destination=category=="Hàng gửi" || wasReceived
                         ? Path.Combine(SiblingFolder(root,category),relative)
                         : Path.Combine(root,relative);
