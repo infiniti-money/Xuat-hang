@@ -69,7 +69,7 @@ public partial class MainWindow : Window
             try{await _service.InitializeAsync();if(_page=="dashboard")ShowDashboard();}
             catch(Exception ex){MessageBox.Show(this,ex.Message,"Không thể tải dữ liệu",MessageBoxButton.OK,MessageBoxImage.Warning);}
         };
-        Closed += (_,_)=>{_geminiMicrophone.Dispose();_geminiVoice.Dispose();_service.Dispose();};
+        Closed += (_,_)=>{StopHandsFreeSession();_geminiMicrophone.Dispose();_geminiVoice.Dispose();_service.Dispose();};
         PreviewKeyDown += (_,e)=>
         {
             if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.F) { Navigate("lookup"); e.Handled=true; }
@@ -95,8 +95,13 @@ public partial class MainWindow : Window
     {
         if(_page=="create"&&_draft!=null)_captureDraftEditor?.Invoke();
         _captureDraftEditor=null;_captureDraftHeader=null;
-        if(_page=="gemini-chat" && page!="gemini-chat")
-            _geminiMicrophone.Stop(false); // Never record while on another page.
+        if(_page=="gemini-chat")
+        {
+            // Leaving or rebuilding the page invalidates any pending Gemini
+            // callback. The microphone never survives invisible navigation.
+            StopHandsFreeSession();
+            _geminiMicrophone.Stop(false);
+        }
         _page=page;
         HighlightNavigation(page);
         switch(page)

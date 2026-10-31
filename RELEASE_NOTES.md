@@ -1,3 +1,15 @@
+## HISA v1.9.23 — Trò chuyện giọng nói rảnh tay bằng Gemini
+
+- **Bật rảnh tay** có hộp thoại đồng ý rõ ràng: micro được mở trong phiên, từng lượt giọng nói được **tự động gửi cho Google Gemini** để nhận dạng và tự động gửi lời nói đã nhận dạng làm câu hỏi. Không hỏi lại từng lượt sau khi người sử dụng bật.
+- Nhận dạng khoảng lặng bằng bộ phát hiện âm thanh PCM cục bộ; tự dừng khi ngừng nói khoảng 1,2 giây, đoạn ghi tối đa 25 giây; không lưu âm thanh ra ổ đĩa, chỉ giữ tối đa 300–400ms âm thanh đệm khi chưa bắt đầu nói.
+- Gemini trả lời → loa Windows tự đọc → micro chỉ nghe tiếp sau khi phát xong và khoảng nghỉ ngắn 750ms, tránh thu lại tiếng loa. Không tự khởi động khi mở HISA.
+- Có nút **Tắt rảnh tay** và **Hủy micro**; chuyển trang, xóa hội thoại, đổi quyền chia sẻ hoặc đóng ứng dụng sẽ ngắt phiên, hủy cuộc gọi đang chờ và dừng micro.
+- Chế độ micro thủ công v1.9.22 giữ nguyên xác nhận từng lượt. Gemini Chat chỉ tư vấn; không tự ý sửa hoặc ghi Excel.
+- Bổ sung kiểm thử hồi quy ngưỡng âm thanh, ngắt sau im lặng, phục hồi sau ngắt và Windows build/self-test/installer smoke test.
+- **Giới hạn:** Bộ nhận dạng âm lượng có thể bị kích hoạt bởi tiếng ồn hoặc người khác trong phòng. Bật rảnh tay có nghĩa micro luôn sẵn sàng thu và gửi các lượt nhận dạng qua Internet cho tới khi người dùng tắt; Windows vẫn cần cho phép micro. Cần kiểm thử thực tế loa/micro/Internet trên máy sử dụng.
+
+---
+
 ## HISA v1.9.22 — Micro tiếng Việt có sự đồng ý
 
 - HISA hiển thị lời xin phép rõ ràng trước khi mở microphone. Đây là xác nhận trong ứng dụng desktop, không phải popup quyền Windows.
