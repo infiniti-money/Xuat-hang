@@ -76,8 +76,10 @@ public static class EquipmentListReader
                 throw new InvalidOperationException("Mỗi danh sách thiết bị phải chọn một file Excel riêng: "+kind);
             if(string.Equals(Path.GetDirectoryName(full),mainFolder,StringComparison.OrdinalIgnoreCase) ||
                string.Equals(full,master,StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(full,Path.GetFullPath(settings.KtPath),StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(full,Path.GetFullPath(settings.ProductExportPath),StringComparison.OrdinalIgnoreCase))
+               (!string.IsNullOrWhiteSpace(settings.KtPath) &&
+                string.Equals(full,Path.GetFullPath(settings.KtPath),StringComparison.OrdinalIgnoreCase)) ||
+               (!string.IsNullOrWhiteSpace(settings.ProductExportPath) &&
+                string.Equals(full,Path.GetFullPath(settings.ProductExportPath),StringComparison.OrdinalIgnoreCase)))
                 throw new InvalidOperationException("Danh sách "+kind+" phải nằm ở thư mục riêng, KHÔNG để chung với Tổng hợp.xlsx. HISA sẽ không tự chuyển file; hãy chọn đúng đường dẫn gốc.");
             if(settings.DataSources.Any(folder=>!string.IsNullOrWhiteSpace(folder)&&
                 (WithinFolder(full,folder)||string.Equals(full,Path.GetFullPath(folder),StringComparison.OrdinalIgnoreCase))))
