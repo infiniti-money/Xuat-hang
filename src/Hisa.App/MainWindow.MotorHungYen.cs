@@ -11,7 +11,35 @@ public partial class MainWindow
         var store=new MotorHungYenStore(_service.DataDirectory);
         var catalog=EquipmentListReader.Load(_service.Settings);
         var machineRows=catalog.Rows.Where(x=>x.Category=="Máy kéo").ToList();
-        var items=store.List(machineRows);
+        List<MotorHungYenStore.Item> ReadVisibleItems()
+        {
+            var result=store.List(machineRows);
+            var deliveries=MotorHandoverExcel.ConfirmedDates(_service.Slips);
+            var serialCounts=machineRows.Where(x=>!string.IsNullOrWhiteSpace(x.Serial))
+                .GroupBy(x=>MotorHandoverExcel.IdentityFor(new MotorHungYenStore.Item
+                {
+                    Contract=x.Contract,Project=x.Project,Company=x.Company,Serial=x.Serial
+                })).ToDictionary(x=>x.Key,x=>x.Count());
+            foreach(var item in result.Where(x=>x.PresentInSource))
+            {
+                var key=MotorHandoverExcel.IdentityFor(item);
+                if(serialCounts.TryGetValue(key,out var count)&&count==1 &&
+                   deliveries.TryGetValue(key,out var confirmed))
+                {
+                    item.State=MotorHungYenStore.HandedOver;
+                    item.HandoverDay=confirmed;
+                }
+                else if(item.State==MotorHungYenStore.HandedOver)
+                {
+                    // Legacy manual handover is historical, but no longer an
+                    // authoritative confirmation without a delivered slip.
+                    item.State=MotorHungYenStore.Completed;
+                    item.HandoverDay="";
+                }
+            }
+            return result;
+        }
+        var items=ReadVisibleItems();
         var query=Input();query.Width=230;
         var stage=new ComboBox
         {
@@ -21,6 +49,12 @@ public partial class MainWindow
                 MotorHungYenStore.Name(MotorHungYenStore.Completed),
                 MotorHungYenStore.Name(MotorHungYenStore.HandedOver)},
             SelectedIndex=0
+        };
+        var workChoice=new ComboBox
+        {
+            Width=145,
+            ItemsSource=new[]{"Chưa làm","Đã làm"},
+            SelectedIndex=-1
         };
         var effectiveDay=DateInput(DateTime.Today.ToString("yyyy-MM-dd"));
         var note=Input();note.Width=340;
@@ -47,7 +81,8 @@ public partial class MainWindow
             ("Số HĐ","Contract",110),("Công trình","Project",190),
             ("Đơn vị","Company",125),("Máy kéo","Material",-1),
             ("SL","Quantity",55),("Số lô","Lot",115),("Seri","Serial",100),
-            ("Tình trạng gia công","StatusLabel",185),
+            ("Tiến độ xác nhận","StatusLabel",185),
+            ("Chọn làm","WorkLabel",95),
             ("Ngày gửi","SentDay",100),("Ngày làm","CompletedDay",100),
             ("Ngày bàn giao","HandoverDay",110),
             ("Ghi chú","LastNote",170),("Nguồn","SourceStatus",130));
@@ -62,6 +97,7 @@ public partial class MainWindow
                     " · "+picked.Material+" / seri "+(picked.Serial.Length>0?picked.Serial:"(chưa có)")+
                     " · "+picked.StatusLabel;
                 note.Text=picked.LastNote;
+                workChoice.SelectedIndex=picked.WorkLabel=="Đã làm"?1:0;
             }
         };
 
@@ -144,12 +180,12 @@ public partial class MainWindow
                 $"Hiện tại: {current}\nChuyển sang: {MotorHungYenStore.Name(next)}\n"+
                 $"Ngày thực tế: {Rules.Day(Day(effectiveDay))}\n\n"+
                 "Chỉ chọn Có khi đã kiểm tra chứng từ hoặc thực tế sản xuất/bàn giao. "+
-                "Lịch sử lưu riêng; không sửa Excel và không tự cập nhật tồn kho."))return;
+                "Lịch sử gửi làm lưu riêng; chưa thay đổi cột N nếu không chọn tình trạng làm."))return;
             try
             {
                 store.Advance(selected,next,Day(effectiveDay),note.Text);
                 var selectedKey=selected.Key;
-                items=store.List(machineRows);
+                items=ReadVisibleItems();
                 RefreshContracts();
                 FilterMachines();
                 grid.SelectedItem=(grid.ItemsSource as IEnumerable<MotorHungYenStore.Item>)
@@ -163,7 +199,7 @@ public partial class MainWindow
         }
         var tools=Card(Stack(
             T("HỢP ĐỒNG MÁY KÉO GIA CÔNG HỒNG YÊN",18,true),
-            T("Danh sách hợp đồng đã gửi làm, đang làm, làm xong và đã bàn giao. Chọn hợp đồng trong bảng 1 để xem chính xác các máy kéo/seri trong bảng 2.",12,false,Muted),
+            T("Chọn hợp đồng và từng seri máy kéo. Cột N nhận chữ Chưa làm / Đã làm; khi xác nhận Đã xuất mới đổi thành ngày thực tế.",12,false,Muted),
             T("Chỉ hợp đồng đã được người thao tác xác nhận GỬI mới vào danh sách gia công; việc xuất hiện trong MÁY KÉO.xlsx hay ghi chú DXH không có nghĩa đã gửi Hồng Yên.",11,false,Muted),
             Row(Field("Tìm số HĐ / công trình / máy / seri",query),
                 Field("Trạng thái máy",stage),
@@ -174,9 +210,35 @@ public partial class MainWindow
             selection,
             Row(Field("Ngày xác nhận thực tế",effectiveDay),
                 Field("Ghi chú / chứng từ / người nhận",note)),
-            Row(B("1 · Xác nhận đã gửi Hồng Yên",()=>MoveTo(MotorHungYenStore.Sent),true),
-                B("2 · Xác nhận đã làm xong",()=>MoveTo(MotorHungYenStore.Completed)),
-                B("3 · Xác nhận đã bàn giao",()=>MoveTo(MotorHungYenStore.HandedOver)),
+            Row(B("Xác nhận đã gửi Hồng Yên",()=>MoveTo(MotorHungYenStore.Sent)),
+                Field("Tình trạng gia công (chọn một)",workChoice),
+                A("Lưu trạng thái vào Excel cột N",async()=>
+                {
+                    if(grid.SelectedItem is not MotorHungYenStore.Item selected)
+                    {
+                        Notify("Chọn đúng máy kéo và seri cần cập nhật.");return;
+                    }
+                    if(selected.State==MotorHungYenStore.HandedOver)
+                    {
+                        Notify("Máy đã được xác nhận bàn giao qua phiếu Đã xuất; không chỉnh trạng thái làm tại đây.");return;
+                    }
+                    if(workChoice.SelectedIndex<0 || Day(effectiveDay).Length==0)
+                    {
+                        Notify("Chọn Chưa làm hoặc Đã làm và ngày xác nhận.");return;
+                    }
+                    var choice=workChoice.SelectedIndex==1?"Đã làm":"Chưa làm";
+                    if(!Ask("CẬP NHẬT MÁY KÉO VÀ FILE EXCEL CỘT N\n"+
+                        "HĐ: "+selected.Contract+"\nCông trình: "+selected.Project+
+                        "\nSeri: "+selected.Serial+"\nTình trạng: "+choice+
+                        "\n\nChỉ khi xác nhận phiếu Đã xuất mới đổi chữ thành ngày bàn giao."))return;
+                    var result=await _service.SetMotorWorkAsync(selected,workChoice.SelectedIndex==1,
+                        Day(effectiveDay),note.Text);
+                    items=ReadVisibleItems();
+                    RefreshContracts();FilterMachines();
+                    grid.SelectedItem=(grid.ItemsSource as IEnumerable<MotorHungYenStore.Item>)
+                        ?.FirstOrDefault(x=>x.Key==selected.Key);
+                    if(result.Warnings.Count>0)Notify(string.Join("\n",result.Warnings));
+                },true),
                 B("Lịch sử dòng chọn",()=>
                 {
                     if(grid.SelectedItem is not MotorHungYenStore.Item selected)
@@ -189,7 +251,7 @@ public partial class MainWindow
                             ("Ghi nhận lúc","RecordedAt",210),("Người thao tác","By",150),
                             ("Ghi chú","Note",-1)));
                 })),
-            T("Trạng thái gia công được giữ trong motor_hung_yen_tracking.json thuộc dữ liệu HISA. File MÁY KÉO.xlsx chỉ đọc, lịch sử từng máy được sao lưu cùng ứng dụng.",11,false,Muted)
+            T("Chọn Chưa làm / Đã làm để cập nhật chữ ở cột N file MÁY KÉO.xlsx. Ngày bàn giao chỉ do phiếu Đã xuất tự điền đúng seri. HISA sao lưu Excel gốc trước khi ghi.",11,false,Muted)
         ));
         var page=Stack(tools);
         if(_service.Settings.TractionMachineListPath.Length==0)
