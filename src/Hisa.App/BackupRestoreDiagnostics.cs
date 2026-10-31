@@ -92,6 +92,48 @@ public static class BackupRestoreDiagnostics
         Check(File.ReadAllText(Path.Combine(legacyData,"slips.json"))=="[]",
             "V1 selected JSON restores without overwriting workbooks");
 
+        // Valid JSON with the wrong model type must not overwrite saved slips.
+        var wrong=Path.Combine(root,"wrong-slips.zip");
+        using(var archive=ZipFile.Open(wrong,ZipArchiveMode.Create))
+        {
+            archive.CreateEntryFromFile(sourceSettings.MasterPath,"Excel/Tổng hợp.xlsx");
+            using(var writer=new StreamWriter(archive.CreateEntry("slips.json").Open()))
+                writer.Write("{\"unexpected\":true}");
+        }
+        var preserved=File.ReadAllBytes(Path.Combine(data,"slips.json"));
+        denied=false;
+        try{BackupRestore.Restore(wrong,data,backups,settings,true,false);}
+        catch(IOException){denied=true;}
+        Check(denied && preserved.SequenceEqual(File.ReadAllBytes(Path.Combine(data,"slips.json"))),
+            "Wrong JSON schema cannot overwrite valid slip history");
+
+        var nullItems=Path.Combine(root,"null-slips.zip");
+        using(var archive=ZipFile.Open(nullItems,ZipArchiveMode.Create))
+        {
+            archive.CreateEntryFromFile(sourceSettings.MasterPath,"Excel/Tổng hợp.xlsx");
+            using(var writer=new StreamWriter(archive.CreateEntry("slips.json").Open()))
+                writer.Write("[null]");
+        }
+        denied=false;
+        try{BackupRestore.Restore(nullItems,data,backups,settings,true,false);}
+        catch(IOException){denied=true;}
+        Check(denied && preserved.SequenceEqual(File.ReadAllBytes(Path.Combine(data,"slips.json"))),
+            "Null slip items rejected before any data replacement");
+
+        var lowerCaseZip=Path.Combine(root,"excel-lowercase.zip");
+        using(var archive=ZipFile.Open(lowerCaseZip,ZipArchiveMode.Create))
+        {
+            archive.CreateEntryFromFile(sourceSettings.MasterPath,"excel/tổng hợp.xlsx");
+            using(var writer=new StreamWriter(archive.CreateEntry("slips.json").Open()))
+                writer.Write("[]");
+        }
+        Check(BackupRestore.Inspect(lowerCaseZip).ExcelCount==1,
+            "Upper/lower-case Excel directory is recognized");
+        File.WriteAllText(settings.MasterPath,"simulated local workbook");
+        BackupRestore.Restore(lowerCaseZip,data,backups,settings,false,true);
+        Check(File.ReadAllBytes(settings.MasterPath).SequenceEqual(excelBefore),
+            "Legacy Excel directory casing restores correct workbook only");
+
         var missing=Path.Combine(root,"missing-master.zip");
         using(var archive=ZipFile.Open(missing,ZipArchiveMode.Create))
             using(var w=new StreamWriter(archive.CreateEntry("slips.json").Open()))w.Write("[]");
