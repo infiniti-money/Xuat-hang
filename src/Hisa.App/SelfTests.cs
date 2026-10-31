@@ -133,7 +133,7 @@ public static class SelfTests
             Directory.CreateDirectory(aiFolder);
             var approvedSchedule=Path.Combine(aiFolder,"lich-kho-test.json");
             File.WriteAllText(approvedSchedule,
-                "{\\"approvedAt\\":\\"2026-10-31T10:00:00+07:00\\",\\"arrivals\\":[],\\"dispatches\\":[]}");
+                "{\"approvedAt\":\"2026-10-31T10:00:00+07:00\",\"arrivals\":[],\"dispatches\":[]}");
             var motorState=Path.Combine(service.DataDirectory,"motor_hung_yen_tracking.json");
             File.WriteAllText(motorState,"[]");
             var zip=Path.Combine(root,"backup.zip");
@@ -164,7 +164,7 @@ public static class SelfTests
                 aiEntry.Delete();
                 var replacement=archive.CreateEntry("ai_schedules/lich-kho-test.json");
                 using var writer=new StreamWriter(replacement.Open());
-                writer.Write("{\\"tampered\\":true}");
+                writer.Write("{\"tampered\":true}");
             }
             bool detectsCorruption=false;
             try{BackupArchive.Verify(corruptedZip);}
