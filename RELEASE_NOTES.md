@@ -1,3 +1,13 @@
+# HISA Quản lý kho v1.9.4 — Đưa Đã nhập kho và Hàng gửi ra ngoài CONT ĐI
+
+- **Sửa đường dẫn lưu:** `CONT ĐI`, `Đã nhập kho` và `Hàng gửi` là ba thư mục **ngang cấp**, không tạo thư mục Đã nhập kho/Hàng gửi ở trong CONT ĐI.
+- **Không tự nhận cont:** đồng bộ file Excel nguồn không đồng nghĩa hàng đã về. Chỉ chuyển file qua Đã nhập kho khi tất cả kiện trong file có bản ghi nhận thực tế từ Tổng hợp.xlsx. File còn kiện chờ giữ nguyên.
+- **Sửa dữ liệu phiên bản cũ:** di chuyển các file đang nằm nhầm `CONT ĐI\Hàng gửi` sang thư mục ngang cấp. Đối chiếu `CONT ĐI\Đã nhập kho` với dấu vết nhập thực tế; file chưa nhận chuyển lại CONT ĐI. Cảnh báo thay vì ghi đè khi trùng tên hoặc file đang thay đổi.
+- **Bảo toàn:** tiếp tục quét nguồn Đã nhập kho cùng cấp để giữ ID vật tư/kiện và tránh mất dữ liệu khi đồng bộ. Chức năng ảnh Zalo/Gemini hai danh sách của v1.9.3 vẫn có mặt.
+- **Kiểm thử:** thêm regression fixture Excel tạm kiểm tra nguồn chưa nhận, nhận một phần, thư mục ngang cấp, di chuyển thư mục cũ, trùng tên, ID nguồn bất biến và quét lại; build, self-test, cài mới/cài đè Windows trước khi phát hành.
+
+---
+
 # HISA Quản lý kho v1.9.3 – Hai việc rõ ràng sau khi đọc ảnh Zalo
 
 - **Một màn hình chính:** chọn ảnh → Gemini đọc → duyệt kế hoạch → danh sách (1) Cont dự kiến về và (2) Hợp đồng dự kiến bàn giao, với nút riêng.
