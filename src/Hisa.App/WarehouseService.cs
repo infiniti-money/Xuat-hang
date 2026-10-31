@@ -226,6 +226,16 @@ public sealed partial class WarehouseService : IDisposable
         }).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         if(settings.DataSources.Count>1)settings.DataSources=settings.DataSources.Take(1).ToList();
         if (string.IsNullOrWhiteSpace(settings.MasterPath)) settings.MasterPath=Path.Combine(Workspace,"Tổng hợp.xlsx");
+        // Migrate old CONT ĐI configurations to the new Container folder
+        // only when the workbook proves the canonical Kho HISA layout.
+        var masterDir=Path.GetDirectoryName(Path.GetFullPath(settings.MasterPath));
+        if(masterDir!=null && Rules.Code(Path.GetFileName(masterDir))=="KHOCHINH")
+        {
+            var root=Directory.GetParent(masterDir)?.FullName;
+            var container=root==null?"":Path.Combine(root,"Container");
+            settings.DataSources=Directory.Exists(container)?[container]:[];
+        }
+        settings.AutoSyncCont=false;
         var baseDir=Path.GetDirectoryName(settings.MasterPath)??Workspace;
         if(string.IsNullOrWhiteSpace(settings.KtPath)) settings.KtPath=Path.Combine(baseDir,"KT tổng hợp.xlsx");
         if(string.IsNullOrWhiteSpace(settings.ProductExportPath)) settings.ProductExportPath=Path.Combine(baseDir,"Thành phẩm xuất kho.xlsx");
@@ -969,7 +979,7 @@ public sealed partial class WarehouseService : IDisposable
     }
     public async Task SaveSettingsAsync(AppSettings settings)
     {
-        var copy=Clone(settings);copy.DataSources??=[];
+        var copy=Clone(settings);copy.DataSources??=[];copy.AutoSyncCont=false;
         if(copy.DataSources.Count>1)throw new InvalidOperationException("Chỉ cấu hình được một thư mục nguồn Excel.");
         foreach(var source in copy.DataSources)if(!Directory.Exists(source))throw new DirectoryNotFoundException("Nguồn chỉ nhận thư mục đang tồn tại, không nhận tệp Excel: "+source);
         NormalizeSettings(copy);
@@ -978,7 +988,7 @@ public sealed partial class WarehouseService : IDisposable
         // CONT ĐI source. Explicit paths only; no copying/moving user files.
         EquipmentListReader.ValidateIndependentSources(copy);
         copy.DataSources=copy.DataSources.Select(Path.GetFullPath).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-        await MutateAsync(()=>{Persist("settings.json",copy);Settings=copy;_sourceFingerprint=SourceFingerprint();return true;});await RefreshAsync(false);
+        await MutateAsync(()=>{Persist("settings.json",copy);Settings=copy;_sourceFingerprint="";lock(_stateLock)_freshContDiSources=[];return true;});await RefreshAsync(false);
     }
     public Task ExportReportAsync(string path,ContractReport report){EnsureReportDestination(path);return Task.Run(()=>_excel.ExportReport(path,report));}
     public Task ExportDailyAsync(string path,DailyReport report){EnsureReportDestination(path);return Task.Run(()=>_excel.ExportDaily(path,report));}
