@@ -10,7 +10,7 @@ public sealed class GeminiVoice : IDisposable
 {
     private SpeechSynthesizer? _speaker;
 
-    public void Speak(string text,Action<string> status)
+    public void Speak(string text,Action<string> status,Action? onFinished=null)
     {
         if(string.IsNullOrWhiteSpace(text))return;
         StopSpeaking();
@@ -22,8 +22,12 @@ public sealed class GeminiVoice : IDisposable
                 x.VoiceInfo.Culture.Name.Equals("vi-VN",StringComparison.OrdinalIgnoreCase));
             if(vi!=null)synth.SelectVoice(vi.VoiceInfo.Name);
             _speaker=synth;
-            synth.SpeakCompleted+=(_,e)=>status(e.Error==null?
-                "Đã đọc xong bằng loa hệ thống.":"Không thể phát lời nói: "+e.Error.Message);
+            synth.SpeakCompleted+=(_,e)=>
+            {
+                status(e.Error==null?"Đã đọc xong bằng loa hệ thống.":
+                    "Không thể phát lời nói: "+e.Error.Message);
+                if(!e.Cancelled && e.Error==null)onFinished?.Invoke();
+            };
             synth.SpeakAsync(text.Length>3000?text[..3000]:text);
             status(vi==null?"Đang phát bằng giọng mặc định Windows (chưa có giọng tiếng Việt).":
                 "Đang phát tiếng Việt qua loa hệ thống.");
