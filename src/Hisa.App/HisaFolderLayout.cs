@@ -74,10 +74,19 @@ public static class HisaFolderLayout
     public static string PreferredSelection(AppSettings settings)
     {
         var source=settings.DataSources.FirstOrDefault();
-        if(!string.IsNullOrWhiteSpace(source) &&
-           Detect(source,settings) is { } layout)
-            return layout.Root;
-        return source??"";
+        if(string.IsNullOrWhiteSpace(source))return "";
+        try
+        {
+            if(Detect(source,settings) is { } layout)
+                return layout.Root;
+        }
+        catch(Exception ex) when(ex is IOException or UnauthorizedAccessException or
+            ArgumentException)
+        {
+            // The original path should remain editable even when a workbook
+            // has temporarily disappeared. Configuration must never crash.
+        }
+        return source;
     }
 
     public static void Apply(AppSettings settings,Paths layout)
