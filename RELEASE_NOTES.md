@@ -1,3 +1,15 @@
+## HISA v1.9.22 — Micro tiếng Việt có sự đồng ý
+
+- HISA hiển thị lời xin phép rõ ràng trước khi mở microphone. Đây là xác nhận trong ứng dụng desktop, không phải popup quyền Windows.
+- Khi bấm Dừng và nhận dạng, HISA dừng thu âm, rồi hỏi xác nhận lần hai trước khi gửi WAV qua Internet tới Gemini. Chọn Không thì không gửi.
+- Nhận dạng tiếng Việt bằng Gemini multimodal, không cần bộ Windows Speech vi-VN. Ghi âm tối đa 25 giây, không lưu ra ổ đĩa hay Excel.
+- Có nút mở cài đặt quyền Microphone Windows, thông báo lỗi thiết bị và Internet.
+- Câu nhận dạng chỉ điền vào ô chat, bạn phải xem lại và bấm Gửi; Gemini không tự sửa Excel.
+- Tính năng đọc câu trả lời bằng loa vẫn do Windows TTS đảm nhiệm.
+- Thử nghiệm CI kiểm tra định dạng/gửi WAV và ứng dụng/installer, không thể kiểm chứng micro thật hay Gemini API Key của người dùng.
+
+---
+
 # HISA v1.9.21 — Nhập kho từ thư mục Container theo kiện Hưng Yên
 
 **Nguồn vật lý:** Chọn đúng thư mục gốc `Kho HISA`. Khi người dùng đọc ảnh Zalo hoặc tự nhập số hợp đồng rồi bấm **Tìm kiện**, HISA mới quét các Excel nằm trong `Kho HISA/Container` và các thư mục ngày (ví dụ `26.10`). Không quét Container lúc mở chương trình, ở nút Làm mới chung hoặc trong đồng bộ nền. Không dùng trang `Cont đi Hưng Yên` trong `Tổng hợp.xlsx` làm nguồn tra cứu hoặc nơi ghi dữ liệu nữa.
