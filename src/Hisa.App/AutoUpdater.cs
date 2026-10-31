@@ -97,7 +97,9 @@ public static class AutoUpdater
     internal static string ParseChecksum(string content,string installerName,string? githubDigest)
     {
         var lines=content.Split(['\r','\n'],StringSplitOptions.RemoveEmptyEntries);
-        var line=lines.SingleOrDefault()?.Trim()??"";
+        if(lines.Length!=1)
+            throw new InvalidDataException("Tệp SHA-256 phải có đúng một dòng checksum.");
+        var line=lines[0].Trim();
         var match=Regex.Match(line,@"^(?<hash>[a-fA-F0-9]{64})\s+\*?(?<name>[^\\/]+)$");
         if(!match.Success||!string.Equals(match.Groups["name"].Value,installerName,StringComparison.Ordinal))
             throw new InvalidDataException("Tệp checksum cập nhật không khớp với bộ cài.");
