@@ -1,3 +1,13 @@
+# HISA Quản lý kho v1.9.3 – Hai việc rõ ràng sau khi đọc ảnh Zalo
+
+- **Một màn hình chính:** chọn ảnh → Gemini đọc → duyệt kế hoạch → danh sách (1) Cont dự kiến về và (2) Hợp đồng dự kiến bàn giao, với nút riêng.
+- **Cont về:** không coi ngày dự kiến là ngày thực tế; chỉ chọn hợp đồng khi cont đã về, rồi đối chiếu và tự tích *từng kiện thực nhận* ở màn xác nhận. Không tự tích kiện theo AI. Ghi `Tổng hợp.xlsx` chỉ sau xác nhận.
+- **Phiếu:** tích hợp đồng ở danh sách bàn giao rồi mở kế hoạch phiếu chờ; cần đối chiếu vật tư và xác nhận trạng thái sau khi giao thực tế.
+- Các mục bổ sung hợp đồng thủ công và cảnh báo chi tiết chuyển xuống vùng thu gọn, giữ nguyên tính năng.
+- Thêm kiểm thử UI cho hai danh sách, lựa chọn độc lập và không ghi kho ngoài ý muốn; kiểm thử build, cài mới/cài đè Windows, EXE/ZIP và checksum trước khi phát hành.
+
+---
+
 # HISA Quản lý kho v1.9.2 — Khôi phục cấu hình nguồn dữ liệu
 
 - **Khôi phục lối mở trực tiếp:** thanh menu trái có mục **Cấu hình nguồn dữ liệu**. Không cần mở qua Quản lý & lịch sử nữa.
