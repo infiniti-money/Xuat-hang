@@ -6,17 +6,17 @@ namespace Hisa.App;
 public partial class MainWindow
 {
     /// <summary>
-    /// Shared source-file workflow for Zalo-extracted and manually entered
+    /// Shared source-worksheet workflow for Zalo-extracted and manually entered
     /// contracts. Never treats a forecast as a warehouse arrival.
     /// </summary>
     private FrameworkElement BuildContDiSourcePanel(
         Func<List<AiScheduleLine>> requests,Action? commitInput=null,bool searchWhenLoaded=false)
     {
         var actualDate=DateInput(DateTime.Today.ToString("yyyy-MM-dd"));
-        var explanation=T("Chọn ngày cont THỰC TẾ về kho. HISA quét các file Excel vật tư trong thư mục "+
-            "CONT ĐI HƯNG YÊN, liệt kê từng kiện Hưng Yên riêng theo công trình, T1/T2, ngày cont đi "+
+        var explanation=T("Chọn ngày cont THỰC TẾ về kho. HISA đọc trang 'Cont đi Hưng Yên' trong file Tổng hợp.xlsx, không yêu cầu thư mục "+
+            "CONT ĐI. Nhận cả nhãn HƯNG YÊN hoặc HUNG YEN; mỗi kiện giữ riêng công trình, T1/T2, ngày cont đi "+
             "và số lượng. Không tự sao chép chỉ vì ảnh Zalo có lịch dự kiến.",12,false,Muted);
-        var feedback=T("Bấm Tìm kiện trong CONT ĐI để đọc mới các file Excel nguồn.",12,false,Muted);
+        var feedback=T("Bấm Tìm kiện để đọc mới trang Cont đi Hưng Yên trong Tổng hợp.xlsx. Không bắt buộc có thư mục CONT ĐI.",12,false,Muted);
         var rows=new List<PlannedArrivalRow>();
         var scanned=false;
         var grid=Table(rows,
@@ -47,16 +47,16 @@ public partial class MainWindow
             if(Day(actualDate).Length==0)
                 throw new InvalidOperationException("Chọn ngày cont thực tế về kho.");
             scanned=false;
-            feedback.Text="Đang quét trực tiếp file Excel trong CONT ĐI HƯNG YÊN…";
+            feedback.Text="Đang đọc trang Cont đi Hưng Yên từ Tổng hợp.xlsx…";
             await _service.RefreshContDiForArrivalAsync();
             rows=ContDiArrivalLookup.Preview(input,_service.ContDiLookupSnapshot,Day(actualDate));
             grid.ItemsSource=rows;scanned=true;
             var ready=rows.Count(x=>x.Status==ContDiArrivalLookup.Ready);
             var already=rows.Count(x=>x.Status=="Kiện đã nhập kho");
-            feedback.Text=$"Đã tìm trong CONT ĐI: {rows.Count} dòng/kiện · "+
+            feedback.Text=$"Đã tìm trong trang Cont đi Hưng Yên: {rows.Count} dòng/kiện · "+
                 $"{ready} kiện đủ nguồn, chờ xác nhận thực tế · {already} kiện đã nhập. "+
                 "Mỗi ô tích chỉ chọn một kiện, KHÔNG lấy tất cả kiện cùng HĐ. "+
-                "Sửa Excel hoặc số HĐ thì bấm Tìm kiện lại.";
+                "Sửa trang Cont đi hoặc số HĐ thì bấm Tìm kiện lại.";
         }
         var buttons=Row(
             A("⌕ Tìm kiện Hưng Yên trong CONT ĐI",SearchAsync,true),
@@ -71,7 +71,7 @@ public partial class MainWindow
                 var marked=rows.Where(x=>x.Selected).ToList();
                 if(marked.Count==0)
                     throw new InvalidOperationException("Tích từng kiện Hưng Yên đã về thực tế.");
-                // No cached permission: rescan and check package identity/content
+                // No cached permission: reread the master sheet and check package identity/content
                 // immediately before displaying the final confirmation.
                 await _service.RefreshContDiForArrivalAsync();
                 var selected=ContDiArrivalLookup.SelectVerified(marked,requests(),
@@ -85,7 +85,7 @@ public partial class MainWindow
                         x.Contract+" · "+x.Project+" · kiện "+x.PackageNo+
                         " · cont đi "+Rules.Day(x.SourceDate)))+
                     "\n\nHISA sẽ sao chép các dòng vật tư HƯNG YÊN của các kiện đã chọn "+
-                    "từ nguồn CONT ĐI vào trang 'chi tiết' của Tổng hợp.xlsx theo NGÀY VỀ trên. "+
+                    "từ trang 'Cont đi Hưng Yên' sang trang 'chi tiết' trong Tổng hợp.xlsx theo NGÀY VỀ trên. "+
                     "Không lấy hàng khác HĐ, không sửa KT tổng hợp; trước khi ghi sẽ sao lưu. Tiếp tục?"))
                 {
                     InvalidateSearch();return;
@@ -100,7 +100,7 @@ public partial class MainWindow
             })
         );
         var panel=Stack(Card(Stack(
-            T("TÌM KIỆN CONT ĐI → XÁC NHẬN CONT VỀ → TỔNG HỢP.XLSX",16,true),
+            T("CONT ĐI HƯNG YÊN (TRANG EXCEL) → KIỆN ĐÃ VỀ → CHI TIẾT",16,true),
             explanation,
             Row(Field("Ngày cont thực tế về kho",actualDate)),
             buttons,feedback)),
@@ -111,8 +111,8 @@ public partial class MainWindow
             {
                 if(scanned)return;
                 try {await SearchAsync();}
-                catch(Exception ex) {feedback.Text="Chưa tìm được kiện trong CONT ĐI: "+
-                    ex.Message+" · Kiểm tra đường dẫn Excel nguồn, sau đó bấm Tìm kiện.";}
+                catch(Exception ex) {feedback.Text="Chưa tìm được kiện trong trang Cont đi Hưng Yên: "+
+                    ex.Message+" · Kiểm tra Tổng hợp.xlsx rồi bấm Tìm kiện.";}
             };
         }
         return panel;
