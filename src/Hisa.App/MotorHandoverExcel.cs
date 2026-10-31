@@ -25,14 +25,17 @@ public static class MotorHandoverExcel
     }
     public sealed record Outcome(int Written,int Cleared,int Unmatched,IReadOnlyList<string> Warnings);
 
-    private static string Key(string contract,string project,string company,string material,string serial)=>
-        Rules.Identity(contract,project,company)+"|"+Rules.Code(material)+"|"+Rules.Code(serial);
+    // A physical serial plus exact contract/project/company is stronger than a
+    // free-text model description; the machine may be named differently in
+    // Tổng hợp.xlsx and MÁY KÉO.xlsx. A duplicate matching key is never written.
+    private static string Key(string contract,string project,string company,string serial)=>
+        Rules.Identity(contract,project,company)+"|"+Rules.Code(serial);
 
     private static string Key(EquipmentListReader.Row row)=>
-        Key(row.Contract,row.Project,row.Company,row.Material,row.Serial);
+        Key(row.Contract,row.Project,row.Company,row.Serial);
 
     private static string Key(MotorSerialEntry serial)=>
-        Key(serial.Contract,serial.Project,serial.Company,serial.Material,serial.SerialNumber);
+        Key(serial.Contract,serial.Project,serial.Company,serial.SerialNumber);
 
     private static string DateText(IXLCell cell)
     {
@@ -111,10 +114,17 @@ public static class MotorHandoverExcel
     {
         var warnings=new List<string>();
         var path=settings.TractionMachineListPath;
-        if(string.IsNullOrWhiteSpace(path)||!File.Exists(path))
-            return new Outcome(0,0,0,["Chưa tìm thấy MÁY KÉO.xlsx để ghi ngày bàn giao."]);
         var receiptPath=Path.Combine(dataDirectory,ReceiptFile);
         var prior=ReadReceipts(receiptPath);
+        var incomplete=slips.Where(x=>x.Status=="delivered")
+            .SelectMany(x=>x.Lines.Where(MotorSerials.IsMotor))
+            .Any(x=>x.Quantity is >0);
+        if(string.IsNullOrWhiteSpace(path)||!File.Exists(path))
+        {
+            if(prior.Count==0&&!incomplete)return new Outcome(0,0,0,warnings);
+            throw new IOException("Chưa tìm thấy MÁY KÉO.xlsx để ghi ngày bàn giao. "+
+                "Phiếu đã xác nhận xuất được giữ nguyên; cần chọn lại Kho HISA rồi đồng bộ.");
+        }
         var wished=new Dictionary<string,string>(StringComparer.Ordinal);
         var conflict=new HashSet<string>(StringComparer.Ordinal);
         foreach(var slip in slips.Where(x=>x.Status=="delivered"))
@@ -160,7 +170,7 @@ public static class MotorHandoverExcel
             if(!indexed.TryGetValue(identity,out var candidates)||candidates.Count!=1)
             {
                 unmatched++;
-                warnings.Add("Không có đúng một máy kéo khớp HĐ / công trình / đơn vị / model / seri. Chưa ghi: "+identity);
+                warnings.Add("Không có đúng một máy kéo khớp HĐ / công trình / đơn vị / seri. Chưa ghi: "+identity);
                 continue;
             }
             var cell=sheet.Cell(candidates[0].SourceRow,dateColumn);
