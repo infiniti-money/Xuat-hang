@@ -208,7 +208,7 @@ public partial class MainWindow
         }
         var tools=Card(Stack(
             T("HỢP ĐỒNG MÁY KÉO GIA CÔNG TẠI HƯNG YÊN",18,true),
-            T("Chọn hợp đồng và từng seri máy kéo. Cột N nhận chữ Chưa làm / Đã làm; khi xác nhận Đã xuất mới đổi thành ngày thực tế.",12,false,Muted),
+            T("Đồng bộ hai chiều cột L: đọc trực tiếp trạng thái/ngày xuất từ Excel; bấm Lưu để ghi Chưa làm / Đã làm. Ngày xuất kho chỉ tự ghi theo phiếu Đã xuất, không tự xác nhận từ ngày nhập tay.",12,false,Muted),
             T("Chỉ hợp đồng đã được người thao tác xác nhận GỬI mới vào danh sách gia công; việc xuất hiện trong MÁY KÉO.xlsx hay ghi chú DXH không có nghĩa đã gửi gia công tại Hưng Yên.",11,false,Muted),
             Row(Field("Tìm số HĐ / công trình / máy / seri",query),
                 Field("Trạng thái máy",stage),
