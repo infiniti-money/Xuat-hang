@@ -85,6 +85,14 @@ public static class HisaFolderLayoutDiagnostics
         Check(new[]{master,kt,product,cabinet,motor,door,months}
                 .Select(p=>new FileInfo(p).Length).SequenceEqual(bytes),
             "Recognizing folders neither moves nor modifies Excel files");
+        var temporarilyMissing=master+".unavailable";
+        File.Move(master,temporarilyMissing);
+        try
+        {
+            Check(HisaFolderLayout.PreferredSelection(original)==cont,
+                "Missing master workbook does not crash settings: original CONT ĐI path stays editable");
+        }
+        finally{File.Move(temporarilyMissing,master);}
         return results;
     }
 }
