@@ -1,3 +1,15 @@
+## Điều chỉnh HISA v1.9.20 — Không kiểm tra thư mục CONT ĐI khi tìm kiện
+
+**Nguồn tìm trực tiếp:** Trang **Cont đi Hưng Yên** trong file **Tổng hợp.xlsx**. Khi tải ảnh lịch Zalo hoặc gõ số hợp đồng tại **Nhập cont về kho**, HISA đọc lại workbook này, không yêu cầu thư mục CONT ĐI tồn tại và không cần quét file con của thư mục.
+
+**Nhãn kiện hợp lệ:** `HƯNG YÊN`, `Hưng Yên`, `HUNG YEN`, `hung yen` (cả chữ xuống dòng, dấu và hoa/thường đều chuẩn hóa). Chỉ lấy đúng kiện ở trang nguồn có số HĐ khớp hoàn toàn; các kiện khác công trình/T1/T2 hoặc ngày cont đi vẫn giữ thành dòng riêng.
+
+**Ghi nhận ngày thực tế:** Người vận hành chọn từng kiện đã thực nhận và nhập ngày về. HISA kiểm tra lại nguồn, cảnh báo kiện trùng/đã nhập, hiển thị xác nhận rồi sao chép các dòng vật tư và số lượng đúng kiện từ trang **Cont đi Hưng Yên** sang trang **chi tiết** của cùng file **Tổng hợp.xlsx** theo ngày về. Tự sao lưu trước khi ghi. Không tự ghi hàng đã về chỉ từ dự kiến Zalo, không tự tạo vật tư chưa tồn tại và không sử dụng KT tổng hợp.
+
+**Không tự sửa nguồn:** Trang **Cont đi Hưng Yên** là bảng nguồn đã có sẵn; nếu ảnh Zalo chỉ có số hợp đồng mà bảng nguồn chưa có vật tư/kiện, HISA cảnh báo chưa tìm thấy chứ không tự tạo các kiện bằng suy đoán.
+
+---
+
 ## HISA v1.9.20 · Tìm và sao chép kiện Hưng Yên theo ngày cont về
 
 **Từ ảnh Zalo:** mở **Ảnh Zalo → nhập cont / làm phiếu**, chọn ảnh và phân tích Gemini. Màn hình cùng lúc tìm nguồn theo số HĐ vừa trích xuất từ các file Excel của **CONT ĐI HƯNG YÊN**, liệt kê các kiện riêng biệt. Nếu nguồn thay đổi, nhấn **Tìm kiện Hưng Yên trong CONT ĐI** để quét mới.
