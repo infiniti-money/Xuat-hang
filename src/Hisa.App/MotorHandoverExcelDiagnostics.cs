@@ -163,7 +163,7 @@ public static class MotorHandoverExcelDiagnostics
                 book.Worksheet(1).Cell(2,12).GetString()=="Ngày xuất kho" &&
                 book.Worksheet(1).Cell(4,12).GetDateTime()==new DateTime(2026,10,29) &&
                 book.Worksheet(1).Cell(3,14).GetString()=="Không sửa",
-                "Without column L header, create exactly N even if legacy dates or notes exist elsewhere");
+                "Without column L header, create exactly L while leaving legacy N notes unchanged");
 
         // Explicit Chưa làm / Đã làm must write text, then a confirmed slip
         // replaces only that word with a real date. Cancellation restores work.
