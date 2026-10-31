@@ -397,6 +397,11 @@ public sealed partial class WarehouseService : IDisposable
                 throw new InvalidDataException("Nguồn Container có lỗi: "+
                     string.Join(" | ",scanned.Warnings.Take(5))+
                     ". Chưa dùng dữ liệu cũ để xác nhận nhập kho.");
+            // On an explicit scan, classify filename-marked HANGGUI workbooks
+            // without importing their contents into the warehouse.
+            var sentWarnings=ContFileOrganizer.MoveFiles(scanned.HangGuiFiles,"Hàng gửi");
+            if(sentWarnings.Count>0)Say("Chưa chuyển hết file hàng gửi: "+
+                string.Join(" | ",sentWarnings));
             // Source lookup must also use the current received-sheet IDs;
             // otherwise a manual Excel edit could display a stale duplicate state.
             var masterBefore=FileStamp(Settings.MasterPath);
