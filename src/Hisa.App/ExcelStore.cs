@@ -386,7 +386,7 @@ public sealed class ExcelStore
             {
                 if (Directory.Exists(source))
                 {
-                    try { foreach(var path in Directory.EnumerateFiles(source,"*.xlsx",SearchOption.AllDirectories)) if(!Path.GetFileName(path).StartsWith("~$")) files.Add(Path.GetFullPath(path)); }
+                    try { foreach(var path in Directory.EnumerateFiles(source,"*.xlsx",SearchOption.AllDirectories)) if(!Path.GetFileName(path).StartsWith("~$") && (includeReceivedArchives || !ContFileOrganizer.IsAlreadySorted(path,source))) files.Add(Path.GetFullPath(path)); }
                     catch(Exception ex) { result.Warnings.Add($"Không quét đủ nguồn {source}: {ex.Message}"); }
                     // Received originals live beside CONT ĐI, never inside it. Include
                     // them in future rebuilds so stable source IDs remain discoverable.
