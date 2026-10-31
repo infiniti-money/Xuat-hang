@@ -1,3 +1,17 @@
+## HISA v1.9.18 · Đồng bộ hai chiều trạng thái máy kéo tại cột L
+
+**MÁY KÉO.xlsx — cột L (12)** là cột trạng thái làm máy và ngày xuất kho được HISA đọc/ghi hai chiều. **Cột N của các bản cũ chỉ được giữ lại**, không ghi tiếp và không xóa dữ liệu trước đây.
+
+| Giá trị ở cột L | Khi nhập tại HISA | Khi sửa trực tiếp trong Excel |
+| --- | --- | --- |
+| `Chưa làm` | Lưu tình trạng gia công vào đúng dòng máy/seri | HISA đọc lại khi chọn **Làm mới từ file Máy kéo** |
+| `Đã làm` | Lưu tình trạng gia công vào đúng dòng máy/seri | HISA đọc lại và hiển thị Đã làm |
+| Ngày xuất kho | Chỉ **phiếu Đã xuất** có ngày và seri đã xác minh mới tự ghi | HISA hiển thị ngày trong cột **Cột L (Excel)** để đối chiếu, **không tự lập phiếu hoặc cập nhật sổ kho** |
+
+**An toàn:** Cột L phải để trống, có tiêu đề ngày xuất kho/bàn giao hoặc tiêu đề trạng thái phù hợp; cột L chưa có tiêu đề chỉ được dùng nếu toàn bộ dữ liệu là `Chưa làm`/`Đã làm`/ngày hợp lệ. HISA không ghi đè cột L có ghi chú hay giá trị lạ, không đổi ngày xuất kho nhập tay, từ chối seri trùng và file Excel đang mở. Mỗi lần ghi đều sao lưu workbook. Lịch sử quyền ghi cột N của phiên bản cũ được giữ nguyên để kiểm tra, nhưng không được dùng làm quyền sửa cột L. Nếu file Excel đã có dữ liệu ở N, hãy kiểm tra và đối chiếu thủ công trước khi chuyển nghiệp vụ sang L; **không tự động chuyển hoặc xóa dữ liệu N**.
+
+---
+
 ## Phục hồi ZIP và xử lý lỗi cập nhật (v1.9.15)
 
 ## Tên màn hình máy kéo từ HISA v1.9.17
