@@ -685,6 +685,13 @@ public partial class MainWindow : Window
         var cont=new CheckBox{Content="Tự cập nhật Cont đi Hưng Yên khi nguồn cont thay đổi",IsChecked=model.AutoSyncCont};
         var syncKt=new CheckBox{Content="Tự cập nhật trang chi tiết khi file KT thay đổi",IsChecked=model.AutoSyncKt};
         var poll=Input(model.PollSeconds.ToString());poll.Width=90;
+        var cabinetFile=Input(model.ElectricalCabinetListPath);
+        var motorFile=Input(model.TractionMachineListPath);
+        var doorFile=Input(model.CarDoorListPath);
+        FrameworkElement EquipmentFileField(string name,TextBox editor)=>
+            Stack(T(name,13,true),DockWithButton(editor,
+                B("Chọn Excel",()=>{var selected=OpenPath(this);if(selected!=null)editor.Text=selected;})));
+
         var p=Stack();
         p.Children.Add(Card(Stack(T("TRUNG TÂM CẤU HÌNH",20,true),
             T("Gemini AI · Nguồn Excel · Đồng bộ · Bảo vệ dữ liệu",12,false,Muted))));
@@ -692,11 +699,23 @@ public partial class MainWindow : Window
             T("Thư mục đang chọn: "+(string.IsNullOrWhiteSpace(initialSource)?"Chưa cấu hình":initialSource),12,false,Muted),
             T("Chọn duy nhất một thư mục. HISA tự nhận diện Tổng hợp.xlsx, KT tổng hợp.xlsx và Thành phẩm xuất kho.xlsx; không cần chọn từng tệp.",12,false,Muted),
             DockWithButton(sources,B("Chọn thư mục nguồn",()=>{var dialog=new OpenFolderDialog{Title="Chọn thư mục nguồn duy nhất"};if(dialog.ShowDialog(this)==true)sources.Text=dialog.FolderName;})),discovery)));
+        p.Children.Add(Card(Stack(T("DANH SÁCH THIẾT BỊ THEO HỢP ĐỒNG",18,true),
+            T("Liên kết 3 file Excel để xem tủ điện, máy kéo, đầu cửa car ngay sau khi phân tích ảnh Zalo. Chỉ ĐỌC, không cập nhật tồn kho hoặc tự tạo phiếu.",12,false,Muted),
+            EquipmentFileField("1 · Danh sách TỦ ĐIỆN",cabinetFile),
+            EquipmentFileField("2 · Danh sách MÁY KÉO",motorFile),
+            EquipmentFileField("3 · Danh sách ĐẦU CỬA CAR",doorFile),
+            T("Để trống nếu chưa có file. HISA không tự lấy dữ liệu sản xuất làm bằng chứng đã nhập kho. Bấm Lưu cấu hình & tải lại sau khi chọn.",11,false,Muted))));
         p.Children.Add(Card(Stack(T("Tốc độ & đồng bộ",18,true),auto,cont,syncKt,Row(Field("Chu kỳ kiểm tra · giây",poll)),T("Dữ liệu được lập chỉ mục trong bộ nhớ và giữ bộ nhớ đệm để mở ứng dụng nhanh. File Excel đang mở sẽ được báo và thử lại, không ghi dở dang.",12,false,Muted))));
         p.Children.Add(Row(A("Lưu cấu hình & tải lại",async()=>
         {
             if(!int.TryParse(poll.Text,out var seconds)||seconds<5||seconds>3600)throw new InvalidOperationException("Chu kỳ kiểm tra từ 5 đến 3600 giây.");
             model=_service.ResolveSettingsFromSourceFolder(sources.Text.Trim());model.AutoRefresh=auto.IsChecked==true;model.AutoSyncCont=cont.IsChecked==true;model.AutoSyncKt=syncKt.IsChecked==true;model.PollSeconds=seconds;
+            model.ElectricalCabinetListPath=cabinetFile.Text.Trim();
+            model.TractionMachineListPath=motorFile.Text.Trim();
+            model.CarDoorListPath=doorFile.Text.Trim();
+            foreach(var file in new[]{model.ElectricalCabinetListPath,model.TractionMachineListPath,model.CarDoorListPath})
+                if(file.Length>0 && !System.IO.File.Exists(file))
+                    throw new FileNotFoundException("Không tìm thấy file danh sách thiết bị: "+file,file);
             await _service.SaveSettingsAsync(model);await _service.RefreshAsync(true);Notify("Đã lưu cấu hình nguồn.");ShowSettings();
         },true),A("Sao lưu vào Thư viện",async()=>{var path=System.IO.Path.Combine(_service.BackupDirectory,$"HISA-sao-luu-{DateTime.Now:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}.zip");await _service.BackupAsync(path);Notify("Đã sao lưu vào Thư viện → Tài liệu:\n"+path);}),B("Mở thư mục Backup",()=>System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(_service.BackupDirectory){UseShellExecute=true})),B("Mở thư mục dữ liệu",()=>System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(_service.DataDirectory){UseShellExecute=true}))));
         p.Children.Add(GeminiSettingsCard());
