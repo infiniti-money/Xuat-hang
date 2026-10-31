@@ -31,7 +31,7 @@ public partial class MainWindow
                 }
                 else
                 {
-                    // Treat operator-edited column N as the visible production
+                    // Treat operator-edited column L as the visible production
                     // status, while never treating an Excel date as a confirmed
                     // shipment (only a delivered slip may do that).
                     if(item.State==MotorHungYenStore.HandedOver)
@@ -91,7 +91,7 @@ public partial class MainWindow
             ("Đơn vị","Company",125),("Máy kéo","Material",-1),
             ("SL","Quantity",55),("Số lô","Lot",115),("Seri","Serial",100),
             ("Tiến độ xác nhận","StatusLabel",185),
-            ("Chọn làm","WorkLabel",95),
+            ("Chọn làm","WorkLabel",95),("Cột L (Excel)","ExcelStatusLabel",160),
             ("Ngày gửi","SentDay",100),("Ngày làm","CompletedDay",100),
             ("Ngày bàn giao","HandoverDay",110),
             ("Ghi chú","LastNote",170),("Nguồn","SourceStatus",130));
@@ -106,7 +106,7 @@ public partial class MainWindow
                     " · "+picked.Material+" / seri "+(picked.Serial.Length>0?picked.Serial:"(chưa có)")+
                     " · "+picked.StatusLabel;
                 note.Text=picked.LastNote;
-                workChoice.SelectedIndex=picked.WorkLabel=="Đã làm"?1:0;
+                workChoice.SelectedIndex=picked.ExcelDispatchDay.Length>0?-1:picked.WorkLabel=="Đã làm"?1:0;
             }
         };
 
@@ -189,7 +189,7 @@ public partial class MainWindow
                 $"Hiện tại: {current}\nChuyển sang: {MotorHungYenStore.Name(next)}\n"+
                 $"Ngày thực tế: {Rules.Day(Day(effectiveDay))}\n\n"+
                 "Chỉ chọn Có khi đã kiểm tra chứng từ hoặc thực tế sản xuất/bàn giao. "+
-                "Lịch sử gửi làm lưu riêng; chưa thay đổi cột N nếu không chọn tình trạng làm."))return;
+                "Lịch sử gửi làm lưu riêng; chưa thay đổi cột L nếu không chọn tình trạng làm."))return;
             try
             {
                 store.Advance(selected,next,Day(effectiveDay),note.Text);
@@ -221,22 +221,22 @@ public partial class MainWindow
                 Field("Ghi chú / chứng từ / người nhận",note)),
             Row(B("Xác nhận đã gửi gia công tại Hưng Yên",()=>MoveTo(MotorHungYenStore.Sent)),
                 Field("Tình trạng gia công (chọn một)",workChoice),
-                A("Lưu trạng thái vào Excel cột N",async()=>
+                A("Lưu trạng thái vào Excel cột L",async()=>
                 {
                     if(grid.SelectedItem is not MotorHungYenStore.Item selected)
                     {
                         Notify("Chọn đúng máy kéo và seri cần cập nhật.");return;
                     }
-                    if(selected.State==MotorHungYenStore.HandedOver)
+                    if(selected.State==MotorHungYenStore.HandedOver || selected.ExcelDispatchDay.Length>0)
                     {
-                        Notify("Máy đã được xác nhận bàn giao qua phiếu Đã xuất; không chỉnh trạng thái làm tại đây.");return;
+                        Notify("Cột L đã có ngày xuất kho hoặc phiếu đã xác nhận Đã xuất; không ghi đè ngày bằng Chưa làm / Đã làm. Hãy kiểm tra phiếu và dữ liệu Excel.");return;
                     }
                     if(workChoice.SelectedIndex<0 || Day(effectiveDay).Length==0)
                     {
                         Notify("Chọn Chưa làm hoặc Đã làm và ngày xác nhận.");return;
                     }
                     var choice=workChoice.SelectedIndex==1?"Đã làm":"Chưa làm";
-                    if(!Ask("CẬP NHẬT MÁY KÉO VÀ FILE EXCEL CỘT N\n"+
+                    if(!Ask("CẬP NHẬT MÁY KÉO VÀ FILE EXCEL CỘT L\n"+
                         "HĐ: "+selected.Contract+"\nCông trình: "+selected.Project+
                         "\nSeri: "+selected.Serial+"\nTình trạng: "+choice+
                         "\n\nChỉ khi xác nhận phiếu Đã xuất mới đổi chữ thành ngày bàn giao."))return;
@@ -260,7 +260,7 @@ public partial class MainWindow
                             ("Ghi nhận lúc","RecordedAt",210),("Người thao tác","By",150),
                             ("Ghi chú","Note",-1)));
                 })),
-            T("Chọn Chưa làm / Đã làm để cập nhật chữ ở cột N file MÁY KÉO.xlsx. Ngày bàn giao chỉ do phiếu Đã xuất tự điền đúng seri. HISA sao lưu Excel gốc trước khi ghi.",11,false,Muted)
+            T("Cột L trong MÁY KÉO.xlsx là nguồn trạng thái hai chiều. Sửa trực tiếp Excel rồi bấm Làm mới để đọc lại; chọn Chưa làm / Đã làm tại HISA để ghi Excel. Ngày xuất kho có sẵn được giữ nguyên; chỉ phiếu Đã xuất mới cập nhật ngày tự động. HISA sao lưu trước khi ghi.",11,false,Muted)
         ));
         var page=Stack(tools);
         if(_service.Settings.TractionMachineListPath.Length==0)
