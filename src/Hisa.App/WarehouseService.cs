@@ -907,13 +907,9 @@ public sealed partial class WarehouseService : IDisposable
             {
                 // Serialize backup with app writes and publish only a complete ZIP.
                 // An approved overwrite never destroys the prior good archive on error.
-                using(var zip=ZipFile.Open(temp,ZipArchiveMode.Create))
-                {
-                    foreach(var file in Directory.EnumerateFiles(_data,"*.json"))zip.CreateEntryFromFile(file,Path.GetFileName(file));
-                    zip.CreateEntryFromFile(Settings.MasterPath,"Excel/Tổng hợp.xlsx");
-                    if(File.Exists(Settings.ProductExportPath))zip.CreateEntryFromFile(Settings.ProductExportPath,"Excel/Thành phẩm xuất kho.xlsx");
-                    if(File.Exists(Settings.KtPath))zip.CreateEntryFromFile(Settings.KtPath,"Excel/KT tổng hợp.xlsx");
-                }
+                BackupArchive.Create(temp,_data,Settings);
+                // A checksum mismatch must NEVER replace an existing good ZIP.
+                BackupArchive.Verify(temp);
                 File.Move(temp,path,true);
             }
             finally{if(File.Exists(temp))File.Delete(temp);}
