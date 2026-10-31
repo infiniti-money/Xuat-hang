@@ -13,7 +13,7 @@ public partial class MainWindow
         Func<List<AiScheduleLine>> requests,Action? commitInput=null,bool searchWhenLoaded=false)
     {
         var actualDate=DateInput(DateTime.Today.ToString("yyyy-MM-dd"));
-        var explanation=T("Chọn ngày cont THỰC TẾ về kho. HISA tìm đúng số hợp đồng trong thư mục "+
+        var explanation=T("Chọn ngày cont THỰC TẾ về kho. HISA quét các file Excel vật tư trong thư mục "+
             "CONT ĐI HƯNG YÊN, liệt kê từng kiện Hưng Yên riêng theo công trình, T1/T2, ngày cont đi "+
             "và số lượng. Không tự sao chép chỉ vì ảnh Zalo có lịch dự kiến.",12,false,Muted);
         var feedback=T("Bấm Tìm kiện trong CONT ĐI để đọc mới các file Excel nguồn.",12,false,Muted);
@@ -49,7 +49,7 @@ public partial class MainWindow
             scanned=false;
             feedback.Text="Đang quét trực tiếp file Excel trong CONT ĐI HƯNG YÊN…";
             await _service.RefreshContDiForArrivalAsync();
-            rows=ContDiArrivalLookup.Preview(input,_service.Snapshot,Day(actualDate));
+            rows=ContDiArrivalLookup.Preview(input,_service.ContDiLookupSnapshot,Day(actualDate));
             grid.ItemsSource=rows;scanned=true;
             var ready=rows.Count(x=>x.Status==ContDiArrivalLookup.Ready);
             var already=rows.Count(x=>x.Status=="Kiện đã nhập kho");
@@ -75,7 +75,7 @@ public partial class MainWindow
                 // immediately before displaying the final confirmation.
                 await _service.RefreshContDiForArrivalAsync();
                 var selected=ContDiArrivalLookup.SelectVerified(marked,requests(),
-                    _service.Snapshot,Day(actualDate));
+                    _service.ContDiLookupSnapshot,Day(actualDate));
                 if(!Ask("XÁC NHẬN CONT ĐÃ VỀ KHO HƯNG YÊN\n\n"+
                     "Ngày về thực tế: "+Rules.Day(Day(actualDate))+"\n"+
                     "Số kiện: "+selected.Count+"\n"+
