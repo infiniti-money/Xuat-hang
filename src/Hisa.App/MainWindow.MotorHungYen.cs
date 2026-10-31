@@ -29,12 +29,21 @@ public partial class MainWindow
                     item.State=MotorHungYenStore.HandedOver;
                     item.HandoverDay=confirmed;
                 }
-                else if(item.State==MotorHungYenStore.HandedOver)
+                else
                 {
-                    // Legacy manual handover is historical, but no longer an
-                    // authoritative confirmation without a delivered slip.
-                    item.State=MotorHungYenStore.Completed;
-                    item.HandoverDay="";
+                    // Treat operator-edited column N as the visible production
+                    // status, while never treating an Excel date as a confirmed
+                    // shipment (only a delivered slip may do that).
+                    if(item.State==MotorHungYenStore.HandedOver)
+                    {
+                        item.State=MotorHungYenStore.Completed;
+                        item.HandoverDay="";
+                    }
+                    if(item.SourceWorkValue=="Đã làm")
+                        item.State=MotorHungYenStore.Completed;
+                    else if(item.SourceWorkValue=="Chưa làm")
+                        item.State=item.SentDay.Length>0?
+                            MotorHungYenStore.Sent:MotorHungYenStore.Pending;
                 }
             }
             return result;
