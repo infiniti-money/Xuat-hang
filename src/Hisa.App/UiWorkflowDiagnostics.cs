@@ -69,6 +69,15 @@ public static class UiWorkflowDiagnostics
                 "Lịch sử dòng chọn"}.All(label=>Children(window).OfType<Button>()
                     .Any(b=>b.Content?.ToString()==label)),
                 "Motor tracker provides three explicit progression actions and history");
+            Check(Children(window).OfType<DataGrid>().Any(g=>
+                g.Columns.OfType<DataGridTextColumn>().Any(c=>c.Header?.ToString()=="Số HĐ") &&
+                g.Columns.OfType<DataGridTextColumn>().Any(c=>c.Header?.ToString()=="Tiến độ hợp đồng") &&
+                g.Columns.OfType<DataGridTextColumn>().Any(c=>c.Header?.ToString()=="Bàn giao")),
+                "Motor tracker displays a separate contract-level outsourcing overview");
+            Check(Children(window).OfType<CheckBox>().Any(c=>
+                c.Content?.ToString()?.Contains("Chỉ hiện hợp đồng đã xác nhận gửi Hồng Yên")==true &&
+                c.IsChecked==true),
+                "Contract overview defaults to confirmed Hồng Yên subcontracting only, never all unverified Excel rows");
             var simulated=AiScheduleWorkspace.NewDraft(new DateTime(2026,10,31));
             simulated.Arrivals.Add(new AiScheduleLine{Contract="05492026",Project="Công trình A",Company="Công ty A",PlannedDate=simulated.ArrivalDate});
             simulated.Dispatches.Add(new AiScheduleLine{Contract="20012026",Project="Công trình C",Company="Công ty A",PlannedDate=simulated.DispatchDate});
