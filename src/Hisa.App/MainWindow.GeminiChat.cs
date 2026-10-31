@@ -13,6 +13,9 @@ public partial class MainWindow
     private bool _geminiChatIncludeWarehouse;
     private bool _geminiChatSending;
     private readonly GeminiVoice _geminiVoice=new();
+    private readonly GeminiMicrophoneRecorder _geminiMicrophone=new();
+    private bool _geminiMicrophoneConsent;
+    private bool _geminiChatTranscribing;
     private bool _geminiChatAutoSpeak;
 
     private void ShowGeminiChat()
@@ -84,19 +87,108 @@ public partial class MainWindow
             IsChecked=_geminiChatAutoSpeak};
         autoVoice.Checked+=(_,_)=>_geminiChatAutoSpeak=true;
         autoVoice.Unchecked+=(_,_)=>_geminiChatAutoSpeak=false;
-        var listen=B("🎙  Mic nhập câu hỏi",()=>
+        void OnRecorded(byte[] wav)
         {
+            Dispatcher.BeginInvoke(new Action(async () =>
+            {
+                // Recording has stopped before this cloud-upload decision.
+                if(_page!="gemini-chat"){Array.Clear(wav);return;}
+                if(!Ask("GỬI GIỌNG NÓI ĐẾN GEMINI?\\n\\n"+
+                    "HISA đã dừng micro. Chỉ khi anh đồng ý, bản ghi âm ngắn sẽ "+
+                    "được gửi tới Google Gemini qua Internet để chuyển tiếng Việt thành chữ.\\n"+
+                    "Âm thanh không được lưu vào Excel hoặc lịch sử HISA. "+
+                    "Anh có thể chọn Không để hủy toàn bộ bản ghi."))
+                {
+                    Array.Clear(wav);
+                    activity.Text="Đã hủy gửi âm thanh. Không tải dữ liệu lên Gemini.";
+                    return;
+                }
+                string? key;
+                try { key=new GeminiCredentialStore().ReadKey(); }
+                catch(Exception) { key=null; }
+                if(string.IsNullOrWhiteSpace(key))
+                {
+                    Array.Clear(wav);
+                    activity.Text="Chưa có Gemini API Key. Mở Cấu hình & sao lưu → Gemini AI.";
+                    return;
+                }
+                _geminiChatTranscribing=true;
+                activity.Text="Đang chuyển giọng nói tiếng Việt thành chữ bằng Gemini…";
+                try
+                {
+                    var transcript=await GeminiAudioTranscriptionService.TranscribeAsync(key,wav);
+                    if(_page=="gemini-chat")
+                    {
+                        if(question.Text.Length>0)question.Text+=" ";
+                        question.Text+=transcript;
+                        question.CaretIndex=question.Text.Length;
+                        activity.Text="Đã nhận dạng tiếng Việt. Kiểm tra số hợp đồng và nội dung trước khi bấm Gửi.";
+                    }
+                }
+                catch(OperationCanceledException)
+                { activity.Text="Đã hủy nhận dạng âm thanh."; }
+                catch(HttpRequestException)
+                { activity.Text="Không kết nối được Gemini. Kiểm tra Internet rồi thử lại."; }
+                catch(Exception ex) when(ex is InvalidOperationException or FormatException or
+                    System.Text.Json.JsonException)
+                { activity.Text="Nhận dạng giọng nói: "+ex.Message; }
+                finally
+                {
+                    Array.Clear(wav);
+                    _geminiChatTranscribing=false;
+                }
+            }));
+        }
+
+        var listen=B("🎙  Bắt đầu thu micro",()=>
+        {
+            if(_geminiChatTranscribing)
+            {
+                activity.Text="Gemini đang nhận dạng bản ghi trước. Hãy kiểm tra kết quả.";
+                return;
+            }
+            if(_geminiMicrophone.IsRecording)
+            {
+                activity.Text="Micro đang thu. Bấm 'Dừng và nhận dạng' hoặc 'Hủy micro'.";
+                return;
+            }
+            if(!_geminiMicrophoneConsent)
+            {
+                if(!Ask("CHO PHÉP HISA DÙNG MICRO?\\n\\n"+
+                    "HISA chỉ mở micro khi anh bấm Bắt đầu, ghi tối đa 25 giây. "+
+                    "Âm thanh được giữ trong bộ nhớ và không tự gửi đi.\\n\\n"+
+                    "Sau khi dừng, HISA sẽ hỏi xác nhận thêm một lần trước khi "+
+                    "gửi âm thanh đến Google Gemini để nhận dạng tiếng Việt.\\n\\n"+
+                    "Đây là xác nhận trong HISA, không phải hộp thoại quyền của Windows. "+
+                    "Windows vẫn có thể chặn truy cập micro trong Cài đặt."))
+                {
+                    activity.Text="Chưa đồng ý dùng micro. HISA không thu âm.";
+                    return;
+                }
+                _geminiMicrophoneConsent=true;
+            }
             try
             {
-                _geminiVoice.Listen(word=>Dispatcher.BeginInvoke(()=>
-                {
-                    if(question.Text.Length>0)question.Text+=" ";
-                    question.Text+=word;question.CaretIndex=question.Text.Length;
-                }),message=>Dispatcher.BeginInvoke(()=>activity.Text=message));
+                _geminiMicrophone.Start(OnRecorded,
+                    message=>Dispatcher.BeginInvoke(new Action(()=>activity.Text=message)));
+                activity.Text="● ĐANG THU micro (tối đa 25 giây). Nói tiếng Việt, rồi bấm 'Dừng và nhận dạng'.";
             }
-            catch(Exception ex)when(ex is InvalidOperationException or
-                System.Runtime.InteropServices.COMException)
-            {activity.Text="Không thể truy cập mic/nhận dạng Windows: "+ex.Message;}
+            catch(Exception ex)
+            {
+                activity.Text="Không mở được micro: "+ex.Message+
+                    " · Kiểm tra Windows Settings → Privacy & security → Microphone "+
+                    "và System → Sound → Input.";
+            }
+        });
+        var transcribe=B("✓  Dừng và nhận dạng",()=>
+        {
+            if(!_geminiMicrophone.IsRecording)
+            {
+                activity.Text="Chưa thu âm. Bấm 'Bắt đầu thu micro' trước.";
+                return;
+            }
+            activity.Text="Đang dừng micro và chuẩn bị hỏi xác nhận gửi âm thanh…";
+            _geminiMicrophone.Stop(true);
         });
         var speak=B("🔊  Đọc câu trả lời",()=>
         {
@@ -107,10 +199,24 @@ public partial class MainWindow
                     activity.Text=message));}
             catch(Exception ex) {activity.Text="Loa hệ thống: "+ex.Message;}
         });
-        var stopVoice=B("◼ Dừng mic/loa",()=>
+        var stopVoice=B("◼ Hủy micro / dừng loa",()=>
         {
-            _geminiVoice.StopListening();_geminiVoice.StopSpeaking();
-            activity.Text="Đã dừng mic/loa.";
+            _geminiMicrophone.Stop(false);
+            _geminiVoice.StopSpeaking();
+            activity.Text="Đã hủy micro. Âm thanh chưa được gửi đến Gemini.";
+        });
+        var privacySettings=B("⚙ Quyền micro Windows",()=>
+        {
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(
+                    "ms-settings:privacy-microphone"){UseShellExecute=true});
+            }
+            catch(Exception ex)
+            {
+                activity.Text="Không mở được Cài đặt Windows: "+ex.Message+
+                    ". Nhấn Win+R rồi nhập ms-settings:privacy-microphone.";
+            }
         });
 
         void ClearChat()
@@ -225,9 +331,9 @@ public partial class MainWindow
             Row(T("✦  GEMINI CHAT  /  TRỢ LÝ HISA",19,true),
                 B("⚙  Gemini API Key",()=>Navigate("settings")),
                 B("Xóa hội thoại",ClearChat)),
-            T("Gemini hiểu lịch xuất, nguồn kiện và công việc trong ngày khi bạn chủ động bật chia sẻ dữ liệu. Mic chỉ thu một câu khi bấm, lời nói được nhận dạng cục bộ trên Windows; loa đọc câu trả lời bằng giọng hệ thống. AI đề xuất sửa Excel riêng, phải xem trước và xác nhận.",12,false,Muted),
+            T("Micro có xác nhận trong HISA, chỉ thu khi bạn bấm và không tự gửi âm thanh. Sau khi dừng, bạn có thể hủy hoặc xác nhận gửi WAV cho Gemini qua Internet để nhận dạng tiếng Việt; không cần cài Windows Speech vi-VN. Loa đọc bằng giọng hệ thống. Mọi đề xuất sửa Excel vẫn phải phê duyệt.",12,false,Muted),
             contextToggle,privacyNote,autoVoice,
-            Row(listen,speak,stopVoice),
+            Row(listen,transcribe,speak,stopVoice,privacySettings),
             T("Chỉ bật chia sẻ dữ liệu khi muốn tra cứu hợp đồng, vật tư hoặc kế hoạch thực tế từ HISA.",11,false,Muted)
         ));
         var bottom=Card(Stack(
@@ -245,7 +351,7 @@ public partial class MainWindow
         layout.Children.Add(head);
         Grid.SetRow(viewer,1);layout.Children.Add(viewer);
         Grid.SetRow(bottom,2);layout.Children.Add(bottom);
-        SetPage("Trợ lý Gemini AI","Mic & loa Windows · hiểu kế hoạch hằng ngày · đề xuất sửa Excel có phê duyệt",layout);
+        SetPage("Trợ lý Gemini AI","Micro tiếng Việt qua Gemini có xác nhận · loa Windows · Excel có phê duyệt",layout);
         ScrollToEnd();
     }
 }
