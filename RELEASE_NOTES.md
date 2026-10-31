@@ -1,3 +1,14 @@
+# HISA Quản lý kho v1.9.7 — Danh sách máy kéo Hưng Yên gửi làm / đã làm / đã bàn giao
+
+- Thêm màn hình trực tiếp **Máy kéo · gửi / làm / bàn giao** và lối mở từ Quản lý & lịch sử.
+- Dữ liệu máy từ MÁY KÉO.xlsx (số HĐ, công trình, đơn vị, loại máy, seri, số lô, số lượng); có bảng lọc theo hợp đồng/seri và bốn nhóm trạng thái.
+- Đặt lịch sử riêng cho từng máy kéo: (1) **Đã gửi Hưng Yên làm** → (2) **Đã làm xong** → (3) **Đã bàn giao**, nhập ngày thực tế và ghi chú/chứng từ, yêu cầu xác nhận trước khi lưu. Không cho nhảy bước, đổi ngày ngược hoặc tự suy đoán từ cột DXH.
+- JSON trạng thái lưu riêng trong kho tài liệu của HISA với ghi file tạm, tạo .bak trước thay đổi; vẫn hiển thị lịch sử cũ nếu dòng bị xóa khỏi Excel.
+- Không thay đổi tệp Excel nguồn, dữ liệu Tổng hợp.xlsx, nhập cont hay phiếu giao hàng; bảo toàn dữ liệu khi cập nhật. CI có regression tests cho tính độc lập của từng seri/công trình, thứ tự các bước, lưu sau khởi động lại, lịch sử và tệp lỗi.
+- Bản Windows x64 sử dụng trình cài Inno Setup tiếng Việt với smoke-test cài mới/cài đè.
+
+---
+
 # HISA v1.9.6 — Thêm ba danh sách thiết bị Tủ điện, Máy kéo và Đầu cửa car
 
 - Cấu hình riêng ba đường dẫn Excel bằng nút **Chọn Excel** trong trang Cấu hình nguồn dữ liệu. Giữ cài đặt khi đổi thư mục nguồn hoặc nâng cấp; không trộn với thư mục `CONT ĐI` và file tổng hợp kho.

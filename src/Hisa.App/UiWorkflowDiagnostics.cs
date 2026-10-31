@@ -56,6 +56,19 @@ public static class UiWorkflowDiagnostics
                 "Source configuration is first on settings page, above Gemini");
             Check(Children(sourceCard).OfType<Button>().Any(b=>b.Content?.ToString()=="Chọn thư mục nguồn"),
                 "Source folder browser button is available without scrolling past Gemini");
+            Check(navigation.Children.OfType<Button>().Any(b=>b.Content?.ToString()
+                    ?.Contains("Máy kéo · gửi / làm / bàn giao")==true),
+                "Motor Hưng Yên tracker has its own visible navigation menu");
+            Call("ShowMotorHungYen");
+            Check(Children(window).OfType<DataGrid>().Any(g=>
+                g.Columns.OfType<DataGridTextColumn>().Any(c=>c.Header?.ToString()=="Tình trạng gia công") &&
+                g.Columns.OfType<DataGridTextColumn>().Any(c=>c.Header?.ToString()=="Đã bàn giao")),
+                "Motor tracker shows list, production state and handover date columns");
+            Check(new[]{"1 · Xác nhận đã gửi Hưng Yên",
+                "2 · Xác nhận đã làm xong","3 · Xác nhận đã bàn giao",
+                "Lịch sử dòng chọn"}.All(label=>Children(window).OfType<Button>()
+                    .Any(b=>b.Content?.ToString()==label)),
+                "Motor tracker provides three explicit progression actions and history");
             var simulated=AiScheduleWorkspace.NewDraft(new DateTime(2026,10,31));
             simulated.Arrivals.Add(new AiScheduleLine{Contract="05492026",Project="Công trình A",Company="Công ty A",PlannedDate=simulated.ArrivalDate});
             simulated.Dispatches.Add(new AiScheduleLine{Contract="20012026",Project="Công trình C",Company="Công ty A",PlannedDate=simulated.DispatchDate});
