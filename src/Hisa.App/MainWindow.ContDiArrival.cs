@@ -78,7 +78,13 @@ public partial class MainWindow
                 await _service.RefreshContDiForArrivalAsync();
                 var selected=ContDiArrivalLookup.SelectVerified(marked,requests(),
                     _service.ContDiLookupSnapshot,Day(actualDate));
+                var duplicateWarnings=marked
+                    .Where(x=>x.Notes.Contains("CẢNH BÁO",StringComparison.Ordinal))
+                    .Select(x=>x.Contract+" · "+x.Project+" · kiện "+x.PackageNo)
+                    .Distinct().ToList();
                 if(!Ask("XÁC NHẬN CONT ĐÃ VỀ KHO HƯNG YÊN\n\n"+
+                    (duplicateWarnings.Count==0?"":"⚠ CÓ KIỆN TRÙNG VẬT TƯ CÙNG NGÀY: "+
+                        string.Join("; ",duplicateWarnings)+"\nHãy kiểm tra đây là kiện mới thực tế.\n\n")+
                     "Ngày về thực tế: "+Rules.Day(Day(actualDate))+"\n"+
                     "Số kiện: "+selected.Count+"\n"+
                     "Hợp đồng: "+selected.Select(x=>Rules.Contract(x.Contract)).Distinct().Count()+
