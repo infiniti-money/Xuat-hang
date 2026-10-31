@@ -210,14 +210,13 @@ public static class AutoUpdater
         UpdateProgress?.Invoke("Đang chuẩn bị tải bản "+release.Version+"...");
         await DownloadInstallerAsync(release.InstallerUrl,staging,cancellationToken);
         UpdateProgress?.Invoke("Đang xác minh SHA-256 của bộ cài...");
+        string actual;
         await using(var stream=File.OpenRead(staging))
+            actual=Convert.ToHexString(await SHA256.HashDataAsync(stream,cancellationToken));
+        if(!actual.Equals(expected,StringComparison.OrdinalIgnoreCase))
         {
-            var actual=Convert.ToHexString(await SHA256.HashDataAsync(stream,cancellationToken));
-            if(!actual.Equals(expected,StringComparison.OrdinalIgnoreCase))
-            {
-                File.Delete(staging);
-                throw new InvalidDataException("Sai SHA-256; đã xóa bản tải lỗi, không cho cài.");
-            }
+            File.Delete(staging);
+            throw new InvalidDataException("Sai SHA-256; đã xóa bản tải lỗi, không cho cài.");
         }
         File.Move(staging,file,true);
         lock(Sync){_readyInstaller=file;_readyHash=expected;ReadyVersion=release.Version;}
