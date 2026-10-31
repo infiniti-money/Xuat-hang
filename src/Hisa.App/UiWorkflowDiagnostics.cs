@@ -57,8 +57,8 @@ public static class UiWorkflowDiagnostics
             Check(Children(sourceCard).OfType<Button>().Any(b=>b.Content?.ToString()=="Chọn thư mục nguồn"),
                 "Source folder browser button is available without scrolling past Gemini");
             var simulated=AiScheduleWorkspace.NewDraft(new DateTime(2026,10,31));
-            simulated.Arrivals.Add(new AiScheduleLine{Contract="56062026",Project="Công trình A",Company="HISA",PlannedDate=simulated.ArrivalDate});
-            simulated.Dispatches.Add(new AiScheduleLine{Contract="13482026",Project="Công trình B",Company="HISA",PlannedDate=simulated.DispatchDate});
+            simulated.Arrivals.Add(new AiScheduleLine{Contract="05492026",Project="Công trình A",Company="Công ty A",PlannedDate=simulated.ArrivalDate});
+            simulated.Dispatches.Add(new AiScheduleLine{Contract="20012026",Project="Công trình C",Company="Công ty A",PlannedDate=simulated.DispatchDate});
             typeof(MainWindow).GetField("_aiDocument",flags)!.SetValue(window,simulated);
             Call("ShowAiSchedules");
             var aiHost=(Grid)window.FindName("PageHost")!;
@@ -103,8 +103,9 @@ public static class UiWorkflowDiagnostics
                 "Both lists allow browsing material details for every Zalo contract");
             aiGrids[0].SelectedIndex=0;
             var materialGrids=Children(aiPanel).OfType<DataGrid>().Where(g=>g!=aiGrids[0]&&g!=aiGrids[1]).ToList();
-            Check(materialGrids.Any(g=>g.ItemsSource is List<AiMaterialLookup.Row>),
-                "Clicking a schedule row opens its read-only material detail table");
+            Check(materialGrids.Any(g=>g.ItemsSource is List<AiMaterialLookup.Row> items &&
+                  items.Any(i=>i.Material=="Máy kéo M1"&&i.Quantity==2)),
+                "Clicking a schedule row shows original workbook goods and quantities");
             Check(!simulated.Arrivals[0].SelectedForArrival && !simulated.Dispatches[0].SelectedForHandover &&
                   string.IsNullOrWhiteSpace(simulated.ApprovedAt),
                 "Opening Gemini results does not mark arrival, issue a slip or approve schedule");
