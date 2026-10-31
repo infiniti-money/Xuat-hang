@@ -187,7 +187,9 @@ public static class MotorHandoverExcel
         var dateColumn=StatusColumn;
         var header=sheet.Cell(2,dateColumn).GetString().Trim();
         if(header.Length>0 && Rules.Code(header) is not ("NGAYBANGIAO" or
-            "NGAYXUATKHO" or "TRANGTHAI" or "TINHTRANG"))
+            "NGAYXUATKHO" or "TRANGTHAI" or "TINHTRANG" or
+            "TRANGTHAIMAYKEO" or "TRANGTHAIGIACONG" or "TINHTRANGMAYKEO" or
+            "TINHTRANGLAM"))
             throw new InvalidDataException("Cột L đang có tiêu đề '"+header+
                 "'. HISA không ghi đè; hãy kiểm tra mẫu MÁY KÉO.xlsx.");
         var newlyAdded=header.Length==0;
