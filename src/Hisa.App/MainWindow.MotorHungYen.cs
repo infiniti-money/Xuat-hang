@@ -103,8 +103,8 @@ public partial class MainWindow
                 var selectedKey=selected.Key;
                 items=store.List(machineRows);
                 Filter();
-                grid.SelectedItem=(grid.ItemsSource as IEnumerable<MotorHungYenStore.Item>)?
-                    .FirstOrDefault(x=>x.Key==selectedKey);
+                grid.SelectedItem=(grid.ItemsSource as IEnumerable<MotorHungYenStore.Item>)
+                    ?.FirstOrDefault(x=>x.Key==selectedKey);
             }
             catch(Exception ex) when(ex is InvalidOperationException or
                 ArgumentException or System.IO.IOException or System.IO.InvalidDataException)
