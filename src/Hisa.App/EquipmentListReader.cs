@@ -26,6 +26,7 @@ public static class EquipmentListReader
         public string Code { get; set; } = "";
         public string Note { get; set; } = "";
         public string Source { get; set; } = "";
+        public int SourceRow { get; set; }
         public string Sheet { get; set; } = "";
         public string Verification { get; set; } = "";
     }
@@ -103,7 +104,7 @@ public static class EquipmentListReader
         Category=x.Category,Contract=x.Contract,Project=x.Project,Company=x.Company,
         Material=x.Material,Unit=x.Unit,Quantity=x.Quantity,Serial=x.Serial,Lot=x.Lot,
         ProductionDate=x.ProductionDate,Code=x.Code,Note=x.Note,Source=x.Source,
-        Sheet=x.Sheet,Verification=x.Verification
+        Sheet=x.Sheet,SourceRow=x.SourceRow,Verification=x.Verification
     };
 
     private static string Txt(IXLWorksheet ws,int row,int col)
@@ -191,7 +192,7 @@ public static class EquipmentListReader
                         Unit=Txt(sheet,i,6),Quantity=Qty(sheet,i,7),
                         Lot=Txt(sheet,i,8),Serial=Txt(sheet,i,9),
                         Note="Thông tin cont đi / trạng thái ghi trong file: "+Txt(sheet,i,10),
-                        Source=source,Sheet=sheet.Name
+                        Source=source,Sheet=sheet.Name,SourceRow=i
                     });
                 }
             }
