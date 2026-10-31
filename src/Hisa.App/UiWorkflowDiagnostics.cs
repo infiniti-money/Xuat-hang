@@ -68,14 +68,17 @@ public static class UiWorkflowDiagnostics
                 "Motor Hưng Yên tracker has its own visible navigation menu");
             Call("ShowMotorHungYen");
             Check(Children(window).OfType<DataGrid>().Any(g=>
-                g.Columns.OfType<DataGridTextColumn>().Any(c=>c.Header?.ToString()=="Tình trạng gia công") &&
+                g.Columns.OfType<DataGridTextColumn>().Any(c=>c.Header?.ToString()=="Tiến độ xác nhận") &&
+                g.Columns.OfType<DataGridTextColumn>().Any(c=>c.Header?.ToString()=="Chọn làm") &&
                 g.Columns.OfType<DataGridTextColumn>().Any(c=>c.Header?.ToString()=="Ngày bàn giao")),
-                "Motor tracker shows list, production state and handover date columns");
-            Check(new[]{"1 · Xác nhận đã gửi Hồng Yên",
-                "2 · Xác nhận đã làm xong","3 · Xác nhận đã bàn giao",
-                "Lịch sử dòng chọn"}.All(label=>Children(window).OfType<Button>()
-                    .Any(b=>b.Content?.ToString()==label)),
-                "Motor tracker provides three explicit progression actions and history");
+                "Motor tracker separates selected work status from actual delivery date");
+            Check(Children(window).OfType<ComboBox>().Any(c=>
+                    c.Items.Cast<object>().Select(x=>x.ToString()).SequenceEqual(new[]{"Chưa làm","Đã làm"})) &&
+                Children(window).OfType<Button>().Any(b=>b.Content?.ToString()=="Lưu trạng thái vào Excel cột N") &&
+                !Children(window).OfType<Button>().Any(b=>
+                    b.Content?.ToString()?.Contains("Xác nhận đã bàn giao")==true) &&
+                Children(window).OfType<Button>().Any(b=>b.Content?.ToString()=="Lịch sử dòng chọn"),
+                "Motor tracker offers only two work choices, with no manual delivery action");
             Check(Children(window).OfType<DataGrid>().Any(g=>
                 g.Columns.OfType<DataGridTextColumn>().Any(c=>c.Header?.ToString()=="Số HĐ") &&
                 g.Columns.OfType<DataGridTextColumn>().Any(c=>c.Header?.ToString()=="Tiến độ hợp đồng") &&
