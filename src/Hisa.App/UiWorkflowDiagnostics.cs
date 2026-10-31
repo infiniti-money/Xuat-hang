@@ -67,6 +67,16 @@ public static class UiWorkflowDiagnostics
                     ?.Contains("Máy kéo gia công tại Hưng Yên")==true),
                 "Motor Hưng Yên tracker has its own visible navigation menu");
             Call("ShowMotorHungYen");
+            Check(window.FindName("PageTitle") is TextBlock motorTitle &&
+                  motorTitle.Text=="Máy kéo gia công tại Hưng Yên",
+                "Motor outsourcing page title uses the corrected Hưng Yên location");
+            Check(MotorHungYenStore.Name(MotorHungYenStore.Sent)=="Đã gửi gia công tại Hưng Yên",
+                "Motor status label is corrected without altering persisted status codes");
+            Check(!Children(window).OfType<TextBlock>().Any(t=>t.Text.Contains("Hồng Yên",StringComparison.Ordinal)) &&
+                  !Children(window).OfType<Button>().Any(b=>b.Content is string name && name.Contains("Hồng Yên",StringComparison.Ordinal)) &&
+                  !Children(window).OfType<CheckBox>().Any(c=>c.Content is string label && label.Contains("Hồng Yên",StringComparison.Ordinal)),
+                "Motor screen contains no outdated Hồng Yên captions");
+
             Check(Children(window).OfType<DataGrid>().Any(g=>
                 g.Columns.OfType<DataGridTextColumn>().Any(c=>c.Header?.ToString()=="Tiến độ xác nhận") &&
                 g.Columns.OfType<DataGridTextColumn>().Any(c=>c.Header?.ToString()=="Chọn làm") &&
