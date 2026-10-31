@@ -91,7 +91,7 @@ public partial class MainWindow
         page.Children.Add(HubSection("CÁC BƯỚC ĐƯỢC GỘP THEO QUY TRÌNH",
             "Thay vì tìm nhiều mục rời rạc, mở đúng bước cần làm; dữ liệu và phiếu cũ được giữ.",
             WorkflowTile("01","Lịch xuất & vật tư",
-                "Nạp lịch Gemini đã duyệt hoặc thêm hợp đồng phát sinh.",
+                "Dùng lịch đang xử lý hoặc thêm hợp đồng phát sinh, không nạp lịch AI cũ.",
                 "Đủ / Thiếu / Chưa cập nhật",()=>Navigate("readiness"),true),
             WorkflowTile("02","Lập phiếu chờ xuất",
                 "Chọn hợp đồng, kiểm tra quy cách và serial máy kéo.",
@@ -118,33 +118,17 @@ public partial class MainWindow
         var page=Stack();
         page.Children.Add(HubHeader("CONT & KIỆN HƯNG YÊN",
             "Dự kiến về kho không phải đã nhận hàng · chỉ ghi Tổng hợp.xlsx sau khi xác nhận thực tế"));
-        try
-        {
-            var approved=PlannedArrivalWorkflow.LoadLatestApproved(_service.DataDirectory);
-            var incoming=approved?.Arrivals.Count??0;
-            var received=_service.Snapshot.DetailPackages.Count;
-            var cont=_service.Snapshot.ContPackages.Count;
-            page.Children.Add(StyledDashboardPanel(Stack(
-                T("THÔNG TIN NGUỒN ĐANG TẢI",14,true),
-                T(incoming+" dòng công trình dự kiến về theo lịch Gemini đã duyệt gần nhất · "+
-                    cont+" kiện trong nguồn cont đi · "+received+" kiện ghi trong chi tiết Tổng hợp.xlsx",
-                    12,false,Muted),
-                T("Những số liệu trên thuộc các nguồn khác nhau; không được cộng thành số hàng đã nhận.",11,false,Brush("#9E6834")))));
-        }
-        catch(Exception ex)
-        {
-            page.Children.Add(Alert("Không đọc được lịch cont đã duyệt: "+ex.Message+
-                ". Vẫn có thể mở nhập kho thủ công.",true));
-        }
+        page.Children.Add(StyledDashboardPanel(Stack(
+            T("LỊCH CONT & XÁC NHẬN THỰC TẾ TRÊN MỘT MÀN HÌNH",14,true),
+            T(_service.Snapshot.ContPackages.Count+" kiện trong nguồn cont đi · "+
+              _service.Snapshot.DetailPackages.Count+" kiện đã ghi nhận về kho. "+
+              "Không nạp lại lịch AI cũ; nhập ảnh hoặc tạo lịch mới để xác nhận trong phiên.",12,false,Muted))));
         page.Children.Add(HubSection("QUY TRÌNH CONT ĐI → VỀ KHO",
             "Một nơi cho lịch AI, xác nhận thực tế, nhập tay và kiểm tra kiện. Không nhập kho tự động.",
-            WorkflowTile("01","Lịch cont dự kiến",
-                "Đọc ảnh Zalo, xem ngày cont rời nhà máy và dự kiến về.",
-                "Gemini · cần duyệt",()=>Navigate("ai-schedule"),true),
-            WorkflowTile("02","Xác nhận cont đã về",
-                "Tích riêng từng kiện đã nhận, đối chiếu đúng nguồn rồi ghi Excel.",
-                "Xác nhận trước khi ghi",()=>Navigate("planned-arrivals")),
-            WorkflowTile("03","Nhập cont thủ công",
+            WorkflowTile("01","Dự kiến + xác nhận cont",
+                "Cùng màn hình: đọc ảnh Zalo, rà soát dự kiến, chọn kiện thực tế và ghi Excel.",
+                "Không nạp lịch cũ · xác nhận từng kiện",()=>Navigate("ai-schedule"),true),
+            WorkflowTile("02","Nhập cont thủ công",
                 "Đối chiếu kiện nguồn nếu không có ảnh lịch hoặc cần bổ sung.",
                 "Không gộp kiện khác ngày",()=>Navigate("arrival"))));
         page.Children.Add(HubSection("QUẢN LÝ KIỆN",
