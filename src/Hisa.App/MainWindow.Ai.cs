@@ -45,7 +45,7 @@ public partial class MainWindow
         {
             grid.Columns.Add(new DataGridCheckBoxColumn
             {
-                Header="Chọn nhận",
+                Header="Cont đã về?",
                 Binding=new Binding("SelectedForArrival")
                 {
                     Mode=BindingMode.TwoWay,
@@ -166,13 +166,13 @@ public partial class MainWindow
             ShowAiSchedules();
         });
         var top = Card(Stack(
-            T("LỊCH NHẬP – XUẤT KHO  /  ĐIỀU HÀNH TỪ HAI NGUỒN", 18, true),
-            T("① Ảnh Zalo hoặc nhập số HĐ thủ công  →  ② Đối chiếu  →  ③ Duyệt lịch  →  ④ Chọn nhập kho / phiếu bàn giao",13,true,Brush("#177E89")),
-            T("HISA tách riêng lịch container dự kiến về Hưng Yên và lịch xuất kho ngày mai. Không tự nhập kho hay tạo phiếu Đã xuất.", 12, false, Muted),
+            T("ẢNH ZALO → NHẬN CONT / LÀM PHIẾU", 18, true),
+            T("① Chọn ảnh  →  ② Gemini đọc danh sách  →  ③ Kiểm tra và lưu duyệt  →  ④ Tích chọn công việc cần làm.",13,true,Brush("#177E89")),
+            T("Ngày cont dự kiến về chỉ là dự báo, KHÔNG phải hàng đã nhập. Nhận cont và làm phiếu là hai thao tác độc lập.",12,false,Muted),
             status,
-            Row(choose, upload),
-            Row(analyze,createManual,openApproved,B("⚙  Cấu hình Gemini", () => Navigate("settings"))),
-            T("Bảo mật: khóa chỉ đọc từ Windows khi phân tích. Ảnh chỉ gửi đến Gemini sau khi anh bấm Phân tích.", 11, false, Muted)
+            Row(choose,upload,analyze),
+            Row(createManual,openApproved,B("⚙  Cấu hình Gemini", () => Navigate("settings"))),
+            T("Ảnh chỉ gửi đến Gemini sau khi nhấn Phân tích. Không tự sửa Excel hoặc tạo phiếu từ kết quả AI.",11,false,Muted)
         ));
         var panel = Stack();
         if (_aiDocument == null)
@@ -190,7 +190,7 @@ public partial class MainWindow
         dayDispatch.Width = 150;
         var incoming = ScheduleEditor(doc.Arrivals, true);
         var outgoing = ScheduleEditor(doc.Dispatches, false);
-        var saved = T(_aiApproved ? "Kế hoạch đã được duyệt trong phiên này." :
+        var saved = T(_aiApproved ? "✓ Lịch đã duyệt. Có thể chọn nhập cont hoặc làm phiếu." :
             "Chưa duyệt. Mọi dòng có thể chỉnh sửa trước khi lưu.", 12, true);
         // An approved snapshot is immutable. Changing even just the header date
         // invalidates approval, otherwise a new unsaved arrival/dispatch date could
@@ -205,17 +205,17 @@ public partial class MainWindow
         dayDispatch.TextChanged += (_, _) => InvalidateApproval();
         incoming.CellEditEnding += (_, e) =>
         {
-            if(e.Column.Header?.ToString() != "Chọn nhận")InvalidateApproval();
+            if(e.Column.Header?.ToString() != "Cont đã về?")InvalidateApproval();
         };
         outgoing.CellEditEnding += (_, e) =>
         {
             if (e.Column.Header?.ToString() != "Làm phiếu") InvalidateApproval();
         };
 
-        var incomingCount = T(doc.Arrivals.Count + " công trình · hàng dự kiến nhập kho", 14, true);
-        var outgoingCount = T(doc.Dispatches.Count + " công trình · hàng dự kiến xuất kho", 14, true);
-        var incomingBody = Stack(incomingCount, incoming);
-        var outgoingBody = Stack(outgoingCount, outgoing);
+        var incomingCount = T(doc.Arrivals.Count + " cont/hợp đồng dự kiến về · chưa nhập kho", 14, true);
+        var outgoingCount = T(doc.Dispatches.Count + " hợp đồng dự kiến bàn giao · chưa xuất kho", 14, true);
+        var incomingBody = Stack(incomingCount);
+        var outgoingBody = Stack(outgoingCount);
 
         // The tri-state "Đã có LX" is never interpreted as driver availability.
         void CycleSchedule(DataGrid grid)
@@ -233,31 +233,33 @@ public partial class MainWindow
             InvalidateApproval();
             grid.Items.Refresh();
         }
+        incomingBody.Children.Add(T("Nếu cont THỰC TẾ đã về, tích đúng hợp đồng ở cột 'Cont đã về?', rồi đối chiếu và chọn từng kiện. Ngày dự kiến không phải ngày thực tế.",12,false,Muted));
         incomingBody.Children.Add(Row(
-            B("Chọn tất cả HĐ nhập",()=>{foreach(var r in doc.Arrivals)r.SelectedForArrival=true;incoming.Items.Refresh();}),
-            B("Bỏ chọn nhập",()=>{foreach(var r in doc.Arrivals)r.SelectedForArrival=false;incoming.Items.Refresh();}),
-            B("✓  Đối chiếu các HĐ đã chọn · cont thực tế đã về", () =>
+            B("✓  1 · Đối chiếu cont đã về → Ghi Excel", () =>
             {
                 if (!_aiApproved || string.IsNullOrWhiteSpace(doc.ApprovedAt))
                 {
-                    Notify("Hãy kiểm tra và lưu lịch Gemini đã duyệt trước khi ghi nhận cont thực tế.");
+                    Notify("Hãy kiểm tra và lưu duyệt danh sách trước khi nhập cont thực tế.");
                     return;
                 }
                 Commit(incoming);
                 if(doc.Arrivals.All(x=>!x.SelectedForArrival))
                 {
-                    Notify("Tích ô 'Chọn nhận' cho các HĐ muốn nhận. Sau đó chọn riêng từng kiện thực tế ở màn xác nhận cont về.");
+                    Notify("Tích ô 'Cont đã về?' của hợp đồng có hàng thực tế đã nhận. Sau đó kiểm tra từng kiện.");
                     return;
                 }
                 ShowPlannedArrivals(true);
             }, true),
-            B("Xem toàn bộ cont dự kiến",()=>ShowPlannedArrivals()),
-            B("Đổi trạng thái lịch xuất của dòng chọn", () => CycleSchedule(incoming))
+            B("Bỏ tích cont",()=>{foreach(var r in doc.Arrivals)r.SelectedForArrival=false;incoming.Items.Refresh();}),
+            B("Xem cont dự kiến",()=>ShowPlannedArrivals()),
+            B("Trạng thái lịch xuất",()=>CycleSchedule(incoming))
         ));
+        incomingBody.Children.Add(incoming);
+        outgoingBody.Children.Add(T("Tích ô 'Làm phiếu' của các hợp đồng cần bàn giao. Sau khi đối chiếu vật tư, chỉ tạo phiếu CHỜ XUẤT, không tự đánh dấu Đã xuất.",12,false,Muted));
         outgoingBody.Children.Add(Row(
-            B("Chọn tất cả dòng xuất", () => { foreach(var line in doc.Dispatches) line.SelectedForHandover = true; outgoing.Items.Refresh(); }),
-            B("Bỏ chọn", () => { foreach(var line in doc.Dispatches) line.SelectedForHandover = false; outgoing.Items.Refresh(); }),
-            B("Đổi trạng thái lịch xuất của dòng chọn", () => CycleSchedule(outgoing))));
+            B("Bỏ tích làm phiếu",()=>{foreach(var r in doc.Dispatches)r.SelectedForHandover=false;outgoing.Items.Refresh();}),
+            B("Trạng thái lịch xuất",()=>CycleSchedule(outgoing))
+        ));
 
         var manualCodes=Input("",true);manualCodes.Width=310;manualCodes.Height=98;
         var manualProject=Input();manualProject.Width=225;
@@ -351,7 +353,7 @@ public partial class MainWindow
             var chosen = doc.Dispatches.Where(x => x.SelectedForHandover).ToList();
             if (chosen.Count == 0)
             {
-                Notify("Tích chọn ô 'Làm phiếu' của những hợp đồng cần bàn giao trong phần HÀNG DỰ KIẾN XUẤT KHO.");
+                Notify("Tích ô 'Làm phiếu' của hợp đồng cần bàn giao ở danh sách số 2.");
                 return;
             }
             var codes = chosen.Select(x => x.Contract).DistinctBy(Rules.Contract).ToArray();
@@ -367,13 +369,15 @@ public partial class MainWindow
             Navigate("plan");
             await Task.CompletedTask;
         }, true);
+        outgoingBody.Children.Insert(1, Row(toPlan));
+        outgoingBody.Children.Add(outgoing);
         var tools = Card(Stack(
-            T("Ngày và phê duyệt", 16, true),
+            T("KIỂM TRA NGÀY · DUYỆT DANH SÁCH TRƯỚC KHI THAO TÁC", 16, true),
             Row(Field("Dự kiến nhập kho · yyyy-MM-dd", dayArrival),
                 Field("Dự kiến xuất kho · yyyy-MM-dd", dayDispatch),
                 B("Kiểm tra cảnh báo", RefreshWarnings)),
-            T("Tích chọn hợp đồng ở bảng PHẦN 2 · XUẤT KHO, bấm Lập phiếu đã tích để kiểm tra vật tư và tạo phiếu chờ. Không tự ghi Đã xuất.", 12, false, Muted),
-            Row(save, toPlan, B("Kiểm tra sẵn sàng xuất", () =>
+            T("Lưu duyệt chỉ lưu kế hoạch từ ảnh. Nhập cont và lập phiếu đều cần tích chọn, đối chiếu và xác nhận riêng.",12,false,Muted),
+            Row(save, B("Kiểm tra sẵn sàng xuất", () =>
             {
                 if (!_aiApproved) { Notify("Hãy lưu lịch AI đã duyệt trước."); return; }
                 ShowDispatchReadiness(doc.DispatchDate);
@@ -393,16 +397,25 @@ public partial class MainWindow
         );
         panel.Children.Add(kpis);
         panel.Children.Add(tools);
-        panel.Children.Add(manualTools);
-        panel.Children.Add(T("Nguồn nhận dạng: " + doc.AnalyzedBy + " · Bản ghi cần xem thủ công: " +
-            doc.Arrivals.Concat(doc.Dispatches).Count(x => x.NeedsReview), 12, true));
-        panel.Children.Add(T("CẢNH BÁO / ĐỐI CHIẾU", 13, true));
-        panel.Children.Add(Card(warningsBlock));
-        panel.Children.Add(T("PHẦN 1 · CONT DỰ KIẾN VỀ · TÍCH CHỌN HĐ RỒI XÁC NHẬN TỪNG KIỆN THỰC TẾ",16,true));
+        panel.Children.Add(T("1 · CONT DỰ KIẾN VỀ → CHỈ TÍCH KHI HÀNG ĐÃ VỀ THỰC TẾ",16,true));
         panel.Children.Add(Card(incomingBody));
-        panel.Children.Add(T("PHẦN 2 · XUẤT KHO · TÍCH CHỌN HỢP ĐỒNG ĐỂ LÀM PHIẾU", 16, true));
+        panel.Children.Add(T("2 · HỢP ĐỒNG DỰ KIẾN BÀN GIAO → TÍCH ĐỂ LÀM PHIẾU",16,true));
         panel.Children.Add(Card(outgoingBody));
-        SetPage("AI lịch nhập – xuất kho", "Gemini AI · sửa bảng · duyệt kế hoạch trước khi lưu", Layout(top,
+        panel.Children.Add(new Expander
+        {
+            Header="＋ Bổ sung hợp đồng phát sinh bằng tay (tùy chọn)",
+            IsExpanded=false,
+            Content=manualTools,
+            Margin=new Thickness(0,8,0,12)
+        });
+        panel.Children.Add(new Expander
+        {
+            Header="⚠ Cảnh báo và đối chiếu Excel · "+doc.Arrivals.Concat(doc.Dispatches).Count(x=>x.NeedsReview)+" dòng cần xem",
+            IsExpanded=false,
+            Content=Card(Stack(T("Nguồn: "+doc.AnalyzedBy,12,true),warningsBlock)),
+            Margin=new Thickness(0,0,0,12)
+        });
+        SetPage("Ảnh Zalo → nhập cont / làm phiếu", "Hai danh sách độc lập · chỉ ghi khi xác nhận thực tế", Layout(top,
             new ScrollViewer { Content = panel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }));
     }
 }
