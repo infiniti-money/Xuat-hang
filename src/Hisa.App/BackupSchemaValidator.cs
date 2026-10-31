@@ -24,11 +24,11 @@ public static class BackupSchemaValidator
             {
                 Ensure(root.ValueKind==JsonValueKind.Array,name);
                 var items=JsonSerializer.Deserialize<List<Slip>>(content,WarehouseService.Json);
-                Ensure(items!=null && items.All(x=>x!=null && x.Lines!=null &&
-                    x.Contracts!=null && x.ContractOnly!=null && x.ContractPackages!=null &&
-                    x.MotorSerials!=null && x.StatusHistory!=null &&
-                    x.Lines.All(y=>y!=null) && x.ContractPackages.All(y=>y!=null && y.Items!=null)),
-                    name);
+                // Older backups legitimately omit optional collections; NormalizeHistory fixes
+                // them at startup. Reject invalid item objects, not safe legacy omissions.
+                Ensure(items!=null && items.All(x=>x!=null &&
+                    (x.Lines==null || x.Lines.All(y=>y!=null)) &&
+                    (x.ContractPackages==null || x.ContractPackages.All(y=>y!=null))),name);
             }
             else if(name.Equals("templates.json",StringComparison.OrdinalIgnoreCase))
             {
@@ -50,7 +50,7 @@ public static class BackupSchemaValidator
                 Ensure(settings!=null && !string.IsNullOrWhiteSpace(settings.MasterPath) &&
                     settings.DataSources!=null && settings.DataSources.All(x=>x!=null) &&
                     settings.KtPath!=null && settings.ProductExportPath!=null &&
-                    settings.PollSeconds>=5 && settings.PollSeconds<=3600,name);
+                    settings.PollSeconds>=0,name);
             }
             else if(name.Equals("cache.json",StringComparison.OrdinalIgnoreCase))
             {
