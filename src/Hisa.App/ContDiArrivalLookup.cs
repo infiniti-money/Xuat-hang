@@ -3,8 +3,8 @@ using System.Globalization;
 namespace Hisa.App;
 
 /// <summary>
-/// Exact contract search against the currently scanned CONT ĐI HƯNG YÊN
-/// warehouse source, shared by Zalo photos and manually entered contract codes.
+/// Exact contract search against the Cont đi Hưng Yên worksheet in
+/// Tổng hợp.xlsx, shared by Zalo photos and manually entered contract codes.
 /// The user selects physical source packages, not whole contract numbers.
 /// </summary>
 public static class ContDiArrivalLookup
@@ -32,15 +32,16 @@ public static class ContDiArrivalLookup
             // Exact contract match, never prefix/fuzzy search. A contract can have
             // separate T1/T2, containers, departure days and physical packages.
             var packages=snapshot.ContPackages
-                .Where(x=>Rules.Contract(x.Contract)==code && x.Id.Length>0)
+                .Where(x=>Rules.Contract(x.Contract)==code && x.Id.Length>0 &&
+                    x.Items.Any(i=>i.IsHungYen))
                 .ToList();
             if(packages.Count==0)
             {
                 results.TryAdd("missing|"+code,new PlannedArrivalRow
                 {
                     Contract=request.Contract,PlannedDate=request.PlannedDate,
-                    Status="Chưa tìm thấy kiện Hưng Yên trong CONT ĐI",
-                    Notes="Hãy chọn đúng nguồn CONT ĐI và kiểm tra số hợp đồng trong các file Excel."
+                    Status="Chưa tìm thấy kiện Hưng Yên trong trang Cont đi",
+                    Notes="Không có kiện HƯNG YÊN/HUNG YEN đúng số HĐ trong trang Cont đi Hưng Yên của Tổng hợp.xlsx."
                 });
                 continue;
             }
@@ -117,7 +118,7 @@ public static class ContDiArrivalLookup
                 else
                 {
                     row.Status=Ready;
-                    row.Notes="Đã tìm trong nguồn CONT ĐI · "+
+                    row.Notes="Đã tìm trong trang Cont đi Hưng Yên · "+
                         source.SourceFile+" · kiện "+source.PackageNo+
                         " · ngày cont đi "+Rules.Day(source.SourceDate)+
                         (string.IsNullOrWhiteSpace(source.ContainerNumber)
