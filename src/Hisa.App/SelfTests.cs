@@ -127,7 +127,50 @@ public static class SelfTests
             var plansReport=service.Search(new SearchFilter{ContractsText="05492026\n77772026",Categories=["Máy kéo"]});plansReport.Missing.ForEach(x=>x.Selected=false);
             var plans=await service.SavePlanAsync(plansReport,"2026-10-28","contract_delivery");
             Check(plans.Count==1&&plans.All(x=>x.Status=="planned"),"Batch creates separate selected-project waiting slips",result);
-            var zip=Path.Combine(root,"backup.zip");await service.BackupAsync(zip);Check(File.Exists(zip),"Backup includes native state and canonical workbooks",result);
+            // A backup must retain approved Gemini/Zalo schedules as well as
+            // motor Hưng Yên statuses and the three canonical workbooks.
+            var aiFolder=Path.Combine(service.DataDirectory,"ai_schedules");
+            Directory.CreateDirectory(aiFolder);
+            var approvedSchedule=Path.Combine(aiFolder,"lich-kho-test.json");
+            File.WriteAllText(approvedSchedule,
+                "{\"approvedAt\":\"2026-10-31T10:00:00+07:00\",\"arrivals\":[],\"dispatches\":[]}");
+            var motorState=Path.Combine(service.DataDirectory,"motor_hung_yen_tracking.json");
+            File.WriteAllText(motorState,"[]");
+            var zip=Path.Combine(root,"backup.zip");
+            await service.BackupAsync(zip);
+            Check(File.Exists(zip),"Backup includes native state and canonical workbooks",result);
+            var manifest=BackupArchive.Verify(zip);
+            var backupNames=manifest.Files.Select(x=>x.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            Check(manifest.FormatVersion==2 && 
+                backupNames.Contains("ai_schedules/lich-kho-test.json") &&
+                backupNames.Contains("motor_hung_yen_tracking.json") &&
+                backupNames.Contains("Excel/Tổng hợp.xlsx") &&
+                backupNames.Contains("Excel/KT tổng hợp.xlsx") &&
+                backupNames.Contains("Excel/Thành phẩm xuất kho.xlsx"),
+                "Verified ZIP V2 includes approved AI history, motor tracking and all three Excel files",result);
+            using(var archive=System.IO.Compression.ZipFile.OpenRead(zip))
+            {
+                var savedAi=archive.GetEntry("ai_schedules/lich-kho-test.json")!;
+                using var sr=new StreamReader(savedAi.Open());
+                Check(sr.ReadToEnd()==File.ReadAllText(approvedSchedule),
+                    "Backup preserves exact approved schedule JSON, not merely a file listing",result);
+            }
+            var corruptedZip=Path.Combine(root,"backup-corrupted.zip");
+            File.Copy(zip,corruptedZip);
+            using(var archive=System.IO.Compression.ZipFile.Open(
+                corruptedZip,System.IO.Compression.ZipArchiveMode.Update))
+            {
+                var aiEntry=archive.GetEntry("ai_schedules/lich-kho-test.json")!;
+                aiEntry.Delete();
+                var replacement=archive.CreateEntry("ai_schedules/lich-kho-test.json");
+                using var writer=new StreamWriter(replacement.Open());
+                writer.Write("{\"tampered\":true}");
+            }
+            bool detectsCorruption=false;
+            try{BackupArchive.Verify(corruptedZip);}
+            catch(InvalidDataException){detectsCorruption=true;}
+            Check(detectsCorruption && BackupArchive.Verify(zip).FormatVersion==2,
+                "ZIP corruption is detected without replacing last valid backup",result);
             var link=Path.Combine(root,"Hưng Yên C#.lnk");WindowsShortcut.Create(link,Environment.ProcessPath!);Check(File.Exists(link),"Unicode Windows shortcut",result);
             result.Checks.AddRange(ExcelDiagnostics.Run(root));
             result.Checks.AddRange(ContFileDiagnostics.Run(root));

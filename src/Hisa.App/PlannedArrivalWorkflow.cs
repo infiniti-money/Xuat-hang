@@ -33,7 +33,7 @@ public static class PlannedArrivalWorkflow
     // Identity: contract + project markers (T1/T2/parentheses) + company.
     // Physical package: source ID, container and complete material/quantity signature.
     public static string MaterialFingerprint(Package package) =>
-        string.Join(";", package.Items
+        string.Join(";", (package.Items??[])
             .Select(x => Rules.Code(x.Material) + "|" + Rules.Code(x.Unit) + "|" +
                 (x.Quantity?.ToString("0.################", CultureInfo.InvariantCulture) ?? "?"))
             .Order(StringComparer.Ordinal));
@@ -100,8 +100,8 @@ public static class PlannedArrivalWorkflow
                     PlannedDate=ai.PlannedDate, SourcePackageId=package.Id,
                     SourceContDay=package.SourceDate, PackageNo=package.PackageNo,
                     PackageCount=package.Id.Length>0?1:0,
-                    MaterialCount=package.Items.Count,
-                    MaterialSummary=string.Join(" · ",package.Items.Take(3).Select(x=>
+                    MaterialCount=package.Items?.Count??0,
+                    MaterialSummary=string.Join(" · ",(package.Items??[]).Take(3).Select(x=>
                         x.Material+" × "+(x.Quantity?.ToString(CultureInfo.GetCultureInfo("vi-VN"))??"?"))),
                     SourceIds=package.Id.Length>0?[package.Id]:[]
                 };

@@ -1,3 +1,14 @@
+# HISA v1.9.10 — Rà soát hồi quy, sao lưu lịch AI và an toàn theo dõi máy kéo
+
+- Đã kiểm tra lại luồng đọc nguồn `Kho chính` (Tổng hợp, KT, Thành phẩm), quét `CONT ĐI`, danh sách sản xuất, nhận kiện thực tế, Gemini/Zalo và lập phiếu chờ: không chủ động thay đổi quy trình ghi nhận hàng.
+- Khắc phục lỗi **backup ZIP thiếu lịch AI đã duyệt**: bao gồm `ai_schedules/lich-kho-*.json` và tất cả JSON trạng thái gốc, gồm lịch sử máy kéo Hưng Yên, cùng ba workbook Excel. Thêm manifest v2 và SHA-256 kiểm tra tất cả các mục trước khi xuất bản ZIP; không ghi đè bản sao cũ nếu lỗi.
+- Sửa ánh xạ trạng thái máy kéo bị đứt khi Excel chèn/dịch chuyển dòng: tự khớp chỉ khi có **seri và định danh vật lý duy nhất**, tuyệt đối không gán lịch sử cho máy trùng seri. Giữ nguyên khóa và JSON trạng thái v1.9.7–v1.9.9.
+- Sửa mở lại trang cấu hình nguồn khi file `Tổng hợp.xlsx` tạm thời không tồn tại; vẫn hiện đường dẫn gốc để chỉnh sửa thay vì văng lỗi.
+- Tăng kiểm thử ZIP lịch AI và checksum hỏng, trường hợp Excel sắp lại dòng máy kéo, seri trùng và file Excel gốc tạm mất.
+- **Chưa giải quyết:** khôi phục ZIP có rollback (issue #11) và thử lại tải/cài đặt thất bại trên máy thực tế (issue #13). Không tự động phục hồi ZIP hay tự biến lịch dự kiến thành hàng đã nhập.
+
+---
+
 # HISA v1.9.9 — Chuẩn hóa Kho chính, CONT ĐI, Danh sách sản xuất
 
 - Chỉ cần chọn **Kho HISA**, HISA nhận diện ba file quan trọng trong `Kho chính`: `Tổng hợp.xlsx`, `KT tổng hợp.xlsx`, `Thành phẩm xuất kho.xlsx`.

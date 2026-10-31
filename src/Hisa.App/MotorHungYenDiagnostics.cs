@@ -77,6 +77,30 @@ public static class MotorHungYenDiagnostics
               "Dates, documents, transition order and audit trail survive app restart");
         Check(Rejected(()=>reopened.Advance(loaded[0],MotorHungYenStore.Sent,d3,"")),
             "Cannot silently reset handed-over machine to sent");
+        var movedRow=new EquipmentListReader.Row
+        {
+            Category=row1.Category,Contract=row1.Contract,Project=row1.Project,
+            Company=row1.Company,Material=row1.Material,Quantity=row1.Quantity,
+            Serial=row1.Serial,Lot=row1.Lot,Sheet=row1.Sheet,SourceRow=986
+        };
+        var resequenced=reopened.List([row2,row3,movedRow]);
+        Check(resequenced.Count==3 &&
+            resequenced.Single(x=>x.Serial==row1.Serial&&x.Project==row1.Project).Key==key &&
+            resequenced.Single(x=>x.Serial==row1.Serial&&x.Project==row1.Project)
+                .State==MotorHungYenStore.HandedOver,
+            "Sorting or inserting an Excel row preserves the same motor's status and entire audit history");
+        var duplicateSerial=new EquipmentListReader.Row
+        {
+            Category=movedRow.Category,Contract=movedRow.Contract,Project=movedRow.Project,
+            Company=movedRow.Company,Material=movedRow.Material,Quantity=movedRow.Quantity,
+            Serial=movedRow.Serial,Lot=movedRow.Lot,Sheet=movedRow.Sheet,SourceRow=987
+        };
+        var ambiguous=reopened.List([row2,row3,movedRow,duplicateSerial]);
+        Check(ambiguous.Count==5 && ambiguous.Count(x=>x.State==MotorHungYenStore.HandedOver)==1 &&
+              ambiguous.Count(x=>x.Serial==row1.Serial&&x.Project==row1.Project&&x.PresentInSource)==2 &&
+              ambiguous.Where(x=>x.Serial==row1.Serial&&x.Project==row1.Project&&x.PresentInSource)
+                  .All(x=>x.State==MotorHungYenStore.Pending),
+            "Duplicate physical serial in Excel does not give another row someone else's handed-over status");
         var old=reopened.List([row2,row3]);
         Check(old.Count==3 && old.Single(x=>x.Key==key).SourceStatus=="Không còn trong Excel",
               "If Excel row disappears, historical handover remains visible, not deleted");

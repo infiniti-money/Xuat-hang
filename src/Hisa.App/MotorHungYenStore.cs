@@ -107,6 +107,21 @@ public sealed class MotorHungYenStore
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(raw)));
     }
 
+    private static string Identity(string contract,string project,string company,
+        string material,string serial,string lot)
+    {
+        if(string.IsNullOrWhiteSpace(serial))return "";
+        return string.Join("|",Rules.Contract(contract),Rules.ProjectCode(project),
+            Rules.Code(company),Rules.Code(material),Rules.Code(serial),Rules.Code(lot));
+    }
+
+    private static string Identity(EquipmentListReader.Row row)=>
+        Identity(row.Contract,row.Project,row.Company,row.Material,row.Serial,row.Lot);
+
+    private static string Identity(Entry record)=>
+        Identity(record.Contract,record.Project,record.Company,record.Material,
+            record.Serial,record.Lot);
+
     private Dictionary<string,Entry> Load()
     {
         if(_items!=null)return _items;
@@ -133,12 +148,32 @@ public sealed class MotorHungYenStore
             var entries=Load();
             var result=new List<Item>();
             var seen=new HashSet<string>(StringComparer.Ordinal);
-            foreach(var row in machineRows.Where(x=>x.Category=="Máy kéo"))
+            var rows=machineRows.Where(x=>x.Category=="Máy kéo").ToList();
+            var uniqueSerials=rows.Where(x=>Identity(x).Length>0).GroupBy(Identity)
+                .Where(x=>x.Count()==1).Select(x=>x.Key)
+                .ToHashSet(StringComparer.Ordinal);
+            var historical=entries.Values.Where(x=>Identity(x).Length>0)
+                .GroupBy(Identity).Where(x=>x.Count()==1)
+                .ToDictionary(x=>x.Key,x=>x.Single(),StringComparer.Ordinal);
+            foreach(var row in rows)
             {
                 var key=MachineKey(row);
-                if(!seen.Add(key))
-                    throw new InvalidDataException("Trùng dòng máy kéo trong file nguồn: "+row.Contract+" / "+row.Serial);
                 entries.TryGetValue(key,out var state);
+                // The exact row-based key stays backward compatible. If Excel
+                // inserts/reorders rows, resolve a UNIQUE physical serial to its
+                // original persistent key without rewriting any history.
+                if(state==null)
+                {
+                    var serialIdentity=Identity(row);
+                    if(uniqueSerials.Contains(serialIdentity) &&
+                       historical.TryGetValue(serialIdentity,out var recovered))
+                    {
+                        key=recovered.Key;
+                        state=recovered;
+                    }
+                }
+                if(!seen.Add(key))
+                    throw new InvalidDataException("Trùng nguồn hoặc số seri máy kéo: "+row.Contract+" / "+row.Serial);
                 result.Add(new Item
                 {
                     Key=key,Contract=row.Contract,Project=row.Project,Company=row.Company,

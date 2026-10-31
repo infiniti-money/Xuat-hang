@@ -1,3 +1,13 @@
+## HISA v1.9.10 — Rà soát an toàn dữ liệu và hồi quy
+
+- **Sao lưu ZIP v2:** thêm `ai_schedules/lich-kho-*.json` (các lịch Zalo/Gemini đã duyệt) bên cạnh ba file Excel chuẩn, phiếu, trạng thái máy kéo, mẫu in và cấu hình JSON đã có. Ghi `backup-manifest.json` với tên, dung lượng và SHA-256 từng file; kiểm tra toàn ZIP sau khi đóng gói, trước khi ghi đè bản sao lưu đang có.
+- **Máy kéo Hưng Yên:** khi chèn hoặc đổi vị trí các dòng trong `MÁY KÉO.xlsx`, không làm mất dấu vết `Đã gửi / Đã làm / Đã bàn giao` nếu xác minh được **duy nhất** cùng số hợp đồng, công trình, đơn vị, tên máy, lô và seri. Nếu nhiều dòng trùng seri/định danh, KHÔNG gộp lịch sử hoặc tự đánh dấu bàn giao.
+- **Cấu hình nguồn:** có thể quay lại màn hình sửa đường dẫn ngay cả khi `Kho chính/Tổng hợp.xlsx` tạm mất hoặc chưa được kết nối; không làm crash giao diện.
+- **Hạn chế còn lại:** Chưa có nút `Phục hồi ZIP` an toàn, thử lại tải cập nhật theo byte range, hay xác nhận hoàn tất cài đặt trên máy thực tế. Xem issue #11 và #13. ZIP v2 chỉ được **tạo và kiểm chứng**; không có hành động tự khôi phục hoặc tự ghi Excel.
+- Chỉ kiểm thử tự động bằng dữ liệu thử trong môi trường Windows GitHub Actions; cần kiểm thử trực tiếp với bản sao dữ liệu và giao diện Windows thực tế trước khi triển khai rộng.
+
+---
+
 ## HISA v1.9.9 · Chọn một thư mục Kho HISA, tự nhận 6 file Excel theo đúng nhóm
 
 ```text
