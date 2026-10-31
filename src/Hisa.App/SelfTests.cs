@@ -131,6 +131,7 @@ public static class SelfTests
             var link=Path.Combine(root,"Hưng Yên C#.lnk");WindowsShortcut.Create(link,Environment.ProcessPath!);Check(File.Exists(link),"Unicode Windows shortcut",result);
             result.Checks.AddRange(ExcelDiagnostics.Run(root));
             result.Checks.AddRange(ContFileDiagnostics.Run(root));
+            result.Checks.AddRange(EquipmentListDiagnostics.Run(root));
             service.Dispose();service.Dispose();Check(true,"Safe repeated shutdown",result);
             using(var reopened=new WarehouseService(root))
             {
