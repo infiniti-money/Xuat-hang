@@ -54,6 +54,18 @@ public static class UpdaterDiagnostics
               !AutoUpdater.CanAppend(System.Net.HttpStatusCode.PartialContent,200,100) &&
               !AutoUpdater.CanAppend(System.Net.HttpStatusCode.PartialContent,0,0),
             "Ignored or mismatched HTTP Range never appends incorrect data");
+        var cache=Path.Combine(Path.GetTempPath(),"hisa-cached-setup-test-"+Guid.NewGuid().ToString("N")+".exe");
+        try
+        {
+            File.WriteAllText(cache,"verified-test-file");
+            var original=Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(cache)));
+            Check(AutoUpdater.ReuseVerifiedCachedInstaller(cache,original) && File.Exists(cache),
+                "Valid cached installer is reused without deleting it");
+            Check(!AutoUpdater.ReuseVerifiedCachedInstaller(cache,new string('0',64)) &&
+                  !File.Exists(cache),
+                "Corrupt cached installer is safely closed then deleted on Windows");
+        }
+        finally {if(File.Exists(cache))File.Delete(cache);}
         Check(!AutoUpdater.RequestInstallOnExit(),
             "Installer cannot launch without a verified download and approval");
         return checks;
