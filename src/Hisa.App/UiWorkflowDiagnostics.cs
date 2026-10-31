@@ -57,14 +57,14 @@ public static class UiWorkflowDiagnostics
             Check(Children(sourceCard).OfType<Button>().Any(b=>b.Content?.ToString()=="Chọn Kho HISA"),
                 "Source folder browser button is available without scrolling past Gemini");
             Check(navigation.Children.OfType<Button>().Any(b=>b.Content?.ToString()
-                    ?.Contains("Máy kéo · gửi / làm / bàn giao")==true),
+                    ?.Contains("HĐ máy kéo · gia công Hồng Yên")==true),
                 "Motor Hưng Yên tracker has its own visible navigation menu");
             Call("ShowMotorHungYen");
             Check(Children(window).OfType<DataGrid>().Any(g=>
                 g.Columns.OfType<DataGridTextColumn>().Any(c=>c.Header?.ToString()=="Tình trạng gia công") &&
                 g.Columns.OfType<DataGridTextColumn>().Any(c=>c.Header?.ToString()=="Đã bàn giao")),
                 "Motor tracker shows list, production state and handover date columns");
-            Check(new[]{"1 · Xác nhận đã gửi Hưng Yên",
+            Check(new[]{"1 · Xác nhận đã gửi Hồng Yên",
                 "2 · Xác nhận đã làm xong","3 · Xác nhận đã bàn giao",
                 "Lịch sử dòng chọn"}.All(label=>Children(window).OfType<Button>()
                     .Any(b=>b.Content?.ToString()==label)),
