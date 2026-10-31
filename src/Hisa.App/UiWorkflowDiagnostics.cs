@@ -56,6 +56,13 @@ public static class UiWorkflowDiagnostics
                 "Source configuration is first on settings page, above Gemini");
             Check(Children(sourceCard).OfType<Button>().Any(b=>b.Content?.ToString()=="Chọn Kho HISA"),
                 "Source folder browser button is available without scrolling past Gemini");
+            Check(Children(sourceCard).OfType<Button>().Count(b=>b.Content?.ToString()=="Chọn Kho HISA")==1 &&
+                  !Children(configStack).OfType<Button>().Any(b=>b.Content?.ToString()=="Chọn Excel") &&
+                  Children(sourceCard).OfType<TextBox>().Count()==1,
+                "Source setup contains exactly one Kho HISA selector and no individual Excel file controls");
+            Check(Children(configStack).OfType<TextBlock>().Any(x=>
+                    x.Text.Contains("không phải chọn từng file",StringComparison.OrdinalIgnoreCase)),
+                "Source setup explains automatic lookup of the six Excel files");
             Check(navigation.Children.OfType<Button>().Any(b=>b.Content?.ToString()
                     ?.Contains("HĐ máy kéo · gia công Hồng Yên")==true),
                 "Motor Hưng Yên tracker has its own visible navigation menu");
