@@ -7,7 +7,8 @@ namespace Hisa.App;
 /// <summary>
 /// Read-only production lists: Tủ điện, Máy kéo, Đầu cửa car.
 /// A production record is NOT a confirmed warehouse arrival, nor material
-/// available for issuing a delivery slip. Never write back to these workbooks.
+/// available for issuing a delivery slip. The reader is read-only; only the
+/// explicitly approved MotorHandoverExcel workflow writes machine column L.
 /// </summary>
 public static class EquipmentListReader
 {
@@ -192,7 +193,12 @@ public static class EquipmentListReader
             try{return DateTime.FromOADate(serial).ToString("yyyy-MM-dd",CultureInfo.InvariantCulture);}
             catch(ArgumentException){}
         }
-        return cell.GetString().Trim();
+        var raw=cell.GetString().Trim();
+        if(DateTime.TryParseExact(raw,
+            ["yyyy-MM-dd","dd/MM/yyyy","d/M/yyyy","dd.MM.yyyy","d.M.yyyy"],
+            CultureInfo.InvariantCulture,DateTimeStyles.None,out date))
+            return date.ToString("yyyy-MM-dd",CultureInfo.InvariantCulture);
+        return raw;
     }
 
     private static bool LooksLikeContract(string value)
