@@ -179,6 +179,11 @@ public static class MotorHandoverExcelDiagnostics
             Check(workResult.Written==1&&
                 book.Worksheet(1).Cell(3,14).GetString()=="Đã làm",
                 "Choosing Đã làm writes text to N and not a date");
+        var readBack=EquipmentListReader.Read(workPath,"Máy kéo");
+        Check(readBack.Single(x=>x.Serial=="S-001").MotorColumnN=="Đã làm" &&
+              new MotorHungYenStore(workData).List(readBack)
+                  .Single(x=>x.Serial=="S-001").WorkLabel=="Đã làm",
+            "Status written to Excel is read back by the tracker, including manual edits");
         var actual=MakeSlip("S-001","delivered","2026-10-27","actual-work");
         MotorHandoverExcel.Sync(settings,[actual],workData,archive);
         using(var book=new XLWorkbook(workPath))
