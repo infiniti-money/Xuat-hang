@@ -466,7 +466,7 @@ public sealed class ExcelStore
         var name=Rules.Code(Path.GetFileNameWithoutExtension(path));
         return Path.GetFullPath(path).Equals(settings.MasterPath,StringComparison.OrdinalIgnoreCase) || Path.GetFullPath(path).Equals(settings.KtPath,StringComparison.OrdinalIgnoreCase) || name is "TONGHOP" or "KTTONGHOP" or "HANGTHEOCONT" or "THANHPHAMXUATKHO" || name.StartsWith("LICHXUATHANG") || name.StartsWith("SOTHEODOIXUATHANG") || name.StartsWith("PHIEUXUATVATTU") || Path.GetDirectoryName(path)!.Split(Path.DirectorySeparatorChar).Any(x=>Rules.Code(x) is "XUATHANG" or "BACKUPS" or "HISABACKUPS" or "NATIVEDATA");
     }
-    private static List<Package> ParseSource(string path,List<Metadata> manifests,List<Metadata> schedule,List<string> warnings,IEnumerable<string> roots)
+    private static List<Package> ParseSource(string path,List<Metadata> manifests,List<Metadata> schedule,List<string> warnings,IEnumerable<string> roots,bool requireHungYenMarker=false)
     {
         var stem=Path.GetFileNameWithoutExtension(path);var inferred=InferContract(stem);
         var match=MatchMetadata(path,manifests,schedule);
