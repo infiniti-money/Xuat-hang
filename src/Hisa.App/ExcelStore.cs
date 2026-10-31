@@ -375,7 +375,7 @@ public sealed class ExcelStore
         if(companyMatches.Select(x=>Rules.Identity(x.Contract,x.Project,x.Company)).Distinct().Count()==1)return companyMatches.First();
         return null;
     }
-    public SourceScanResult ScanSources(AppSettings settings,IProgress<OperationProgress>? progress=null,CancellationToken cancellationToken=default)
+    public SourceScanResult ScanSources(AppSettings settings,IProgress<OperationProgress>? progress=null,CancellationToken cancellationToken=default,bool includeReceivedArchives=true)
     {
         lock (gate)
         {
@@ -391,7 +391,7 @@ public sealed class ExcelStore
                     // Received originals live beside CONT ĐI, never inside it. Include
                     // them in future rebuilds so stable source IDs remain discoverable.
                     var receivedFolder=ContFileOrganizer.SiblingFolder(source,"Đã nhập kho");
-                    if(Directory.Exists(receivedFolder))
+                    if(includeReceivedArchives && Directory.Exists(receivedFolder))
                     {
                         try
                         {
@@ -498,7 +498,7 @@ public sealed class ExcelStore
                 if(marker.Length>0)
                 {
                     var markerCode=Rules.Code(marker);
-                    var hy=markerCode.Contains("HUNGYEN");
+                    var hy=markerCode=="HUNGYEN";
                     // A textual destination always takes precedence over a manifest
                     // fallback; generic numeric/package markers are not destinations.
                     if(hy || !Regex.IsMatch(markerCode,@"^(?:(?:KIEN(?:HANG)?|PACKAGE|PKG|K))?\d+$")) explicitDestination=true;
@@ -532,12 +532,12 @@ public sealed class ExcelStore
     private static void SetContract(IXLCell cell,string contract)
     {
         contract=Rules.CleanContract(contract);
-        if(Regex.IsMatch(contract,@"^\d+(?:\.\d+)?$") && double.TryParse(contract,NumberStyles.AllowDecimalPoint,CultureInfo.InvariantCulture,out var number))
+        if(Regex.IsMatch(contract,@"^\d+(?:\.\d+)?$") && Regex.Replace(contract,@"\D","").Length<=15 && double.TryParse(contract,NumberStyles.AllowDecimalPoint,CultureInfo.InvariantCulture,out var number))
         {
             cell.Value=number;
             cell.Style.NumberFormat.Format=contract.StartsWith('0') && !contract.Contains('.')?new string('0',contract.Length):contract.Contains('.')?"0."+new string('0',contract.Split('.')[1].Length):"0";
         }
-        else { cell.Value=contract;cell.Style.NumberFormat.Format="@"; }
+        else { cell.Value=contract;cell.Style.NumberFormat.Format="@"; } // Preserve text/suffix/long numeric identifiers without Excel precision loss.
     }
     private static void SetDate(IXLCell cell,string day)
     {
