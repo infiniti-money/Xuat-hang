@@ -180,11 +180,13 @@ public partial class MainWindow
             finally{Array.Clear(wav);}
         }
 
-        var handsFree=B("🎧 Bật rảnh tay",()=>
+        Button? handsFree=null;
+        handsFree=B("🎧 Bật rảnh tay",()=>
         {
             if(_geminiHandsFreeActive)
             {
                 StopHandsFreeSession();
+                handsFree!.Content="🎧 Bật rảnh tay";
                 activity.Text="○ ĐÃ TẮT RẢNH TAY · micro đã dừng. Bấm Bật để sử dụng lại.";
                 return;
             }
@@ -201,17 +203,17 @@ public partial class MainWindow
                 activity.Text="Cần cấu hình Gemini API Key trước khi bật rảnh tay.";
                 return;
             }
-            if(!Ask("BẬT CHẾ ĐỘ RẢNH TAY?\\n\\n"+
+            if(!Ask("BẬT CHẾ ĐỘ RẢNH TAY?\n\n"+
                 "HISA sẽ MỞ MICRO liên tục trên trang Gemini Chat, "+
                 "tự phát hiện bạn bắt đầu và ngừng nói, rồi TỰ GỬI từng đoạn âm thanh "+
-                "đến Google Gemini qua Internet để nhận dạng tiếng Việt.\\n"+
+                "đến Google Gemini qua Internet để nhận dạng tiếng Việt.\n"+
                 "Văn bản nhận dạng sẽ được TỰ ĐỘNG GỬI làm câu hỏi cho Gemini, "+
-                "và câu trả lời sẽ tự phát qua loa.\\n\\n"+
+                "và câu trả lời sẽ tự phát qua loa.\n\n"+
                 "Bạn không phải xác nhận riêng từng lượt trong khi chế độ đang bật. "+
                 "Âm thanh chỉ giữ trong RAM, không lưu file. "+
-                "Đây là chế độ chỉ tư vấn, KHÔNG tự ghi/sửa Excel.\\n"+
+                "Đây là chế độ chỉ tư vấn, KHÔNG tự ghi/sửa Excel.\n"+
                 "Bấm Tắt rảnh tay, chuyển trang hoặc đóng HISA sẽ dừng micro. "+
-                "Bật lại sau khi đóng ứng dụng cần đồng ý lại.\\n\\n"+
+                "Bật lại sau khi đóng ứng dụng cần đồng ý lại.\n\n"+
                 "Bạn có đồng ý bật và tự gửi âm thanh trong phiên này không?"))
             {
                 activity.Text="Chưa bật rảnh tay: micro vẫn tắt.";
@@ -221,6 +223,7 @@ public partial class MainWindow
             _geminiHandsFreeCancellation=new CancellationTokenSource();
             _geminiHandsFreeActive=true;
             int session=++_geminiHandsFreeSession;
+            handsFree!.Content="⏹ Tắt rảnh tay";
             StartHandsFreeListening(session);
         });
 
