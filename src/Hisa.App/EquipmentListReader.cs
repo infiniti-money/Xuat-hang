@@ -29,6 +29,7 @@ public static class EquipmentListReader
         public int SourceRow { get; set; }
         public string Sheet { get; set; } = "";
         public string Verification { get; set; } = "";
+        public string MotorColumnN { get; set; } = "";
     }
 
     /// <summary>The three production workbooks are independent, optional inputs.</summary>
@@ -160,7 +161,8 @@ public static class EquipmentListReader
         Category=x.Category,Contract=x.Contract,Project=x.Project,Company=x.Company,
         Material=x.Material,Unit=x.Unit,Quantity=x.Quantity,Serial=x.Serial,Lot=x.Lot,
         ProductionDate=x.ProductionDate,Code=x.Code,Note=x.Note,Source=x.Source,
-        Sheet=x.Sheet,SourceRow=x.SourceRow,Verification=x.Verification
+        Sheet=x.Sheet,SourceRow=x.SourceRow,Verification=x.Verification,
+        MotorColumnN=x.MotorColumnN
     };
 
     private static string Txt(IXLWorksheet ws,int row,int col)
@@ -248,6 +250,7 @@ public static class EquipmentListReader
                         Unit=Txt(sheet,i,6),Quantity=Qty(sheet,i,7),
                         Lot=Txt(sheet,i,8),Serial=Txt(sheet,i,9),
                         Note="Thông tin cont đi / trạng thái ghi trong file: "+Txt(sheet,i,10),
+                        MotorColumnN=ExcelDay(sheet,i,14),
                         Source=source,Sheet=sheet.Name,SourceRow=i
                     });
                 }

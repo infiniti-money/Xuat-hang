@@ -1,3 +1,20 @@
+## HISA v1.9.14 — Máy kéo: chỉ một lựa chọn, một cột N
+
+Trong **Theo dõi máy kéo Hồng Yên**, chọn hợp đồng và đúng seri, sau đó chọn **Chưa làm** hoặc **Đã làm** và bấm **Lưu trạng thái vào Excel cột N**.
+
+| Thao tác | Ô cột N trong `Danh sách sản xuất/MÁY KÉO.xlsx` |
+|---|---|
+| Chọn **Chưa làm** | Ghi chữ `Chưa làm`, không có ngày |
+| Chọn **Đã làm** | Ghi chữ `Đã làm`, không có ngày |
+| Xác nhận phiếu **Đã xuất** | Đổi thành **ngày bàn giao thực tế** theo đúng seri |
+| Hủy phiếu đã xuất | Khôi phục chữ trước bàn giao hoặc giữ lại giá trị nhập tay |
+
+Chỉ ghi khi xác nhận duy nhất HĐ + công trình + đơn vị + seri. **Cột N cố định**, không tự thêm cột khác, không ghi đè cột N có tiêu đề không đúng mẫu. HISA tự sao lưu workbook trước khi ghi; nếu Excel đang mở, hãy đóng file và thử đồng bộ lại. Các cột bàn giao cũ (nếu có từ v1.9.13) được giữ nguyên để đối chiếu, không tự xóa dữ liệu cũ. Việc **Đã bàn giao** chỉ xuất hiện khi phiếu xuất trong HISA được xác nhận; không sử dụng nút bàn giao thủ công trong danh sách máy kéo.
+
+**Đây là thay đổi trong v1.9.14; bản đang cài v1.9.13 không có thao tác này.**
+
+---
+
 ## HISA v1.9.13 — Tự ghi Ngày bàn giao vào MÁY KÉO.xlsx khi xác nhận xuất
 
 Khi chốt phiếu **Đã xuất** trên màn hình **Phiếu bàn giao** (hoặc lưu phiếu với trạng thái Đã xuất), HISA tự thêm/tìm cột `Ngày bàn giao` trong sheet đầu của `Kho HISA/Danh sách sản xuất/MÁY KÉO.xlsx`, sau đó điền **ngày xuất thực tế trong phiếu** đúng các dòng máy kéo đã bàn giao. Không yêu cầu chọn lại file Excel: dùng đường dẫn tự nhận từ một thư mục `Kho HISA`.

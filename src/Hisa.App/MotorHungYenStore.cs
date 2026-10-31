@@ -54,6 +54,7 @@ public sealed class MotorHungYenStore
         public string Serial { get; set; }="";
         public string Lot { get; set; }="";
         public string State { get; set; }=Pending;
+        public string WorkChoice { get; set; }="";
         public string SentDay { get; set; }="";
         public string CompletedDay { get; set; }="";
         public string HandoverDay { get; set; }="";
@@ -74,8 +75,13 @@ public sealed class MotorHungYenStore
         public string Serial { get; set; }="";
         public string SourceNote { get; set; }="";
         public string SourcePosition { get; set; }="";
+        public string SourceWorkValue { get; set; }="";
         public string State { get; set; }=Pending;
         public string StatusLabel => Name(State);
+        public string WorkChoice { get; set; }="";
+        public string WorkLabel => SourceWorkValue is "Đã làm" or "Chưa làm"
+            ? SourceWorkValue : WorkChoice.Length>0?WorkChoice:
+            State is Completed or HandedOver?"Đã làm":"Chưa làm";
         public string SentDay { get; set; }="";
         public string CompletedDay { get; set; }="";
         public string HandoverDay { get; set; }="";
@@ -179,7 +185,8 @@ public sealed class MotorHungYenStore
                     Key=key,Contract=row.Contract,Project=row.Project,Company=row.Company,
                     Material=row.Material,Quantity=row.Quantity,Lot=row.Lot,Serial=row.Serial,
                     SourceNote=row.Note,SourcePosition=row.Sheet+" · dòng "+row.SourceRow,
-                    State=state?.State??Pending,
+                    SourceWorkValue=row.MotorColumnN,
+                    State=state?.State??Pending,WorkChoice=state?.WorkChoice??"",
                     SentDay=state?.SentDay??"",CompletedDay=state?.CompletedDay??"",
                     HandoverDay=state?.HandoverDay??"",LastNote=state?.LastNote??"",
                     PresentInSource=true
@@ -191,7 +198,8 @@ public sealed class MotorHungYenStore
                 {
                     Key=item.Key,Contract=item.Contract,Project=item.Project,
                     Company=item.Company,Material=item.Material,Serial=item.Serial,Lot=item.Lot,
-                    State=item.State,SentDay=item.SentDay,CompletedDay=item.CompletedDay,
+                    State=item.State,WorkChoice=item.WorkChoice,
+                    SentDay=item.SentDay,CompletedDay=item.CompletedDay,
                     HandoverDay=item.HandoverDay,LastNote=item.LastNote,PresentInSource=false
                 });
             return result;
@@ -209,6 +217,65 @@ public sealed class MotorHungYenStore
                 State=x.State,EffectiveDay=x.EffectiveDay,RecordedAt=x.RecordedAt,
                 By=x.By,Note=x.Note
             }).ToList();
+        }
+    }
+
+
+    /// <summary>
+    /// The dropdown owns only "Chưa làm" / "Đã làm". A handover is never
+    /// confirmed here; only a delivered slip can generate a handover date.
+    /// WorkChoice is explicit so untouched source rows are not mass-written.
+    /// </summary>
+    public void SetWorkStatus(Item source,bool done,string effectiveDay,string note)
+    {
+        if(!source.PresentInSource || string.IsNullOrWhiteSpace(source.Serial))
+            throw new InvalidOperationException("Chỉ đổi tình trạng máy kéo có seri trong Excel nguồn.");
+        if(!DateTime.TryParseExact(effectiveDay,"yyyy-MM-dd",CultureInfo.InvariantCulture,
+            DateTimeStyles.None,out var day) || day.Date>DateTime.Today)
+            throw new ArgumentException("Ngày xác nhận không hợp lệ hoặc ở tương lai.");
+        lock(_gate)
+        {
+            var records=Load();
+            records.TryGetValue(source.Key,out var previous);
+            if(previous?.State==HandedOver)
+                throw new InvalidOperationException("Máy đã có lịch sử bàn giao. Chỉ chỉnh ngày bằng phiếu xuất; kiểm tra chứng từ trước khi thay trạng thái.");
+            if(previous?.Events.Count>0 &&
+               string.CompareOrdinal(effectiveDay,previous.Events[^1].EffectiveDay)<0)
+                throw new InvalidOperationException("Ngày xác nhận không thể sớm hơn lịch sử cũ.");
+            var nextRecords=records.ToDictionary(x=>x.Key,x=>JsonSerializer.Deserialize<Entry>(
+                JsonSerializer.Serialize(x.Value,Json),Json)!,StringComparer.Ordinal);
+            if(!nextRecords.TryGetValue(source.Key,out var entry))
+            {
+                entry=new Entry
+                {
+                    Key=source.Key,Contract=source.Contract,Project=source.Project,
+                    Company=source.Company,Material=source.Material,
+                    Lot=source.Lot,Serial=source.Serial
+                };
+                nextRecords.Add(entry.Key,entry);
+            }
+            var choice=done?"Đã làm":"Chưa làm";
+            if(entry.WorkChoice==choice)return;
+            entry.WorkChoice=choice;
+            entry.State=done?Completed:(entry.SentDay.Length>0?Sent:Pending);
+            entry.CompletedDay=done?effectiveDay:"";
+            entry.LastNote=note.Trim();
+            entry.Events.Add(new History
+            {
+                State=entry.State,EffectiveDay=effectiveDay,
+                RecordedAt=DateTimeOffset.Now.ToString("O"),
+                By=Environment.UserName,Note="Tình trạng gia công: "+choice+
+                    (entry.LastNote.Length>0?" · "+entry.LastNote:"")
+            });
+            var temp=_file+"."+Guid.NewGuid().ToString("N")+".tmp";
+            try
+            {
+                File.WriteAllText(temp,JsonSerializer.Serialize(nextRecords.Values.ToList(),Json),Encoding.UTF8);
+                if(File.Exists(_file))File.Copy(_file,_file+".bak",true);
+                File.Move(temp,_file,true);
+                _items=nextRecords;
+            }
+            finally{if(File.Exists(temp))File.Delete(temp);}
         }
     }
 

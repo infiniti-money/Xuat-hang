@@ -7,14 +7,15 @@ using ClosedXML.Excel;
 namespace Hisa.App;
 
 /// <summary>
-/// Synchronizes the "Ngày bàn giao" column in the ORIGINAL MÁY KÉO.xlsx
-/// exclusively from confirmed delivered slips with individually verified serials.
+/// Synchronizes fixed column N in the ORIGINAL MÁY KÉO.xlsx:
+/// explicit "Đã làm"/"Chưa làm" before delivery, real dates only from confirmed slips.
 /// Never marks machines based on an HĐ alone or from a draft / projected shipment.
 /// Tracking own writes enables safe reversal after a slip is cancelled.
 /// </summary>
 public static class MotorHandoverExcel
 {
     private const string ColumnTitle="Ngày bàn giao";
+    private const int StatusColumn=14; // Cột N: trạng thái làm / ngày thực tế, không tự dời cột
     private const string ReceiptFile="motor_handover_excel_sync.json";
     private static readonly JsonSerializerOptions Json=new() {WriteIndented=true};
     public sealed class Receipt
@@ -36,6 +37,32 @@ public static class MotorHandoverExcel
 
     private static string Key(MotorSerialEntry serial)=>
         Key(serial.Contract,serial.Project,serial.Company,serial.SerialNumber);
+
+    public static string IdentityFor(MotorHungYenStore.Item item)=>
+        Key(item.Contract,item.Project,item.Company,item.Serial);
+
+    public static Dictionary<string,string> ConfirmedDates(IEnumerable<Slip> slips)
+    {
+        var values=new Dictionary<string,string>(StringComparer.Ordinal);
+        var ambiguous=new HashSet<string>(StringComparer.Ordinal);
+        foreach(var slip in slips.Where(x=>x.Status=="delivered"))
+        foreach(var serial in MotorSerials.ActiveRows(slip))
+        {
+            if(string.IsNullOrWhiteSpace(serial.SerialNumber) ||
+               string.IsNullOrWhiteSpace(serial.Project) ||
+               string.IsNullOrWhiteSpace(serial.Company) ||
+               !DateTime.TryParseExact(slip.HandoverDate,"yyyy-MM-dd",
+                   CultureInfo.InvariantCulture,DateTimeStyles.None,out _))continue;
+            var id=Key(serial);
+            if(values.TryGetValue(id,out var earlier)&&earlier!=slip.HandoverDate)
+                ambiguous.Add(id);
+            else values[id]=slip.HandoverDate;
+        }
+        foreach(var key in ambiguous)values.Remove(key);
+        return values;
+    }
+
+    private static bool IsWorkText(string value)=>value is "Đã làm" or "Chưa làm";
 
     private static string DateText(IXLCell cell)
     {
@@ -145,18 +172,38 @@ public static class MotorHandoverExcel
                 conflict.Add(id);
             else wished[id]=slip.HandoverDate;
         }
-        if(wished.Count==0 && prior.Count==0)return new Outcome(0,0,0,warnings);
         using var book=new XLWorkbook(path);
         var sheet=book.Worksheets.First();
         if(Rules.Code(sheet.Cell(2,4).GetString())!="HD")
             throw new InvalidDataException("MÁY KÉO.xlsx không có tiêu đề HĐ tại cột D, dòng 2. Không sửa file.");
-        var lastColumn=Math.Min(sheet.LastColumnUsed()?.ColumnNumber()??10,160);
-        var dateColumn=Enumerable.Range(1,lastColumn)
-            .FirstOrDefault(c=>Rules.Code(sheet.Cell(2,c).GetString())=="NGAYBANGIAO");
-        var newlyAdded=dateColumn==0;
-        if(newlyAdded)dateColumn=Math.Max(11,lastColumn+1);
-        if(dateColumn>160)throw new InvalidDataException("Không tìm được cột trống phù hợp để ghi ngày bàn giao.");
+        // The user's source template reserves column N for either a work-state
+        // word or the real confirmed delivery date. Never append a new column,
+        // and never overwrite an unrelated original column N.
+        var dateColumn=StatusColumn;
+        var header=sheet.Cell(2,dateColumn).GetString().Trim();
+        if(header.Length>0 && Rules.Code(header)!="NGAYBANGIAO")
+            throw new InvalidDataException("Cột N đang có tiêu đề '"+header+
+                "'. HISA không ghi đè; hãy kiểm tra mẫu MÁY KÉO.xlsx.");
+        var newlyAdded=header.Length==0;
+        if(newlyAdded && sheet.Column(dateColumn).CellsUsed()
+            .Any(c=>c.Address.RowNumber>=3))
+            throw new InvalidDataException("Cột N chứa dữ liệu nhưng chưa có tiêu đề Ngày bàn giao. Giữ nguyên Excel để đối chiếu.");
         var rows=EquipmentListReader.Read(path,"Máy kéo");
+        var workItems=new MotorHungYenStore(dataDirectory).List(rows);
+        foreach(var item in workItems.Where(x=>x.PresentInSource &&
+            !string.IsNullOrWhiteSpace(x.Serial) &&
+            !string.IsNullOrWhiteSpace(x.Project) &&
+            !string.IsNullOrWhiteSpace(x.Company)))
+        {
+            var choice=item.WorkChoice;
+            if(choice.Length==0 && item.State==MotorHungYenStore.Completed)
+                choice="Đã làm"; // Existing v1.9.13 work confirmations
+            if(!IsWorkText(choice))continue;
+            var id=IdentityFor(item);
+            if(!wished.ContainsKey(id))wished[id]=choice;
+        }
+        if(wished.Count==0 && prior.Count==0)
+            return new Outcome(0,0,0,warnings);
         var indexed=rows.Where(x=>!string.IsNullOrWhiteSpace(x.Serial))
             .GroupBy(Key).ToDictionary(x=>x.Key,x=>x.ToList(),StringComparer.Ordinal);
         var next=new Dictionary<string,Receipt>(StringComparer.Ordinal);
@@ -181,18 +228,22 @@ public static class MotorHandoverExcel
             var cell=sheet.Cell(candidates[0].SourceRow,dateColumn);
             var existing=DateText(cell);
             priorByKey.TryGetValue(identity,out var owned);
-            if(owned==null && existing.Length>0 && existing!=day)
+            if(owned==null && existing.Length>0 && existing!=day &&
+               !(IsWorkText(existing) && !IsWorkText(day)))
             {
                 unmatched++;
-                warnings.Add("Dòng máy kéo đã có ngày bàn giao nhập thủ công khác ngày phiếu. Không ghi đè: "+identity);
+                warnings.Add("Cột N có dữ liệu nhập tay khác trạng thái dự kiến; không ghi đè: "+identity);
                 continue;
             }
             if(owned!=null&&existing!=owned.Date&&existing!=day)
             {
                 unmatched++;
-                warnings.Add("Ngày trong Excel đã bị thay đổi bên ngoài HISA. Không ghi đè: "+identity);
+                warnings.Add("Cột N đã bị sửa bên ngoài HISA. Không ghi đè: "+identity);
                 continue;
             }
+            // An already-matching value typed by the operator stays operator-owned.
+            // Claim ownership only when HISA actually changes the cell.
+            if(owned==null && existing==day)continue;
             actions.Add((candidates[0].SourceRow,day,identity,owned?.PreviousDate??existing));
             next[identity]=new Receipt{Identity=identity,Date=day,PreviousDate=owned?.PreviousDate??existing};
         }
@@ -220,7 +271,7 @@ public static class MotorHandoverExcel
         {
             sheet.Cell(2,dateColumn).Value=ColumnTitle;
             sheet.Cell(2,dateColumn).Style.Font.Bold=true;
-            sheet.Column(dateColumn).Width=18;
+            sheet.Column(dateColumn).Width=20;
         }
         foreach(var action in actions)
         {
@@ -236,6 +287,11 @@ public static class MotorHandoverExcel
             {
                 cell.Value=day;
                 cell.Style.NumberFormat.Format="dd/MM/yyyy";
+                written++;
+            }
+            else if(IsWorkText(action.NewDay??""))
+            {
+                cell.Value=action.NewDay!;
                 written++;
             }
         }
