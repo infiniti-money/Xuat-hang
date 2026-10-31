@@ -21,6 +21,9 @@ public static class AutoUpdater
     private static string? _readyHash;
     private static bool _installRequested;
     public static event Action<string>? UpdateStaged;
+    public static event Action<string>? UpdateProgress;
+    public static string? LastFailure { get; private set; }
+    public static string InstallLogDirectory => Path.Combine(Path.GetTempPath(),"HISA-Verified-Updates");
     private static readonly object Sync = new();
     private static readonly SemaphoreSlim CheckGate = new(1,1);
 
@@ -110,32 +113,72 @@ public static class AutoUpdater
         return expected;
     }
 
+    // A persistent .partial file supports a later retry. GitHub may ignore Range:
+    // in that case restart from byte zero; never append a full response to partial data.
+    internal static bool CanAppend(HttpStatusCode status,long offset,long? rangeStart) =>
+        offset>0 && status==HttpStatusCode.PartialContent && rangeStart==offset;
+
     private static async Task DownloadInstallerAsync(Uri uri,string destination,CancellationToken cancellationToken)
     {
-        using var response=await Http.GetAsync(uri,HttpCompletionOption.ResponseHeadersRead,cancellationToken);
-        response.EnsureSuccessStatusCode();
         const long maximum=512L*1024*1024;
-        if(response.Content.Headers.ContentLength is long contentLength && contentLength>maximum)
+        long offset=File.Exists(destination)?new FileInfo(destination).Length:0;
+        if(offset>maximum) {File.Delete(destination);offset=0;}
+        using var request=new HttpRequestMessage(HttpMethod.Get,uri);
+        if(offset>0)request.Headers.Range=new System.Net.Http.Headers.RangeHeaderValue(offset,null);
+        using var response=await Http.SendAsync(request,HttpCompletionOption.ResponseHeadersRead,cancellationToken);
+        if(offset>0 && response.StatusCode==HttpStatusCode.RequestedRangeNotSatisfiable)
+        {
+            File.Delete(destination);
+            await DownloadInstallerAsync(uri,destination,cancellationToken);
+            return;
+        }
+        response.EnsureSuccessStatusCode();
+        bool append=CanAppend(response.StatusCode,offset,response.Content.Headers.ContentRange?.From);
+        if(response.StatusCode==HttpStatusCode.PartialContent && !append)
+            throw new InvalidDataException("Máy chủ trả về khoảng tải không đúng; từ chối ghép tệp.");
+        if(!append)offset=0;
+        var length=response.Content.Headers.ContentLength;
+        if(length is long l && (l>maximum-offset))
             throw new InvalidDataException("Bản cập nhật vượt dung lượng cho phép.");
+        long expectedTotal=response.Content.Headers.ContentRange?.Length ?? (length.HasValue?offset+length.Value:0);
         await using var input=await response.Content.ReadAsStreamAsync(cancellationToken);
-        await using var output=new FileStream(destination,FileMode.CreateNew,FileAccess.Write,FileShare.None,81920,true);
+        await using var output=new FileStream(destination,append?FileMode.Append:FileMode.Create,FileAccess.Write,FileShare.None,81920,true);
         var buffer=new byte[81920];
-        long total=0;
+        long total=offset;
+        int previousPercent=-1;
         int read;
         while((read=await input.ReadAsync(buffer,cancellationToken))>0)
         {
             total+=read;
             if(total>maximum)throw new InvalidDataException("Bản cập nhật vượt dung lượng cho phép.");
             await output.WriteAsync(buffer.AsMemory(0,read),cancellationToken);
+            int percent=expectedTotal>0?(int)Math.Min(100,total*100/expectedTotal):-1;
+            if(percent>=0 && percent/5!=previousPercent/5)
+            {
+                previousPercent=percent;
+                UpdateProgress?.Invoke("Đang tải cập nhật: "+percent+"% ("+
+                    (total/1048576)+" MB / "+(expectedTotal/1048576)+" MB)");
+            }
         }
-        if(total==0)throw new InvalidDataException("Bản cập nhật rỗng.");
+        if(total==0 || (expectedTotal>0 && total!=expectedTotal))
+            throw new IOException("Tải chưa đủ dữ liệu; HISA đã giữ phần tải dở để thử lại.");
     }
 
     // Shared by automatic and manual checks; returns the verified downloaded version.
     public static async Task<string?> CheckAndStageAsync(CancellationToken cancellationToken=default)
     {
         await CheckGate.WaitAsync(cancellationToken);
-        try { return await StageCoreAsync(cancellationToken); }
+        try
+        {
+            LastFailure=null;
+            return await StageCoreAsync(cancellationToken);
+        }
+        catch(Exception ex) when (ex is not OperationCanceledException)
+        {
+            LastFailure=ex.Message;
+            UpdateProgress?.Invoke("Cập nhật chưa thành công: "+ex.Message+" · Có thể chọn Thử lại.");
+            throw;
+        }
         finally { CheckGate.Release(); }
     }
 
@@ -150,21 +193,36 @@ public static class AutoUpdater
         var root=Path.Combine(Path.GetTempPath(),"HISA-Verified-Updates");
         Directory.CreateDirectory(root);
         var file=Path.Combine(root,release.InstallerName);
-        var staging=file+"."+Guid.NewGuid().ToString("N")+".download";
-        try
+        var staging=file+".partial";
+        if(File.Exists(file))
         {
-            await DownloadInstallerAsync(release.InstallerUrl,staging,cancellationToken);
-            await using(var stream=File.OpenRead(staging))
+            await using var existing=File.OpenRead(file);
+            var cached=Convert.ToHexString(await SHA256.HashDataAsync(existing,cancellationToken));
+            if(cached.Equals(expected,StringComparison.OrdinalIgnoreCase))
             {
-                var actual=Convert.ToHexString(await SHA256.HashDataAsync(stream,cancellationToken));
-                if(!actual.Equals(expected,StringComparison.OrdinalIgnoreCase))
-                    throw new InvalidDataException("Sai mã SHA-256; đã từ chối cài bản cập nhật.");
+                lock(Sync){_readyInstaller=file;_readyHash=expected;ReadyVersion=release.Version;}
+                UpdateStaged?.Invoke(release.Version);
+                UpdateProgress?.Invoke("Bản "+release.Version+" đã tải và xác minh. Sẵn sàng cài.");
+                return release.Version;
             }
-            File.Move(staging,file,true);
-            lock(Sync){_readyInstaller=file;_readyHash=expected;ReadyVersion=release.Version;}
-            UpdateStaged?.Invoke(release.Version);
+            File.Delete(file);
         }
-        finally{if(File.Exists(staging))File.Delete(staging);}
+        UpdateProgress?.Invoke("Đang chuẩn bị tải bản "+release.Version+"...");
+        await DownloadInstallerAsync(release.InstallerUrl,staging,cancellationToken);
+        UpdateProgress?.Invoke("Đang xác minh SHA-256 của bộ cài...");
+        await using(var stream=File.OpenRead(staging))
+        {
+            var actual=Convert.ToHexString(await SHA256.HashDataAsync(stream,cancellationToken));
+            if(!actual.Equals(expected,StringComparison.OrdinalIgnoreCase))
+            {
+                File.Delete(staging);
+                throw new InvalidDataException("Sai SHA-256; đã xóa bản tải lỗi, không cho cài.");
+            }
+        }
+        File.Move(staging,file,true);
+        lock(Sync){_readyInstaller=file;_readyHash=expected;ReadyVersion=release.Version;}
+        UpdateStaged?.Invoke(release.Version);
+        UpdateProgress?.Invoke("Đã tải và xác minh bản "+release.Version+".");
         return release.Version;
     }
 
@@ -202,10 +260,12 @@ public static class AutoUpdater
             // /SILENT displays progress and errors instead of failing invisibly.
             // /HISAUPGRADE=1 asks Inno Setup to relaunch HISA only after installation finishes.
             // Windows UAC is never bypassed.
+            Directory.CreateDirectory(InstallLogDirectory);
+            var log=Path.Combine(InstallLogDirectory,"installer-"+(ReadyVersion??"update")+".log");
             Process.Start(new ProcessStartInfo
             {
                 FileName=setup,
-                Arguments="/SILENT /NORESTART /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS /HISAUPGRADE=1",
+                Arguments="/SILENT /NORESTART /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS /HISAUPGRADE=1 /LOG=\""+log+"\"",
                 UseShellExecute=true,
                 Verb="runas",
                 WorkingDirectory=Path.GetDirectoryName(setup)!
