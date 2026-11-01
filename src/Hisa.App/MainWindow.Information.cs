@@ -35,16 +35,9 @@ public partial class MainWindow
             T("Nhấn kiểm tra để HISA tự tìm bản chính thức mới, tải xuống trong nền và xác minh SHA-256. Sau khi tải xong HISA mới hỏi đóng ứng dụng để cài bản mới; chọn Không để làm việc tiếp. Không thay đổi Excel, phiếu hoặc API Key.",12,false,Muted),
             T(AutoUpdater.ReadyVersion is string ready?"ĐÃ SẴN SÀNG CÀI PHIÊN BẢN "+ready:"PHIÊN BẢN ĐANG SỬ DỤNG: "+SoftwareInfo.Version,13,true,Brush("#117D83")),
             Row(
-                B("Kiểm tra, tải nền và cập nhật",()=>_ = CheckDownloadAndOfferUpdateAsync(),true),
-                B("Cài bản đã tải",()=>
-                {
-                    var version=AutoUpdater.ReadyVersion;
-                    if(version==null){Notify("Chưa có bản cập nhật được tải và xác minh. Chọn Kiểm tra cập nhật trước.");return;}
-                    if(!Ask("Cài HISA "+version+" và đóng phần mềm hiện tại?\nWindows có thể yêu cầu quyền quản trị. Dữ liệu đã lưu được giữ nguyên."))return;
-                    if(!AutoUpdater.RequestInstallOnExit()){Notify("Tệp cập nhật không còn tồn tại. Vui lòng kiểm tra cập nhật lại.");return;}
-                    Close();
-                }),
-                B("Tải bộ cài thủ công",()=>
+                B("↑ CẬP NHẬT HISA · MỘT LẦN NHẤN",
+                    ()=>_ = CheckDownloadAndOfferUpdateAsync(),true),
+                B("Trang GitHub Releases",()=>
                 {
                     try { Process.Start(new ProcessStartInfo("https://github.com/infiniti-money/Xuat-hang/releases/latest"){UseShellExecute=true}); }
                     catch(Exception ex){Notify("Không thể mở trình duyệt: "+ex.Message);}
