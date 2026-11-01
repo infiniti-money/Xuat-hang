@@ -37,13 +37,22 @@ public partial class MainWindow : Window
         InitializeComponent();
         _service = service;
         Title = SoftwareInfo.DisplayName;
+        InitializeMayBackground();
         VersionText.Text="Phiên bản "+SoftwareInfo.Version;
         AutoUpdater.UpdateStaged+=version=>Dispatcher.BeginInvoke(()=>
         {
             TopUpdateButton.Content="↑  Cập nhật "+version;
             TopUpdateButton.ToolTip="Đã tải và xác minh bản mới. Nhấn để xem và cài đặt.";
         });
-        AutoUpdater.UpdateProgress+=message=>Dispatcher.BeginInvoke(()=>StatusText.Text=message);
+        AutoUpdater.UpdateProgress+=message=>Dispatcher.BeginInvoke(()=>
+        {
+            StatusText.Text=message;
+            if(_checkingUpdate && message.StartsWith("Đang tải cập nhật:",StringComparison.Ordinal))
+            {
+                var percent=message.Split('%')[0].Replace("Đang tải cập nhật:","").Trim();
+                TopUpdateButton.Content="↓ Tải "+percent+"%";
+            }
+        });
         TodayText.Text=DateTime.Now.ToString("dddd, dd/MM/yyyy",CultureInfo.GetCultureInfo("vi-VN"));
         NavCaption("CÔNG VIỆC HÔM NAY");
         AddNav("dashboard", "▦", "Tổng quan / việc cần làm");
