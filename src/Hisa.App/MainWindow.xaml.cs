@@ -104,10 +104,11 @@ public partial class MainWindow : Window
     {
         if(_page=="create"&&_draft!=null)_captureDraftEditor?.Invoke();
         _captureDraftEditor=null;_captureDraftHeader=null;
-        if(_page=="gemini-chat")
+        if(_page=="gemini-chat" && !_geminiHandsFreeActive)
         {
-            // Leaving or rebuilding the page invalidates any pending Gemini
-            // callback. The microphone never survives invisible navigation.
+            // Manual recording remains page-scoped. A separately consented,
+            // explicitly activated Mây hands-free session stays active across
+            // HISA screens; its Stop control is always in the top toolbar.
             StopHandsFreeSession();
             _geminiMicrophone.Stop(false);
         }
