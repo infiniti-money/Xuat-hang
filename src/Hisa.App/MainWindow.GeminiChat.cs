@@ -169,12 +169,12 @@ public partial class MainWindow
         autoVoice.Checked+=(_,_)=>
         {
             _geminiChatAutoSpeak=true;
-            MayAssistantPreferences.Read() is var prefs && SaveAutoVoice(prefs,true);
+            SaveAutoVoice(MayAssistantPreferences.Read(),true);
         };
         autoVoice.Unchecked+=(_,_)=>
         {
             _geminiChatAutoSpeak=false;
-            MayAssistantPreferences.Read() is var prefs && SaveAutoVoice(prefs,false);
+            SaveAutoVoice(MayAssistantPreferences.Read(),false);
         };
         void SaveAutoVoice(MayAssistantPreferences prefs,bool enabled)
         {
