@@ -21,6 +21,7 @@ public partial class MainWindow
     private int _geminiHandsFreeSession;
     private CancellationTokenSource? _geminiHandsFreeCancellation;
     private Button? _geminiHandsFreeToggle;
+    private FrameworkElement? _geminiChatSurface;
 
     /// <summary>Close the microphone immediately on explicit stop, navigation or exit.</summary>
     private void StopHandsFreeSession()
@@ -37,14 +38,24 @@ public partial class MainWindow
         cts?.Dispose();
         _geminiMicrophone.Stop(false);
         _geminiVoice.StopSpeaking();
+        UpdateMayTrayStatus();
     }
 
     private bool HandsFreeCurrent(int session) =>
-        _geminiHandsFreeActive && session==_geminiHandsFreeSession && _page=="gemini-chat";
+        _geminiHandsFreeActive && session==_geminiHandsFreeSession;
 
     private void ShowGeminiChat()
     {
         _page="gemini-chat";
+        // Reattach the live chat UI when returning from another HISA tab.
+        // Keeping the same surface preserves the active voice session and
+        // its Dispatcher callbacks, while the chat history remains visible.
+        if(_geminiHandsFreeActive && _geminiChatSurface is FrameworkElement live)
+        {
+            SetPage("Mây Mây · Trợ lý HISA",
+                "Mây đang nghe trong nền · bấm ⏹ Dừng Mây để tắt micro",live);
+            return;
+        }
         var messages=new StackPanel { Margin=new Thickness(6,8,8,8) };
         var viewer=new ScrollViewer
         {
@@ -301,6 +312,7 @@ public partial class MainWindow
             int session=++_geminiHandsFreeSession;
             handsFree!.Content="⏹ Dừng Mây";
             TopVoiceButton.Content="⏹ Dừng Mây";
+            UpdateMayTrayStatus();
             StartHandsFreeListening(session);
         });
         _geminiHandsFreeToggle=handsFree;
@@ -698,9 +710,8 @@ public partial class MainWindow
         var head=Card(Stack(
             Row(T("✦  MÂY MÂY · TRỢ LÝ HISA",19,true),
                 B("⚙ Cấu hình Gemini",()=>Navigate("settings"))),
-            T("Mây là trợ lý nữ, trò chuyện nhẹ nhàng bằng tiếng Việt và ưu tiên giọng miền Nam. "+
-              "Bấm Nói với Mây để hỏi lịch cont về, lịch xuất, hoặc nhờ Mây soạn phiếu xuất nháp. "+
-              "Phiếu chỉ được lưu sau khi anh xem và duyệt; Mây không tự ghi Excel.",12,false,Muted),
+            T("Mây là trợ lý nữ nói tiếng Việt dịu dàng, ưu tiên giọng miền Nam. Bấm Nói với Mây để trao đổi công việc hoặc soạn phiếu xuất nháp chờ duyệt. "+
+              "Thu nhỏ HISA để Mây chạy trong khay hệ thống; micro chỉ tiếp tục nghe nếu anh đã bật rảnh tay. Nhấp phải biểu tượng khay để dừng micro hoặc thoát.",12,false,Muted),
             Row(handsFree),
             advanced
         ));
@@ -719,6 +730,7 @@ public partial class MainWindow
         layout.Children.Add(head);
         Grid.SetRow(viewer,1);layout.Children.Add(viewer);
         Grid.SetRow(bottom,2);layout.Children.Add(bottom);
+        _geminiChatSurface=layout;
         SetPage("Mây Mây · Trợ lý HISA","Một nút trò chuyện · giọng nữ miền Nam · đề xuất phiếu chờ anh duyệt",layout);
         ScrollToEnd();
     }

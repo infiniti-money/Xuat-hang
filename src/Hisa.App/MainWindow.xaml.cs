@@ -43,7 +43,15 @@ public partial class MainWindow : Window
             TopUpdateButton.Content="↑  Cập nhật "+version;
             TopUpdateButton.ToolTip="Đã tải và xác minh bản mới. Nhấn để xem và cài đặt.";
         });
-        AutoUpdater.UpdateProgress+=message=>Dispatcher.BeginInvoke(()=>StatusText.Text=message);
+        AutoUpdater.UpdateProgress+=message=>Dispatcher.BeginInvoke(()=>
+        {
+            StatusText.Text=message;
+            if(_checkingUpdate && message.StartsWith("Đang tải cập nhật:",StringComparison.Ordinal))
+            {
+                var percent=message.Split('%')[0].Replace("Đang tải cập nhật:","").Trim();
+                TopUpdateButton.Content="↓ Tải "+percent+"%";
+            }
+        });
         TodayText.Text=DateTime.Now.ToString("dddd, dd/MM/yyyy",CultureInfo.GetCultureInfo("vi-VN"));
         NavCaption("CÔNG VIỆC HÔM NAY");
         AddNav("dashboard", "▦", "Tổng quan / việc cần làm");
@@ -64,6 +72,7 @@ public partial class MainWindow : Window
         });
         Loaded += async (_,_) =>
         {
+            InitializeMayBackground();
             ShowDashboard();
             _loaded=true;
             try{await _service.InitializeAsync();if(_page=="dashboard")ShowDashboard();}
@@ -95,10 +104,11 @@ public partial class MainWindow : Window
     {
         if(_page=="create"&&_draft!=null)_captureDraftEditor?.Invoke();
         _captureDraftEditor=null;_captureDraftHeader=null;
-        if(_page=="gemini-chat")
+        if(_page=="gemini-chat" && !_geminiHandsFreeActive)
         {
-            // Leaving or rebuilding the page invalidates any pending Gemini
-            // callback. The microphone never survives invisible navigation.
+            // Manual recording remains page-scoped. A separately consented,
+            // explicitly activated Mây hands-free session stays active across
+            // HISA screens; its Stop control is always in the top toolbar.
             StopHandsFreeSession();
             _geminiMicrophone.Stop(false);
         }

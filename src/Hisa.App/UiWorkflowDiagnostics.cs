@@ -90,6 +90,38 @@ public static class UiWorkflowDiagnostics
                     GetValue(window) is GeminiMicrophoneRecorder recorder &&
                   !recorder.IsRecording,
                 "Merely opening Gemini Chat never starts microphone without an explicit click");
+            Check(typeof(MainWindow).GetField("_mayTray",flags)?.GetValue(window)==null,
+                "No background tray or microphone is started before the real window loads");
+            Check(typeof(MainWindow).GetMethod("RestoreMayWindow",flags)!=null &&
+                  typeof(MainWindow).GetMethod("UpdateMayTrayStatus",flags)!=null,
+                "Mây has dedicated Windows-tray restore and listening status controls");
+            var voiceFlag=typeof(MainWindow).GetField("_geminiHandsFreeActive",flags)!;
+            var sessionFlag=typeof(MainWindow).GetField("_geminiHandsFreeSession",flags)!;
+            var surfaceFlag=typeof(MainWindow).GetField("_geminiChatSurface",flags)!;
+            var originalChat=surfaceFlag.GetValue(window);
+            // Simulate an already approved session without opening hardware
+            // or sending any data. Navigating to a warehouse tab should not
+            // implicitly cancel the user's explicitly active background Mây.
+            voiceFlag.SetValue(window,true);
+            sessionFlag.SetValue(window,123);
+            Call("Navigate","information");
+            Check(voiceFlag.GetValue(window) is true &&
+                  typeof(MainWindow).GetMethod("HandsFreeCurrent",flags)!
+                    .Invoke(window,new object[]{123}) is true,
+                "Explicitly started Mây hands-free mode persists while working on another HISA screen");
+            Call("Navigate","gemini-chat");
+            Check(ReferenceEquals(originalChat,surfaceFlag.GetValue(window)) &&
+                  ReferenceEquals(((Grid)window.FindName("PageHost")!).Children[0],originalChat),
+                "Returning to Mây reuses live chat controls and avoids dropping speech callbacks");
+            Call("StopHandsFreeSession");
+            Check(voiceFlag.GetValue(window) is false,
+                "Stop Mây always revokes active background listening immediately");
+            Call("ShowInformation");
+            var updateButtons=Children(window).OfType<Button>()
+                .Where(x=>x.Content?.ToString()?.Contains("CẬP NHẬT HISA")==true).ToList();
+            Check(updateButtons.Count==1 &&
+                  !Children(window).OfType<Button>().Any(x=>x.Content?.ToString()=="Cài bản đã tải"),
+                "Updater information screen exposes a single action instead of two installation steps");
             Call("ShowSettings");
             Check(navigation.Children.OfType<Button>().Any(b=>b.Content?.ToString()
                     ?.Contains("Máy kéo gia công tại Hưng Yên")==true),

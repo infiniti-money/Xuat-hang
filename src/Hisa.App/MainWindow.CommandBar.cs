@@ -31,9 +31,9 @@ public partial class MainWindow
             }
             if(version==null)
             {
-                StatusText.Text="HISA "+SoftwareInfo.Version+" đã là phiên bản mới nhất.";
-                MessageBox.Show(this,"Đã kiểm tra GitHub Releases. Không có bản chính thức mới hơn "+
-                    SoftwareInfo.Version+".","HISA · Cập nhật",MessageBoxButton.OK,MessageBoxImage.Information);
+                // A one-click check with no newer release never interrupts work
+                // with a modal "up to date" dialog.
+                StatusText.Text="✓ HISA "+SoftwareInfo.Version+" đã là bản mới nhất.";
                 return;
             }
             TopUpdateButton.Content="✓ Đã tải "+version;
@@ -84,6 +84,14 @@ public partial class MainWindow
     {
         // Exactly one user click opens chat and toggles the microphone.
         // Never auto-start microphone at application launch or page navigation.
+        if(_geminiHandsFreeActive && _page!="gemini-chat")
+        {
+            // Clicking the global "Dừng Mây" control stops listening directly
+            // without navigating away from the user's warehouse work.
+            StopHandsFreeSession();
+            StatusText.Text="Mây đã dừng micro. Anh có thể tiếp tục công việc.";
+            return;
+        }
         if(_page!="gemini-chat")Navigate("gemini-chat");
         _geminiHandsFreeToggle?.RaiseEvent(new RoutedEventArgs(
             System.Windows.Controls.Button.ClickEvent));

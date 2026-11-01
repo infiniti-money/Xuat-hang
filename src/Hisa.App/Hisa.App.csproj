@@ -3,11 +3,12 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
-    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AssemblyName>HISA Kho Vat Tu</AssemblyName>
     <RootNamespace>Hisa.App</RootNamespace>
-    <Version>1.9.28</Version>
+    <Version>1.9.29</Version>
     <Product>Quản lý kho</Product>
     <AssemblyTitle>Quản lý kho</AssemblyTitle>
     <Authors>Trịnh Phương Tân</Authors>

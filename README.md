@@ -1,3 +1,15 @@
+## HISA v1.9.29 — Mây Mây chạy nền Windows; cập nhật chỉ một lần nhấn
+
+- Khi nhấn **Thu nhỏ HISA**, cửa sổ ẩn vào **khay hệ thống Windows** (notification area), không đóng ứng dụng. Nhấp đúp biểu tượng HISA để mở lại; nhấp chuột phải có **Mở HISA / Mây Mây**, **Dừng micro Mây** và **Thoát hẳn HISA**.
+- **Micro không tự bật khi mở HISA, khi thu nhỏ hoặc khi khôi phục cửa sổ**. Nếu người dùng đã chủ động bật Mây rảnh tay và cấp quyền, micro/loa tiếp tục xử lý theo vòng nghe → Gemini nhận dạng → Mây trả lời ngay cả khi cửa sổ đang ẩn. Chỉ khi đang nghe mới hiện thông báo khay một lần và tooltip hiển thị trạng thái micro. Mây vẫn trả lời khi bạn mở các trang HISA khác. Nút **⏹ Dừng Mây** trên thanh công cụ luôn cho phép tắt micro ngay cả khi đang xem tab khác. Khi quay lại Mây, giao diện trò chuyện đang hoạt động được giữ nguyên. Bấm Dừng, thoát hẳn HISA hoặc thu hồi quyền thì tắt micro.
+- Để **thoát hẳn**, bấm nút X của cửa sổ hoặc chọn Thoát hẳn HISA trong khay. Đóng hẳn sẽ giải phóng Excel và dừng phiên giọng nói.
+- Nút **↑ Cập nhật** ở thanh trên cùng đã là thao tác chính duy nhất: nhấn → kiểm tra GitHub Releases → tự tải trong nền, hiển thị % tải trên nút, xác minh SHA-256 → khi sẵn sàng mới hỏi **Có đóng HISA để cài bản mới không?**. Nhấn Không để làm việc tiếp; nhấn cùng nút sau này để cài bộ đã tải. Nếu đang ở bản mới nhất chỉ cập nhật trạng thái mà không mở thông báo làm phiền.
+- Màn hình Thông tin phần mềm loại bỏ luồng riêng **Cài bản đã tải**: thay bằng một nút **CẬP NHẬT HISA · MỘT LẦN NHẤN**; có đường dẫn GitHub Releases dự phòng. Đã tải nền mà không có sự đồng ý sẽ không tự cài.
+- Bộ cài được kiểm tra từ GitHub chính thức và đối chiếu SHA-256, Windows UAC không bị vượt qua; HISA tắt micro và giải phóng file Excel trước khi khởi chạy installer. Không tự xác nhận xuất kho hoặc sửa Excel.
+- Bộ kiểm thử giao diện xác minh nút cập nhật duy nhất, giao diện tray chỉ khởi tạo khi cửa sổ thực sự mở và không tự bật micro. Việc dùng tray/micro cùng phần cứng thực tế cần kiểm tra trên Windows người dùng.
+
+---
+
 ## HISA v1.9.28 — Mây Mây, trợ lý nữ giọng miền Nam; đề xuất phiếu xuất chờ duyệt
 
 - Đặt tên trợ lý **Mây**, gọi thân mật **Mây Mây**. Lời chào, khung trò chuyện và nút **Nói với Mây** đồng nhất.
