@@ -106,7 +106,7 @@ public partial class MainWindow
 
         var contextToggle=new CheckBox
         {
-            Content="Cho phép Gemini đọc dữ liệu HISA liên quan (kiện, lịch cont về, lịch xuất đã duyệt, phiếu và trạng thái chuẩn bị)",
+            Content="Cho phép Mây gửi tóm tắt đối chiếu HISA lên Gemini khi hỏi (gồm serial máy kéo của HĐ cụ thể, lịch cont, phiếu và tình trạng Excel; không gửi nguyên tệp)",
             IsChecked=_geminiChatIncludeWarehouse,
             Foreground=Brush("#244C60"),FontWeight=FontWeights.SemiBold
         };
@@ -517,6 +517,38 @@ public partial class MainWindow
             privacyNote.Text="ĐÃ TẮT: Gemini chỉ nhận câu hỏi, không được đọc dữ liệu HISA. Bật lại khi cần hỏi lịch cont/lịch xuất.";
         };
 
+        void OfferMaySlip(MaySlipProposal proposal)
+        {
+            // Only user's direct message is parsed; never provider output.
+            var slipProposal=proposal;
+            if(slipProposal!=null)
+            {
+                var chosen=ResolveMaySlipProposal(slipProposal);
+                if(chosen!=null)
+                {
+                    var proposalPanel=new Border
+                    {
+                        Margin=new Thickness(14,4,14,12),
+                        Padding=new Thickness(12),
+                        CornerRadius=new CornerRadius(9),
+                        Background=Brush("#EAF6F2"),
+                        Child=Stack(
+                            T("MÂY ĐỀ XUẤT PHIẾU XUẤT NHÁP",13,true,Brush("#197A70")),
+                            T(chosen.Summary,12,false,Muted),
+                            T("Chưa lưu phiếu · chưa ghi sổ xuất · anh cần kiểm tra và duyệt ở màn hình tiếp theo.",11,false,Muted),
+                            B("▤ Xem phiếu Mây đề xuất",()=>OpenMaySlipReview(chosen),true)
+                        )
+                    };
+                    messages.Children.Add(proposalPanel);
+                    activity.Text="Mây đã chuẩn bị đề xuất phiếu. Anh bấm Xem phiếu Mây đề xuất để kiểm tra trước khi lưu.";
+                }
+                else
+                    messages.Children.Add(T("Mây cần số hợp đồng hợp lệ hoặc lịch xuất đã duyệt đúng ngày để lên phiếu; Mây chưa ghi gì vào sổ kho.",12,false,Muted));
+                }
+
+            ScrollToEnd();
+        }
+
         async Task SendAsync(string? voiceText=null,bool fromHandsFree=false,int session=0)
         {
             bool handedToSpeaker=false;
@@ -538,6 +570,43 @@ public partial class MainWindow
             {
                 if(fromHandsFree)StopHandsFreeSession();
                 activity.Text="Câu hỏi quá 3.000 ký tự. Đã tắt rảnh tay.";return;
+            }
+            MaySlipProposal? localSlip=null;
+            try{localSlip=MaySlipIntent.Parse(userText,DateTime.Today);}
+            catch(InvalidOperationException ex)
+            {
+                if(fromHandsFree)StopHandsFreeSession();
+                activity.Text=ex.Message;
+                return;
+            }
+            if(localSlip!=null)
+            {
+                // A local draft MUST NOT depend on Gemini API availability.
+                // Voice and text requests both expose the explicit review button.
+                Bubble("user",userText);
+                var answer="Dạ, Mây đã lên đề xuất phiếu xuất CHỜ DUYỆT. "+
+                    "Mây chưa ghi sổ xuất hay sửa file Excel. Anh xem và kiểm tra trước khi lưu nha.";
+                Bubble("model",answer);
+                OfferMaySlip(localSlip);
+                if(!fromHandsFree)question.Clear();
+                if(fromHandsFree && HandsFreeCurrent(session))
+                {
+                    try
+                    {
+                        var keyForVoice=new GeminiCredentialStore().ReadKey();
+                        await _geminiVoice.SpeakGeminiAsync(keyForVoice,answer,
+                            message=>Dispatcher.BeginInvoke(new Action(()=>activity.Text=message)),
+                            ()=>Dispatcher.BeginInvoke(new Action(()=>
+                                _=ResumeAfterSpeakerAsync(session))),
+                            _geminiHandsFreeCancellation?.Token??CancellationToken.None);
+                    }
+                    catch(Exception ex)
+                    {
+                        StopHandsFreeSession();
+                        activity.Text="Phiếu nháp đã hiển thị; Mây không đọc được loa: "+ex.Message;
+                    }
+                }
+                return;
             }
             string? key;
             try { key=new GeminiCredentialStore().ReadKey(); }
@@ -562,6 +631,15 @@ public partial class MainWindow
                     var approved=AiScheduleWorkspace.RecentApproved(_service.DataDirectory);
                     context=GeminiChatService.BuildReadOnlyContext(
                         userText,warehouse,_service.Slips,readiness,DateTime.Today,approved);
+                    // HISA reads the configured production workbooks locally;
+                    // only contract-scoped bounded facts are added to the
+                    // consented Gemini context, never raw Excel bytes.
+                    var equipment=EquipmentListReader.Load(_service.Settings);
+                    var motors=new MotorHungYenStore(_service.DataDirectory)
+                        .List(equipment.Rows.Where(x=>x.Category=="Máy kéo"));
+                    var cross=MayWarehouseAudit.BuildReadOnlyProjection(
+                        userText,_service.Settings,warehouse,equipment,motors,_service.Slips);
+                    context=cross+"\n"+context;
                     activity.Text="Đã cấp dữ liệu HISA chỉ đọc: "+
                         approved.Count+" lịch đã duyệt, "+
                         (warehouse.Packages?.Count??0)+" kiện trong bộ nhớ · Đang hỏi Gemini…";
@@ -584,33 +662,6 @@ public partial class MainWindow
                     _geminiChatHistory.RemoveRange(0,_geminiChatHistory.Count-24);
                 Bubble("user",userText);
                 Bubble("model",reply);
-                // Extract intents only from the user's own utterance, never
-                // from Gemini output or untrusted workbook/schedule fields.
-                var slipProposal=MaySlipIntent.Parse(userText,DateTime.Today);
-                if(slipProposal!=null)
-                {
-                    var chosen=ResolveMaySlipProposal(slipProposal);
-                    if(chosen!=null)
-                    {
-                        var proposalPanel=new Border
-                        {
-                            Margin=new Thickness(14,4,14,12),
-                            Padding=new Thickness(12),
-                            CornerRadius=new CornerRadius(9),
-                            Background=Brush("#EAF6F2"),
-                            Child=Stack(
-                                T("MÂY ĐỀ XUẤT PHIẾU XUẤT NHÁP",13,true,Brush("#197A70")),
-                                T(chosen.Summary,12,false,Muted),
-                                T("Chưa lưu phiếu · chưa ghi sổ xuất · anh cần kiểm tra và duyệt ở màn hình tiếp theo.",11,false,Muted),
-                                B("▤ Xem phiếu Mây đề xuất",()=>OpenMaySlipReview(chosen),true)
-                            )
-                        };
-                        messages.Children.Add(proposalPanel);
-                        activity.Text="Mây đã chuẩn bị đề xuất phiếu. Anh bấm Xem phiếu Mây đề xuất để kiểm tra trước khi lưu.";
-                    }
-                    else
-                        messages.Children.Add(T("Mây cần số hợp đồng hợp lệ hoặc lịch xuất đã duyệt đúng ngày để lên phiếu; Mây chưa ghi gì vào sổ kho.",12,false,Muted));
-                }
                 if(fromHandsFree && HandsFreeCurrent(session))
                 {
                     // Micro has already stopped: speech output cannot be
@@ -683,6 +734,27 @@ public partial class MainWindow
             }
         };
 
+        var manualSlipCodes=Input("");
+        manualSlipCodes.Width=315;
+        manualSlipCodes.ToolTip="Nhập số HĐ, phân cách bằng dấu phẩy. Mây chỉ lập phiếu nháp chờ anh duyệt.";
+        var manualSlipButton=B("▤ Mây đề xuất phiếu xuất",()=>
+        {
+            var input=manualSlipCodes.Text.Trim();
+            var codes=GeminiChatService.ContractNumbers(input).ToList();
+            if(codes.Count==0)
+            {
+                activity.Text="Mây cần số hợp đồng chính xác. Nhập mã HĐ để tạo phiếu nháp.";
+                return;
+            }
+            if(codes.Count>MaySlipProposal.MaximumContracts)
+            {
+                activity.Text="Mỗi phiếu đề xuất tối đa 10 HĐ; chia nhỏ để đối chiếu chắc chắn.";
+                return;
+            }
+            Bubble("user","Lập phiếu xuất nháp cho HĐ "+string.Join(", ",codes));
+            OfferMaySlip(new MaySlipProposal(codes,DateTime.Today.ToString("yyyy-MM-dd")));
+            manualSlipCodes.Clear();
+        },true);
         var examples=Row(
             B("Hợp đồng nào cần chuẩn bị?",()=>question.Text="Hôm nay và ngày mai có hợp đồng nào dự kiến xuất, cần chuẩn bị vật tư?"),
             B("Tìm theo số hợp đồng",()=>{question.Text="Tra cứu hợp đồng ";question.Focus();question.CaretIndex=question.Text.Length;}),
@@ -718,6 +790,7 @@ public partial class MainWindow
         var bottom=Card(Stack(
             T("CÂU HỎI GỢI Ý",11,true,Brush("#1D8E91")),
             examples,
+            Row(T("LÊN PHIẾU XUẤT NHÁP CHỜ DUYỆT",12,true),manualSlipCodes,manualSlipButton),
             question,
             Row(send,B("AI đọc / đề xuất sửa Excel",()=>Navigate("gemini-excel")),
                 B("Lịch Zalo",()=>Navigate("ai-schedule")),

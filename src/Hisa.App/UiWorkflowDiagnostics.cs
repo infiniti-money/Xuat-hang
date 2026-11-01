@@ -60,6 +60,19 @@ public static class UiWorkflowDiagnostics
                 "Mây prepares only an unsaved planned slip in the standard approval editor");
             Check(service.Slips.Count==beforeMay,
                 "Mây's proposal does not persist a slip or touch shipped inventory without approval");
+            var warehouseRows=service.Search(new SearchFilter{ContractsText="05492026"});
+            var materialLines=warehouseRows.Rows.Concat(warehouseRows.NoMaterialMatch)
+                .SelectMany(x=>x.Materials).ToList();
+            Check(mayDraft!=null &&
+                  mayDraft.Lines.Count==materialLines.Count &&
+                  mayDraft.Lines.All(x=>x.Include) &&
+                  mayDraft.ContractPackages.Count==
+                    warehouseRows.Rows.Concat(warehouseRows.NoMaterialMatch)
+                        .SelectMany(x=>x.Packages).DistinctBy(x=>x.Id).Count(),
+                "A selected contract prepares ALL source material lines and packages for review");
+            Check(mayDraft!.Status=="planned"&&
+                  service.Slips.Count==beforeMay,
+                "Full-package selection cannot mark delivered or write shipment date before approval");
             Call("ShowSettings");
             var configScroll=(ScrollViewer)((Grid)window.FindName("PageHost")!).Children[0];
             var configStack=(StackPanel)configScroll.Content;
