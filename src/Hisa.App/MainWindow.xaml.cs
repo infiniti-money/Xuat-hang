@@ -37,7 +37,6 @@ public partial class MainWindow : Window
         InitializeComponent();
         _service = service;
         Title = SoftwareInfo.DisplayName;
-        InitializeMayBackground();
         VersionText.Text="Phiên bản "+SoftwareInfo.Version;
         AutoUpdater.UpdateStaged+=version=>Dispatcher.BeginInvoke(()=>
         {
@@ -73,6 +72,7 @@ public partial class MainWindow : Window
         });
         Loaded += async (_,_) =>
         {
+            InitializeMayBackground();
             ShowDashboard();
             _loaded=true;
             try{await _service.InitializeAsync();if(_page=="dashboard")ShowDashboard();}
