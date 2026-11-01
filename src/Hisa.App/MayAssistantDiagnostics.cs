@@ -24,6 +24,10 @@ public static class MayAssistantDiagnostics
             "Vietnamese day/month date is retained for human approval");
         Check(MaySlipIntent.Parse("Ngày mai những phiếu xuất nào đã làm?",today)==null,
             "Question about existing slips cannot create a draft");
+        Check(MaySlipIntent.Parse("Đã lập phiếu xuất hợp đồng 56062026 chưa?",today)==null,
+            "Questions about prior slip creation are not new commands");
+        Check(MaySlipIntent.Parse("Mây có thể lập phiếu xuất không?",today)==null,
+            "Capability questions never prepare a document automatically");
         Check(MaySlipIntent.Parse("Mây đừng lập phiếu xuất hợp đồng 56062026",today)==null,
             "Negated commands never prepare slips");
         Check(MaySlipIntent.Parse("Ghi chú Excel: Đã có LX từ trước",today)==null,
