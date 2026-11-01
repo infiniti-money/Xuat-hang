@@ -94,9 +94,10 @@ public static class GeminiHisaContextDiagnostics
         {
             if(Directory.Exists(temporary))Directory.Delete(temporary,true);
         }
-        Check(!File.Exists(GeminiWarehouseSharingConsent.ConfigPath) ||
-              File.Exists(GeminiWarehouseSharingConsent.ConfigPath),
-              "Warehouse sharing requires a separate stored preference; no API credentials used");
+        Check(GeminiWarehouseSharingConsent.ConfigPath!=GeminiVoiceConsentStore.ConfigPath &&
+              GeminiWarehouseSharingConsent.ConfigPath.EndsWith(
+                "gemini-warehouse-sharing.json",StringComparison.OrdinalIgnoreCase),
+              "Warehouse sharing permission is independent of microphone consent");
         return checks;
     }
 }
