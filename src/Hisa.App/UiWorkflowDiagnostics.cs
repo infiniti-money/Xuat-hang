@@ -163,6 +163,19 @@ public static class UiWorkflowDiagnostics
                   !Children(window).OfType<CheckBox>().Any(c=>c.Content is string label && label.Contains("Hồng Yên",StringComparison.Ordinal)),
                 "Motor screen contains no outdated Hồng Yên captions");
 
+            Check(Children(window).OfType<Button>().Count(b=>b.Content is StackPanel sp &&
+                sp.Children.OfType<TextBlock>().Any(t=>t.Text is
+                    "TỔNG SỐ MÁY" or "CHƯA GỬI" or "ĐANG GIA CÔNG" or
+                    "ĐÃ LÀM XONG" or "ĐÃ BÀN GIAO"))==5,
+                "Motor screen shows five visible clickable KPI filters");
+            Check(Children(window).OfType<Button>().Any(x=>x.Content?.ToString()=="✓ ĐÃ LÀM XONG · GHI EXCEL") &&
+                  Children(window).OfType<Button>().Any(x=>x.Content?.ToString()=="○ CHƯA LÀM · GHI EXCEL") &&
+                  Children(window).OfType<Button>().Any(x=>x.Content?.ToString()=="Bỏ lọc HĐ"),
+                "Motor status offers direct action buttons and clear contract filter");
+            Check(Children(window).OfType<Expander>().Any(x=>
+                    x.Header?.ToString()?.StartsWith("⚙ Tùy chọn bổ sung")==true &&
+                    !x.IsExpanded),
+                "Motor advanced actions are collapsed while main actions stay prominent");
             Check(Children(window).OfType<DataGrid>().Any(g=>
                 g.Columns.OfType<DataGridTextColumn>().Any(c=>c.Header?.ToString()=="Tiến độ xác nhận") &&
                 g.Columns.OfType<DataGridTextColumn>().Any(c=>c.Header?.ToString()=="Chọn làm") &&
