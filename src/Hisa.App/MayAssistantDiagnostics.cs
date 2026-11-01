@@ -26,8 +26,8 @@ public static class MayAssistantDiagnostics
             "Question about existing slips cannot create a draft");
         Check(MaySlipIntent.Parse("Mây đừng lập phiếu xuất hợp đồng 56062026",today)==null,
             "Negated commands never prepare slips");
-        Check(MaySlipIntent.Parse("Ghi chú Excel: tạo phiếu xuất 56062026",today)!=null,
-            "Only direct user text is parsed; never use workbook note as command");
+        Check(MaySlipIntent.Parse("Ghi chú Excel: Đã có LX từ trước",today)==null,
+            "Warehouse schedule notes do not resemble an explicit slip proposal");
         Check(MaySlipIntent.Parse("Mây lập phiếu xuất cho lịch ngày kia",today) is { Contracts.Count:0,Day:"2026-11-03" },
             "Day-only slip request can use approved scheduled contracts, not guesses");
         Check(MaySlipIntent.Parse("Cho tôi biết có hàng về hôm nay không",today)==null,
