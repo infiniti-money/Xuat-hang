@@ -50,6 +50,16 @@ public static class UiWorkflowDiagnostics
                 "Excel source settings has a dedicated visible navigation entry");
             Check(!service.Slips.Any(s=>s.Note.Contains("Mây Mây đề xuất",StringComparison.Ordinal)),
                 "Opening Mây's chat cannot create or save any slip");
+            var beforeMay=service.Slips.Count;
+            Call("OpenMaySlipReview",
+                new MaySlipProposal(new []{"05492026"},"2026-11-02"));
+            var mayDraft=typeof(MainWindow).GetField("_draft",flags)!.GetValue(window) as Slip;
+            Check(mayDraft is {Status:"planned"} &&
+                  mayDraft.HandoverDate=="2026-11-02" &&
+                  string.IsNullOrWhiteSpace(mayDraft.SlipCode),
+                "Mây prepares only an unsaved planned slip in the standard approval editor");
+            Check(service.Slips.Count==beforeMay,
+                "Mây's proposal does not persist a slip or touch shipped inventory without approval");
             Call("ShowSettings");
             var configScroll=(ScrollViewer)((Grid)window.FindName("PageHost")!).Children[0];
             var configStack=(StackPanel)configScroll.Content;
