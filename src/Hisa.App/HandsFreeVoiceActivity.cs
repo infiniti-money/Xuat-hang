@@ -1,19 +1,31 @@
 namespace Hisa.App;
 
 /// <summary>
-/// Small deterministic voice activity detector for 16-bit mono PCM, in ~100ms blocks.
-/// Does not decide speech content or upload audio. Conservative noise floor and
-/// 1.2s silence guard reduce accidental speech segmentation.
+/// Conservative, offline voice activity detector for 16 kHz 16-bit mono PCM.
+/// Allows lower-gain microphones; does not make API requests or store audio.
 /// </summary>
 public sealed class HandsFreeVoiceActivity
 {
-    public const double VoiceRmsThreshold=0.018;
+    public const double DefaultThreshold=0.0045; // ~-47 dBFS, was ~-35 dBFS.
     public const int MinVoiceBlocks=2;
     public const int EndSilenceBlocks=12;
-    private int _voiceBlocks;
-    private int _silenceBlocks;
+    private const int SampleRate=16000;
+    private const int ReferenceBlockSamples=1600; // 100 ms
+    private readonly double _threshold;
+    private int _voiceSamples;
+    private int _silenceSamples;
+    public double CurrentRms {get;private set;}
+    public double Threshold => _threshold;
     public bool HasSpeech {get;private set;}
     public bool Finished {get;private set;}
+
+    /// <param name="threshold">0.002 = very sensitive; 0.0045 = normal; 0.01 = low sensitivity.</param>
+    public HandsFreeVoiceActivity(double threshold=DefaultThreshold)
+    {
+        if(threshold < 0.001 || threshold > 0.1)
+            throw new ArgumentOutOfRangeException(nameof(threshold));
+        _threshold=threshold;
+    }
 
     public void Feed(ReadOnlySpan<byte> pcm)
     {
@@ -26,14 +38,15 @@ public sealed class HandsFreeVoiceActivity
             var amplitude=sample/32768.0;
             energy+=amplitude*amplitude;
         }
-        bool voice=Math.Sqrt(energy/count)>=VoiceRmsThreshold;
+        CurrentRms=Math.Sqrt(energy/count);
+        var voice=CurrentRms>=_threshold;
         if(!HasSpeech)
         {
-            _voiceBlocks=voice?_voiceBlocks+1:0;
-            if(_voiceBlocks>=MinVoiceBlocks)HasSpeech=true;
+            _voiceSamples=voice?_voiceSamples+count:0;
+            if(_voiceSamples>=MinVoiceBlocks*ReferenceBlockSamples)HasSpeech=true;
             return;
         }
-        _silenceBlocks=voice?0:_silenceBlocks+1;
-        if(_silenceBlocks>=EndSilenceBlocks)Finished=true;
+        _silenceSamples=voice?0:_silenceSamples+count;
+        if(_silenceSamples>=EndSilenceBlocks*ReferenceBlockSamples)Finished=true;
     }
 }
