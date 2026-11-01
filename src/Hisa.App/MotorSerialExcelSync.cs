@@ -168,7 +168,11 @@ public static class MotorSerialExcelSync
                     var backup=Path.Combine(backupFolder,"MAY-KEO-truoc-ghi-serial-"+
                         DateTime.Now.ToString("yyyyMMdd-HHmmss-fff")+"-"+
                         Guid.NewGuid().ToString("N")[..8]+".xlsx");
-                    File.Copy(full,backup,false);
+                    using(var backupStream=new FileStream(backup,FileMode.CreateNew,FileAccess.Write,FileShare.None))
+                    {
+                        guard.Position=0;
+                        guard.CopyTo(backupStream);
+                    }
                     book.SaveAs(tmp,new SaveOptions{
                         EvaluateFormulasBeforeSaving=false,GenerateCalculationChain=false});
                 }
