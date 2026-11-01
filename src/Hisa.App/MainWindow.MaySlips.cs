@@ -77,6 +77,10 @@ public partial class MainWindow
             _service.Templates.FirstOrDefault()?.Id??"internal_summary",
             proposal.Day);
         draft.Status="planned";
+        // The operator requested the WHOLE contract/package. Include every
+        // source material line by default. The editor remains available to
+        // review and adjust lines BEFORE any saved or delivered status.
+        foreach(var line in draft.Lines)line.Include=true;
         // One selected contract includes ALL material lines from every
         // selected Hưng Yên package in the source report. This is a proposal
         // only. Machine serials are suggested strictly by exact contract,
@@ -116,6 +120,9 @@ public partial class MainWindow
             .Any(g=>g.Count()>1 || g.Any(x=>x.PackageCount>1));
         if(ambiguous)
             draft.Note+=" Có nhiều kiện/công trình; phải đối chiếu từng dòng trước khi duyệt.";
+        draft.Note+=" Đã đưa "+draft.Lines.Count+" dòng vật tư từ "+
+            draft.ContractPackages.Count+" kiện nguồn vào đề xuất. "+
+            "Lịch dự kiến chưa tính là đã xuất; ngày thực tế chỉ ghi sau khi duyệt phiếu Đã xuất.";
         _draft=draft;
         _draftReport=report;
         _aiDispatchDay=proposal.Day;
