@@ -61,12 +61,12 @@ public partial class MainWindow
             var proposed=MotorSerialExcelSync.Preview(_service.Settings,slip);
             if(proposed.Proposed.Count>0)
             {
-                var rows=string.Join("\n",proposed.Proposed.Take(12)
+                var mappedRows=string.Join("\n",proposed.Proposed.Take(12)
                     .Select(x=>"• HĐ "+x.Contract+" · "+x.Project+
                         " · dòng "+x.SourceRow+" → serial "+x.Serial));
                 if(Ask("ĐÃ NHẬP "+proposed.Proposed.Count+" SERIAL CHƯA CÓ TRONG EXCEL.\n\n"+
                        "HISA sẽ ghi ngược vào MÁY KÉO.xlsx, CỘT I, theo đúng HĐ, công trình, đơn vị và model:\n"+
-                       rows+(proposed.Proposed.Count>12?"\n…":"")+
+                       mappedRows+(proposed.Proposed.Count>12?"\n…":"")+
                        "\n\nChỉ điền ô serial đang trống, không sửa ngày xuất, trạng thái hoặc công thức. "+
                        "Đã tạo bản sao lưu trước khi ghi. Đồng ý?"))
                 {
