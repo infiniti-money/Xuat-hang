@@ -31,9 +31,9 @@ public partial class MainWindow
             }
             if(version==null)
             {
-                StatusText.Text="HISA "+SoftwareInfo.Version+" đã là phiên bản mới nhất.";
-                MessageBox.Show(this,"Đã kiểm tra GitHub Releases. Không có bản chính thức mới hơn "+
-                    SoftwareInfo.Version+".","HISA · Cập nhật",MessageBoxButton.OK,MessageBoxImage.Information);
+                // A one-click check with no newer release never interrupts work
+                // with a modal "up to date" dialog.
+                StatusText.Text="✓ HISA "+SoftwareInfo.Version+" đã là bản mới nhất.";
                 return;
             }
             TopUpdateButton.Content="✓ Đã tải "+version;
