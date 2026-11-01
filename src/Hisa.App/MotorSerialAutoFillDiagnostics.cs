@@ -97,6 +97,12 @@ public static class MotorSerialAutoFillDiagnostics
         var dup=MotorSerialAutoFill.Fill(duplicate,duplicatedSource);
         Check(dup.Assigned==0&&dup.Missing==2,
             "Duplicated physical Excel serial blocks automatic assignment of whole group");
+        var legacyFraction=NewSlip();
+        legacyFraction.Lines[0].Quantity=0.125m;
+        var legacy=MotorSerialAutoFill.Fill(legacyFraction,source);
+        Check(legacy.Assigned==0&&legacy.Missing==1&&
+              legacy.Warnings.Any(x=>x.Contains("số lượng máy nguyên")),
+            "Legacy fractional motor-category material never prevents ordinary slip save");
         var history=new Slip
         {
             Status="delivered",SlipCode="XUAT-001",HandoverDate="2026-11-01",
