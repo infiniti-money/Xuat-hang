@@ -1,3 +1,14 @@
+## HISA v1.9.27 — Trợ lý HISA một nút, rút gọn thao tác
+
+- Thêm nút **🎙 Nói với HISA** ở thanh công cụ trên cùng: **một lần nhấn** mở trực tiếp Trợ lý Gemini và bật rảnh tay; bấm lại để tắt. Không phải đi qua nhiều menu hoặc tìm nút microphone.
+- Lần đầu sử dụng có **một hộp thoại đồng ý rõ ràng** cho quyền bật mic, tự gửi các đoạn âm thanh đến Gemini và chia sẻ có giới hạn tóm tắt dữ liệu kho HISA (chỉ đọc) để trả lời các câu hỏi. Chấp thuận được lưu riêng cho quyền âm thanh và quyền dữ liệu. Những lần sau không cần lặp lại hộp thoại khi bật rảnh tay. Nếu người dùng chủ động đã tắt chia sẻ kho mà vẫn cho phép mic, HISA chỉ gửi câu hỏi, không tự bật lại quyền chia sẻ kho.
+- Khi chỉ mở HISA hoặc chỉ xem trang Gemini **micro vẫn tắt**. Trạng thái nút hiển thị rõ **Nói với HISA / Dừng HISA**. Rời trang, bấm dừng hoặc đóng ứng dụng ngắt mic/loa.
+- Giao diện Gemini thu gọn: một nút chính và ô nhập câu hỏi; phần thiết bị mic, độ nhạy, kiểm tra mic, quyền dữ liệu, quyền giọng nói, API Key, xóa hội thoại... đặt trong **Tùy chọn nâng cao** đóng mặc định. Quyền riêng tư vẫn thu hồi được riêng.
+- Không tự ghi Excel, không sửa lịch nhập/xuất từ lời nói, không mở mic khi khởi chạy. Phần **Cập nhật** giữ luồng một nút kiểm tra, tải nền, chỉ đóng/cài khi người dùng đồng ý.
+- Kiểm thử Windows có kiểm tra nút truy cập trực tiếp, phần nâng cao thu gọn và mở trang không tự thu mic; không thể kiểm tra phần cứng hoặc API Key thật trong CI.
+
+---
+
 ## HISA v1.9.26 — Gemini hiểu dữ liệu vận hành HISA và lịch cont/lịch xuất
 
 - Gemini Chat có nút đồng ý riêng **Cho phép Gemini đọc dữ liệu HISA liên quan**; lựa chọn được lưu cho các lần mở sau và có thể thu hồi bất kỳ lúc nào. Tắt mặc định cho tới khi chủ động đồng ý. Không gửi Excel gốc, đường dẫn tệp, API Key hoặc serial máy kéo đầy đủ.
