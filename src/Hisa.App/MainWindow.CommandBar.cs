@@ -80,6 +80,15 @@ public partial class MainWindow
         }
     }
 
+    private void OpenQuickVoiceClick(object sender,RoutedEventArgs e)
+    {
+        // Exactly one user click opens chat and toggles the microphone.
+        // Never auto-start microphone at application launch or page navigation.
+        if(_page!="gemini-chat")Navigate("gemini-chat");
+        _geminiHandsFreeToggle?.RaiseEvent(new RoutedEventArgs(
+            System.Windows.Controls.Button.ClickEvent));
+    }
+
     private void OpenAiClick(object sender,RoutedEventArgs e)=>Navigate("ai-schedule");
     private void OpenReadinessClick(object sender,RoutedEventArgs e)=>Navigate("readiness");
 }
