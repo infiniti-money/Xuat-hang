@@ -515,8 +515,23 @@ public partial class MainWindow : Window
             if(slip.Status=="delivered"&&!Ask($"Ghi nhận phiếu này ĐÃ XUẤT vào Thành phẩm xuất kho.xlsx và ghi Ngày bàn giao cho đúng seri trong MÁY KÉO.xlsx?\n\n{slip.ContractLabel}"))return;
             if(slip.Status=="delivered"&&!ConfirmMotorSerialsForDelivery(slip))return;
             var saved=await _service.SaveSlipAsync(slip);Notify("Đã lưu phiếu "+saved.SlipCode);_draft=null;_draftReport=null;Navigate("slips");
-        },true),B("Xem trước / in phiếu",()=>{if(scopeChanged?.Invoke()==true){Notify("Bạn đã đổi mã hợp đồng/bộ lọc. Tải lại vật tư để xem trước đúng phiếu.");return;}read();PrintService.PreviewSlip(this,slip,FindTemplate(slip.TemplateId));}),A("Sửa mẫu phiếu in",async()=>{var editor=new TemplateEditorWindow(FindTemplate(template.SelectedValue?.ToString()??slip.TemplateId)){Owner=this};if(editor.ShowDialog()==true){await _service.SaveTemplateAsync(editor.ResultTemplate);Notify("Đã lưu mẫu in. Bấm Xem trước để kiểm tra.");}}),B("+ Thêm vật tư",()=>{var item=EditLine(slip.Lines.FirstOrDefault());if(item!=null){slip.Lines.Add(item);lines.Items.Refresh();}}),B("Chọn in tất cả",()=>{foreach(var l in slip.Lines)l.Include=true;lines.Items.Refresh();}),B("Bỏ chọn dòng đang chọn",()=>{foreach(var l in lines.SelectedItems.OfType<MaterialLine>())l.Include=false;lines.Items.Refresh();})));
-        toolbar.Children.Add(Row(B("Serial máy kéo · nhập / sửa",()=>{if(scopeChanged?.Invoke()==true){Notify("Hợp đồng hoặc bộ lọc đã đổi; tải lại vật tư trước khi nhập serial.");return;}read();EditMotorSerials(slip,false);}),T("Thiếu serial máy kéo: phần mềm sẽ hỏi xác nhận trước khi xuất; bạn có thể bổ sung sau.",11,false,Muted)));
+        },true),B("Xem trước / in phiếu",()=>{if(scopeChanged?.Invoke()==true){Notify("Bạn đã đổi mã hợp đồng/bộ lọc. Tải lại vật tư để xem trước đúng phiếu.");return;}read();PrintSlipWithMotorSerials(slip);}),A("Sửa mẫu phiếu in",async()=>{var editor=new TemplateEditorWindow(FindTemplate(template.SelectedValue?.ToString()??slip.TemplateId)){Owner=this};if(editor.ShowDialog()==true){await _service.SaveTemplateAsync(editor.ResultTemplate);Notify("Đã lưu mẫu in. Bấm Xem trước để kiểm tra.");}}),B("+ Thêm vật tư",()=>{var item=EditLine(slip.Lines.FirstOrDefault());if(item!=null){slip.Lines.Add(item);lines.Items.Refresh();}}),B("Chọn in tất cả",()=>{foreach(var l in slip.Lines)l.Include=true;lines.Items.Refresh();}),B("Bỏ chọn dòng đang chọn",()=>{foreach(var l in lines.SelectedItems.OfType<MaterialLine>())l.Include=false;lines.Items.Refresh();})));
+        toolbar.Children.Add(Row(
+            B("↓ Lấy serial từ MÁY KÉO.xlsx",()=>
+            {
+                if(scopeChanged?.Invoke()==true){Notify("Hợp đồng/bộ lọc đã thay đổi; tải lại vật tư trước khi lấy serial.");return;}
+                read();
+                var result=FillMotorSerialsFromSource(slip);
+                Notify("Đã điền "+result.Assigned+" serial từ MÁY KÉO.xlsx vào phiếu."+
+                    (result.Missing>0?" Còn "+result.Missing+" máy cần kiểm tra.":"")+
+                    (result.Warnings.Count>0?"\n"+string.Join("\n",result.Warnings.Take(5)):""));
+            },true),
+            B("Kiểm tra / sửa serial",()=>
+            {
+                if(scopeChanged?.Invoke()==true){Notify("Hợp đồng/bộ lọc đã đổi; tải lại vật tư trước khi nhập serial.");return;}
+                read();EditMotorSerials(slip,false);
+            }),
+            T("Phiếu xuất hoặc bàn giao in kèm serial máy kéo lấy từ file nguồn; không ghi ngày xuất khi còn ở trạng thái Chờ xuất.",11,false,Muted)));
         var tabs=report==null?Tabs(("Vật tư trên phiếu",lines),("Toàn bộ kiện lưu kèm",PackageGrid(slip.ContractPackages))):Tabs(("Vật tư trên phiếu",lines),("Báo cáo kiểm tra HĐ",ReportBody(report,false)),("Toàn bộ kiện lưu kèm",PackageGrid(slip.ContractPackages)));
         return Layout(toolbar,tabs);
     }
@@ -567,7 +582,7 @@ public partial class MainWindow : Window
         }
         grid.SelectionChanged+=(_,_)=>{if(selected() is Slip s)detail.Text=$"{s.SlipCode} · {s.ContractLabel} · {s.ContractPackages.Count} kiện lưu kèm · {s.LineCount} dòng · {s.Note}"+(s.DelayReason.Length>0?$"\nHoãn: {s.DelayReason}":"")+(s.CancelReason.Length>0?$"\nHủy: {s.CancelReason}":"");};
         grid.MouseDoubleClick+=(_,_)=>{if(selected() is Slip s)EditSlip(s);};
-        var tools=Card(Stack(Row(Field("Tìm mã phiếu / số HĐ / công trình / serial",query),Field("Trạng thái",status),Field("Ngày kế hoạch / xuất",day),B("⌕  Lọc phiếu",load,true),B("Xóa lọc",()=>{_slipQuery="";_slipStatus="all";ShowSlips();})),count,Row(B("+ Tạo phiếu",()=>{_draft=null;_draftReport=null;Navigate("create");},true),B("Sửa phiếu",()=>{if(selected() is Slip s)EditSlip(s);else Notify("Chọn phiếu cần sửa.");}),B("Xem trước / in",()=>{if(selected() is Slip s)PrintService.PreviewSlip(this,s,FindTemplate(s.TemplateId));else Notify("Chọn phiếu cần in.");}),A("Chờ xuất",()=>change("planned")),A("✓  Đã xuất",()=>change("delivered"),true),A("◷  Tạm hoãn",()=>change("delayed")),A("Hủy phiếu",()=>change("cancelled"),false,true),A("⌫  Xóa phiếu đã hủy",async()=>{if(selected() is not Slip s||s.Status!="cancelled")throw new InvalidOperationException("Chọn một phiếu đang ở trạng thái Đã hủy.");if(!Ask($"Xóa phiếu đã hủy {s.SlipCode} khỏi danh sách? Bản sao lưu JSON sẽ được giữ.") )return;var n=await _service.DeleteCancelledSlipsAsync([s.Id]);Notify($"Đã xóa {n} phiếu đã hủy.");load();},false,true),B("Lịch sử trạng thái",()=>{if(selected() is Slip s)ShowDialogGrid("Lịch sử phiếu "+s.SlipCode,Table(s.StatusHistory.Select(x=>new{At=DateTime.TryParse(x.At,out var at)?at.ToString("dd/MM/yyyy HH:mm"):x.At,State=Rules.StatusLabel(x.Status),x.Reason}),("Thời điểm","At",180),("Trạng thái","State",170),("Lý do","Reason",-1)));else Notify("Chọn phiếu cần xem.");}))));
+        var tools=Card(Stack(Row(Field("Tìm mã phiếu / số HĐ / công trình / serial",query),Field("Trạng thái",status),Field("Ngày kế hoạch / xuất",day),B("⌕  Lọc phiếu",load,true),B("Xóa lọc",()=>{_slipQuery="";_slipStatus="all";ShowSlips();})),count,Row(B("+ Tạo phiếu",()=>{_draft=null;_draftReport=null;Navigate("create");},true),B("Sửa phiếu",()=>{if(selected() is Slip s)EditSlip(s);else Notify("Chọn phiếu cần sửa.");}),B("Xem trước / in",()=>{if(selected() is Slip s)PrintSlipWithMotorSerials(s);else Notify("Chọn phiếu cần in.");}),A("Chờ xuất",()=>change("planned")),A("✓  Đã xuất",()=>change("delivered"),true),A("◷  Tạm hoãn",()=>change("delayed")),A("Hủy phiếu",()=>change("cancelled"),false,true),A("⌫  Xóa phiếu đã hủy",async()=>{if(selected() is not Slip s||s.Status!="cancelled")throw new InvalidOperationException("Chọn một phiếu đang ở trạng thái Đã hủy.");if(!Ask($"Xóa phiếu đã hủy {s.SlipCode} khỏi danh sách? Bản sao lưu JSON sẽ được giữ.") )return;var n=await _service.DeleteCancelledSlipsAsync([s.Id]);Notify($"Đã xóa {n} phiếu đã hủy.");load();},false,true),B("Lịch sử trạng thái",()=>{if(selected() is Slip s)ShowDialogGrid("Lịch sử phiếu "+s.SlipCode,Table(s.StatusHistory.Select(x=>new{At=DateTime.TryParse(x.At,out var at)?at.ToString("dd/MM/yyyy HH:mm"):x.At,State=Rules.StatusLabel(x.Status),x.Reason}),("Thời điểm","At",180),("Trạng thái","State",170),("Lý do","Reason",-1)));else Notify("Chọn phiếu cần xem.");}))));
         ((StackPanel)tools.Child).Children.Add(Row(B("Xem serial máy kéo",()=>{if(selected() is Slip s)ShowMotorSerialHistory(s);else Notify("Chọn phiếu cần xem serial.");})));
         var body=Layout(grid,new Border{Child=detail,Padding=new Thickness(12),Background=Brush("#EAF1F6"),Margin=new Thickness(0,8,0,0)});
         body.RowDefinitions[0].Height=new GridLength(1,GridUnitType.Star);body.RowDefinitions[1].Height=GridLength.Auto;
@@ -681,7 +696,7 @@ public partial class MainWindow : Window
         {
             if(grid.SelectedItem is not PrintTemplate t){Notify("Chọn mẫu cần in thử.");return;}
             var report=_service.Search(new SearchFilter());var first=report.Rows.FirstOrDefault();if(first==null){Notify("Chưa có dữ liệu để in thử. Bạn vẫn có thể chỉnh mẫu.");return;}
-            var sample=Copy(report);sample.Rows=[first];var slip=_service.CreateDraft(sample,t.Id,DateTime.Today.ToString("yyyy-MM-dd"));slip.SlipCode="XEM-TRUOC";PrintService.PreviewSlip(this,slip,t);
+            var sample=Copy(report);sample.Rows=[first];var slip=_service.CreateDraft(sample,t.Id,DateTime.Today.ToString("yyyy-MM-dd"));slip.SlipCode="XEM-TRUOC";PrintSlipWithMotorSerials(slip);
         })),T("Biên bản tổng hợp nội bộ và phiếu riêng theo hợp đồng. Chỉnh tiêu đề, nội dung, tên cột, chữ ký, font, lề in và mã phiếu.",12,false,Muted)));
         SetPage("Mẫu phiếu in","Mẫu được lưu riêng · có thể sao chép và chỉnh sửa nội dung",Layout(top,grid));
     }

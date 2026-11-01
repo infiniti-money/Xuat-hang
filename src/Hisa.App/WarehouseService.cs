@@ -758,6 +758,10 @@ public sealed partial class WarehouseService : IDisposable
         var noMaterial=selected.Where(x=>x.Materials.Count==0).Select(x=>new ContractRow{Contract=x.Contract,Project=x.Project,Company=x.Company}).ToList();
         var slip=new Slip{Name="Bàn giao vật tư "+Rules.Day(day),HandoverDate=day,TemplateId=templateId,Contracts=selected.Select(x=>x.Contract).DistinctBy(Rules.Contract).ToList(),ContractOnly=noMaterial,Lines=Clone(selected.SelectMany(x=>x.Materials).ToList()),ContractPackages=Clone(selected.SelectMany(x=>x.Packages).DistinctBy(p=>p.Id).ToList())};
         if(report.Missing.Count>0)slip.Note="Chưa có dữ liệu: "+string.Join(", ",report.Missing.Select(x=>x.Contract));
+        // MÁY KÉO.xlsx is the authoritative serial source for ALL new
+        // export/handover slips, including Zalo-created plans and manual drafts.
+        // This only fills the in-memory slip; no Excel or status writes.
+        MotorSerialAutoFill.Fill(slip,EquipmentListReader.Load(Settings).Rows,Slips);
         return slip;
     }
     private string ReserveCode(string templateId,string day,List<Slip> existing)
@@ -846,6 +850,10 @@ public sealed partial class WarehouseService : IDisposable
             if(string.IsNullOrWhiteSpace(item.CancelReason))item.CancelReason=prior.CancelReason;
         }
         ValidateSlip(item);
+        // Reconcile serials again at the moment the operator SAVES, because
+        // the source list might have changed since the draft was opened.
+        // Never overwrite a manually supplied or previously saved serial.
+        MotorSerialAutoFill.Fill(item,EquipmentListReader.Load(Settings).Rows,existing);
         ValidateMotorSerialsForExport(item,existing);
         if(item.Status=="delivered"&&!_dataAvailable)throw new InvalidOperationException("Chưa xác nhận được dữ liệu chính; cập nhật Tổng hợp.xlsx trước khi ghi nhận xuất.");
         if(string.IsNullOrWhiteSpace(item.SlipCode))item.SlipCode=ReserveCode(item.TemplateId,item.HandoverDate,existing);

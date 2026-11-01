@@ -5,8 +5,48 @@ namespace Hisa.App;
 
 public partial class MainWindow
 {
+    private MotorSerialAutoFill.Result FillMotorSerialsFromSource(Slip slip)
+    {
+        // Reads only the configured source workbook, never writes it.
+        var production=EquipmentListReader.Load(_service.Settings);
+        return MotorSerialAutoFill.Fill(slip,production.Rows,_service.Slips);
+    }
+
+    private void PrintSlipWithMotorSerials(Slip slip)
+    {
+        // A printed copy includes serials from MÁY KÉO.xlsx even if the
+        // operator has not yet clicked Save. Printing itself does not
+        // alter the saved slip, delivery status or the source workbook.
+        var copy=ReferenceEquals(slip,_draft)?slip:WarehouseService.Clone(slip);
+        if(copy.Lines.Where(MotorSerials.IsMotor).Any(x=>
+            x.Quantity is null||x.Quantity<0||
+            x.Quantity!=decimal.Truncate(x.Quantity.Value)||x.Quantity>10000))
+        {
+            Notify("Phiếu có dòng máy kéo chưa rõ số lượng máy nguyên. "+
+                "Hãy kiểm tra số máy trên phiếu trước khi lấy serial và in.");
+            return;
+        }
+        var imported=FillMotorSerialsFromSource(copy);
+        if(imported.Missing>0)
+        {
+            // Never silently produce a motor handover without its serials.
+            // Only ambiguous/missing cases require a manual review.
+            if(!EditMotorSerials(copy,false))return;
+            var left=MotorSerials.BuildRows(copy).Count(x=>
+                string.IsNullOrWhiteSpace(x.SerialNumber));
+            if(left>0)
+            {
+                Notify("Phiếu còn "+left+" máy kéo thiếu serial. "+
+                    "Hãy kiểm tra MÁY KÉO.xlsx hoặc nhập đúng serial trước khi in.");
+                return;
+            }
+        }
+        PrintService.PreviewSlip(this,copy,FindTemplate(copy.TemplateId));
+    }
+
     private bool EditMotorSerials(Slip slip,bool requireAll)
     {
+        FillMotorSerialsFromSource(slip);
         var rows=MotorSerials.BuildRows(slip);
         if(rows.Count==0){slip.MotorSerials=[];if(!requireAll)Notify("Phiếu không có máy kéo đang chọn để bàn giao.");return true;}
         var dialog=new MotorSerialWindow(slip,_service.Slips,requireAll){Owner=this};
@@ -17,7 +57,7 @@ public partial class MainWindow
     {
         // Keep existing correctly matched serials; create blank entries for missing units.
         // Only the explicit Yes action waives the missing-serial requirement.
-        slip.MotorSerials=MotorSerials.BuildRows(slip);
+        var import=FillMotorSerialsFromSource(slip);
         MotorSerials.Validate(slip,_service.Slips,requireAll:false);
         var missing=slip.MotorSerials.Count(x=>string.IsNullOrWhiteSpace(x.SerialNumber));
         if(missing==0)
