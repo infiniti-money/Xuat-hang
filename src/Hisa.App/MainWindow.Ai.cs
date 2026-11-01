@@ -232,6 +232,13 @@ public partial class MainWindow
                 Commit(incoming);
                 ShowAiSchedules();
             }, true),
+            B("☑ Chọn tất cả cont Hưng Yên",()=>
+            {
+                Commit(incoming);
+                foreach(var line in doc.Arrivals)line.SelectedForArrival=true;
+                incoming.Items.Refresh();
+                saved.Text="Đã chọn "+doc.Arrivals.Count+" HĐ để đối chiếu kiện. CHƯA xác nhận hàng đã về hoặc ghi Excel.";
+            },true),
             B("Bỏ tích cont",()=>{foreach(var r in doc.Arrivals)r.SelectedForArrival=false;incoming.Items.Refresh();}),
             B("Xem bảng kiện nguồn",()=>ShowAiSchedules()),
             B("Trạng thái lịch xuất",()=>CycleSchedule(incoming))
@@ -284,6 +291,22 @@ public partial class MainWindow
                 view.Children.Add(T("THIẾT BỊ TỪ 3 DANH SÁCH SẢN XUẤT (CHỈ XEM)",14,true));
                 view.Children.Add(T("Tủ điện · Máy kéo · Đầu cửa car. Có tên trong danh sách KHÔNG xác nhận đã nhập kho; kiểm tra công trình/đơn vị trước khi dùng thông tin.",11,false,Muted));
                 view.Children.Add(equipmentGrid);
+                var machines=new MotorHungYenStore(_service.DataDirectory)
+                    .List(production.Rows.Where(x=>x.Category=="Máy kéo"));
+                var statuses=MayWarehouseAudit.MotorsFor(line,machines);
+                if(statuses.Count>0)
+                {
+                    var motorGrid=Table(statuses,
+                        ("Serial máy kéo","Serial",125),("Máy kéo","Material",165),
+                        ("Tình trạng làm","WorkStatus",135),
+                        ("Lịch xuất","PlannedWork",155),
+                        ("Ngày đã xuất (K)","DispatchDate",115),
+                        ("Ngày bàn giao","HandoverDate",112),
+                        ("Đối chiếu","Verification",240));
+                    motorGrid.IsReadOnly=true;motorGrid.MaxHeight=220;
+                    view.Children.Add(T("ĐỐI CHIẾU MÁY KÉO THEO SERIAL · CỘT K FILE MÁY KÉO.xlsx",14,true));
+                    view.Children.Add(motorGrid);
+                }
             }
             else if(_service.Settings.ElectricalCabinetListPath.Length+
                 _service.Settings.TractionMachineListPath.Length+
@@ -330,6 +353,30 @@ public partial class MainWindow
             dialogBody.Children.Add(allGrid);
             ShowDialogContent(title,dialogBody);
         }
+        void OpenMotorStatuses(List<AiScheduleLine> schedules,string title)
+        {
+            var catalog=Production();
+            var machines=new MotorHungYenStore(_service.DataDirectory)
+                .List(catalog.Rows.Where(x=>x.Category=="Máy kéo"));
+            var rows=schedules.SelectMany(x=>MayWarehouseAudit.MotorsFor(x,machines))
+                .GroupBy(x=>x.Contract+"|"+x.Project+"|"+x.Company+"|"+x.Serial+
+                    "|"+x.PlannedWork).Select(g=>g.First()).ToList();
+            var table=Table(rows,
+                ("Hợp đồng","Contract",110),("Công trình","Project",195),
+                ("Đơn vị","Company",130),("Serial","Serial",125),
+                ("Loại máy","Material",175),("Tình trạng làm","WorkStatus",125),
+                ("Lịch xuất","PlannedWork",150),
+                ("Ngày đã xuất (K)","DispatchDate",115),
+                ("Ngày bàn giao","HandoverDate",115),("Khớp nguồn","Verification",250));
+            table.IsReadOnly=true;
+            ShowDialogContent(title,Layout(Card(Stack(
+                T(title,17,true),
+                T(schedules.Count+" HĐ trong lịch · "+rows.Count+" máy kéo trong file. "+
+                  "Nếu sai công trình/đơn vị hoặc thiếu serial, phải đối chiếu trước khi xác nhận xuất. "+
+                  "Đã có lịch làm hoặc đã có LX KHÔNG chứng minh đã xuất thực tế.",12,false,Muted),
+                T(catalog.Warnings.Count==0?"Nguồn máy kéo đã đọc.":
+                    string.Join(" | ",catalog.Warnings),11,false,Muted))),table));
+        }
         void OpenEquipmentLists(List<AiScheduleLine> schedules,string title)
         {
             var catalog=Production();
@@ -356,12 +403,20 @@ public partial class MainWindow
         incomingBody.Children.Add(Row(
             B("▤ Xem 3 danh sách: tủ điện / máy kéo / đầu cửa car",
                 ()=>OpenEquipmentLists(doc.Arrivals,"Thiết bị của các HĐ cont dự kiến")),
-            B("▤ Xem toàn bộ vật tư cont dự kiến",()=>OpenAllMaterials(doc.Arrivals,"Vật tư các hợp đồng cont dự kiến về"))));
+            B("▤ Xem toàn bộ vật tư cont dự kiến",()=>OpenAllMaterials(doc.Arrivals,"Vật tư các hợp đồng cont dự kiến về")),
+            B("⚙ Đối chiếu serial / trạng thái máy kéo",()=>OpenMotorStatuses(doc.Arrivals,"Máy kéo các HĐ cont về"))));
         incomingBody.Children.Add(arrivalMaterials);
         UpdateMaterialDetail(incoming,arrivalMaterials);
 
         outgoingBody.Children.Add(T("Tích ô 'Làm phiếu' của các hợp đồng cần bàn giao. Sau khi đối chiếu vật tư, chỉ tạo phiếu CHỜ XUẤT, không tự đánh dấu Đã xuất.",12,false,Muted));
         outgoingBody.Children.Add(Row(
+            B("☑ Chọn tất cả HĐ xuất Hưng Yên",()=>
+            {
+                Commit(outgoing);
+                foreach(var line in doc.Dispatches)line.SelectedForHandover=true;
+                outgoing.Items.Refresh();
+                saved.Text="Đã chọn "+doc.Dispatches.Count+" HĐ dự kiến xuất để đối chiếu. CHƯA lập phiếu/ghi sổ xuất.";
+            },true),
             B("Bỏ tích làm phiếu",()=>{foreach(var r in doc.Dispatches)r.SelectedForHandover=false;outgoing.Items.Refresh();}),
             B("Trạng thái lịch xuất",()=>CycleSchedule(outgoing))
         ));
@@ -479,7 +534,8 @@ public partial class MainWindow
         outgoingBody.Children.Add(outgoing);
         outgoingBody.Children.Add(Row(
             B("▤ Xem 3 danh sách thiết bị",()=>OpenEquipmentLists(doc.Dispatches,"Thiết bị của các HĐ làm phiếu")),
-            B("▤ Xem toàn bộ vật tư HĐ bàn giao",()=>OpenAllMaterials(doc.Dispatches,"Vật tư các hợp đồng làm phiếu"))));
+            B("▤ Xem toàn bộ vật tư HĐ bàn giao",()=>OpenAllMaterials(doc.Dispatches,"Vật tư các hợp đồng làm phiếu")),
+            B("⚙ Đối chiếu máy kéo & ngày xuất",()=>OpenMotorStatuses(doc.Dispatches,"Máy kéo các HĐ dự kiến xuất"))));
         outgoingBody.Children.Add(dispatchMaterials);
         UpdateMaterialDetail(outgoing,dispatchMaterials);
         var tools = Card(Stack(
