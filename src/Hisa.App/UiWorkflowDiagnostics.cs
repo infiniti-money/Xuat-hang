@@ -74,8 +74,8 @@ public static class UiWorkflowDiagnostics
                     e.Header?.ToString()?.Contains("Tùy chọn nâng cao")==true &&
                     !e.IsExpanded),
                 "Secondary microphone, consent and TTS controls are collapsed by default");
-            Check(typeof(MainWindow).GetField("_geminiMicrophone",flags)?
-                    .GetValue(window) is GeminiMicrophoneRecorder recorder &&
+            Check(typeof(MainWindow).GetField("_geminiMicrophone",flags)?.
+                    GetValue(window) is GeminiMicrophoneRecorder recorder &&
                   !recorder.IsRecording,
                 "Merely opening Gemini Chat never starts microphone without an explicit click");
             Call("ShowSettings");
