@@ -1,5 +1,7 @@
+using System.IO;
 using System.Text;
 using System.Text.Json;
+using NAudio.Wave;
 
 namespace Hisa.App;
 
@@ -15,9 +17,19 @@ public static class GeminiAudioDiagnostics
             checks.Add("Gemini mic: "+name);
         }
 
-        var wav=new byte[64044]; // Test fixture only, not a microphone recording.
-        Encoding.ASCII.GetBytes("RIFF").CopyTo(wav,0);
-        Encoding.ASCII.GetBytes("WAVE").CopyTo(wav,8);
+        // Build a REAL WAV file, not just a fake RIFF prefix; this catches
+        // malformed headers that make Gemini silently fail to transcribe.
+        byte[] wav;
+        using(var stream=new MemoryStream())
+        {
+            using(var writer=new WaveFileWriter(stream,new WaveFormat(16000,16,1)))
+                writer.Write(new byte[64000],0,64000);
+            wav=stream.ToArray();
+        }
+        using(var reader=new WaveFileReader(new MemoryStream(wav)))
+            Check(reader.WaveFormat.SampleRate==16000 &&
+                  reader.WaveFormat.Channels==1 && reader.Length==64000,
+                "PCM capture finalizes correct WAV header and 2-second audio data");
         var json=GeminiAudioTranscriptionService.BuildRequestJson(wav);
         using(var body=JsonDocument.Parse(json))
         {
@@ -39,6 +51,16 @@ public static class GeminiAudioDiagnostics
         try {GeminiAudioTranscriptionService.BuildRequestJson(new byte[64044]);}
         catch(InvalidOperationException){invalid=true;}
         Check(invalid,"Non-WAV bytes are rejected before any request");
+        invalid=false;
+        try
+        {
+            var damaged=(byte[])wav.Clone();
+            // Keep the RIFF/WAVE prefix but remove the rest of the header.
+            Array.Clear(damaged,12,24);
+            GeminiAudioTranscriptionService.BuildRequestJson(damaged);
+        }
+        catch(InvalidOperationException){invalid=true;}
+        Check(invalid,"Truncated WAV fmt header cannot be silently sent to Gemini");
 
         invalid=false;
         try {GeminiAudioTranscriptionService.BuildRequestJson(new byte[GeminiAudioTranscriptionService.MaxWavBytes+1]);}

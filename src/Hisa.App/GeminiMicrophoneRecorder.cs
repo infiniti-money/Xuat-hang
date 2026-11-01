@@ -8,6 +8,8 @@ namespace Hisa.App;
 /// No microphone is opened until the user explicitly clicks and consents.
 /// No audio is written to disk; caller decides whether to upload the WAV.
 /// </summary>
+public sealed record MicrophoneSource(int Number,string Label);
+
 public sealed class GeminiMicrophoneRecorder : IDisposable
 {
     public const int MaximumSeconds = 25;
@@ -25,17 +27,34 @@ public sealed class GeminiMicrophoneRecorder : IDisposable
     private HandsFreeVoiceActivity? _activity;
     private readonly Queue<byte[]> _preRoll = new();
     private bool _disposed;
+    private int _levelTick;
+
+    public static IReadOnlyList<MicrophoneSource> AvailableMicrophones()
+    {
+        var available=new List<MicrophoneSource>
+        {
+            new(-1,"Windows mặc định (khuyên dùng)")
+        };
+        for(int i=0;i<WaveIn.DeviceCount;i++)
+        {
+            try {available.Add(new(i,i+": "+WaveIn.GetCapabilities(i).ProductName));}
+            catch { /* A disconnected driver should not hide other devices. */ }
+        }
+        return available;
+    }
 
     public bool IsRecording { get { lock (_gate) return _input != null; } }
 
-    public void Start(Action<byte[]> completed, Action<string> status) =>
-        StartCore(completed,status,false);
+    public void Start(Action<byte[]> completed, Action<string> status,int deviceNumber=-1) =>
+        StartCore(completed,status,false,deviceNumber,HandsFreeVoiceActivity.DefaultThreshold);
 
     /// <summary>Start VAD mode only after explicit hands-free session consent.</summary>
-    public void StartHandsFree(Action<byte[]> completed,Action<string> status) =>
-        StartCore(completed,status,true);
+    public void StartHandsFree(Action<byte[]> completed,Action<string> status,
+        int deviceNumber=-1,double threshold=HandsFreeVoiceActivity.DefaultThreshold) =>
+        StartCore(completed,status,true,deviceNumber,threshold);
 
-    private void StartCore(Action<byte[]> completed, Action<string> status,bool handsFree)
+    private void StartCore(Action<byte[]> completed, Action<string> status,bool handsFree,
+        int deviceNumber,double threshold)
     {
         ArgumentNullException.ThrowIfNull(completed);
         ArgumentNullException.ThrowIfNull(status);
@@ -45,10 +64,14 @@ public sealed class GeminiMicrophoneRecorder : IDisposable
             if (_input != null) throw new InvalidOperationException("Micro đang thu âm.");
             if (WaveIn.DeviceCount == 0)
                 throw new InvalidOperationException("Windows không tìm thấy micro. Kiểm tra System → Sound → Input.");
+            if(deviceNumber < -1 || deviceNumber >= WaveIn.DeviceCount)
+                throw new InvalidOperationException("Micro đã chọn không còn khả dụng. Chọn lại thiết bị đầu vào.");
 
             var input = new WaveInEvent
             {
-                DeviceNumber = 0,
+                // -1 = Windows input mapper. Device 0 may be a webcam or a
+                // disconnected headset instead of the actual default mic.
+                DeviceNumber = deviceNumber,
                 WaveFormat = new WaveFormat(Rate,16,1),
                 BufferMilliseconds = 100
             };
@@ -60,7 +83,8 @@ public sealed class GeminiMicrophoneRecorder : IDisposable
             _completed = completed; _status = status;
             _recorded = 0; _submit = false;
             _handsFree = handsFree;
-            _activity = handsFree ? new HandsFreeVoiceActivity() : null;
+            _activity = handsFree ? new HandsFreeVoiceActivity(threshold) : null;
+            _levelTick=0;
             _preRoll.Clear();
             try { input.StartRecording(); }
             catch
@@ -84,6 +108,13 @@ public sealed class GeminiMicrophoneRecorder : IDisposable
                 var detector=_activity!;
                 var wasSpeaking=detector.HasSpeech;
                 detector.Feed(e.Buffer.AsSpan(0,e.BytesRecorded));
+                if(++_levelTick%8==0 && !detector.HasSpeech)
+                {
+                    var db=20*Math.Log10(Math.Max(0.000001,detector.CurrentRms));
+                    _status?.Invoke("● Micro đang nghe · mức tín hiệu "+db.ToString("F0")+
+                        " dBFS · ngưỡng "+(20*Math.Log10(detector.Threshold)).ToString("F0")+
+                        " dBFS. Nếu nói mà mức tín hiệu không tăng, hãy chọn micro khác.");
+                }
                 if(!wasSpeaking)
                 {
                     // Keep only 300-400ms in memory to preserve initial consonants,
@@ -92,6 +123,7 @@ public sealed class GeminiMicrophoneRecorder : IDisposable
                     while(_preRoll.Count>4)_preRoll.Dequeue();
                     if(detector.HasSpeech)
                     {
+                        _status?.Invoke("● Đã phát hiện tiếng nói · đang ghi tới khi ngừng nói.");
                         foreach(var block in _preRoll)
                         {
                             var bytes=Math.Min(block.Length,MaximumSeconds*BytesPerSecond-_recorded);
@@ -113,6 +145,14 @@ public sealed class GeminiMicrophoneRecorder : IDisposable
             }
             else
             {
+                if(++_levelTick%8==0)
+                {
+                    var rms=HandsFreeVoiceActivity.MeasureRms(
+                        e.Buffer.AsSpan(0,e.BytesRecorded));
+                    var db=20*Math.Log10(Math.Max(0.000001,rms));
+                    _status?.Invoke("Kiểm tra micro: mức tín hiệu "+db.ToString("F0")+
+                        " dBFS · Nói và xem chỉ số có tăng không.");
+                }
                 var length=Math.Min(e.BytesRecorded,MaximumSeconds*BytesPerSecond-_recorded);
                 if(length>0){_writer.Write(e.Buffer,0,length);_recorded+=length;}
                 if(_recorded>=MaximumSeconds*BytesPerSecond)
@@ -158,7 +198,7 @@ public sealed class GeminiMicrophoneRecorder : IDisposable
             count = _recorded;
             _input = null; _writer = null; _buffer = null;
             _completed = null; _status = null; _submit = false; _recorded = 0;
-            _handsFree = false; _activity = null; _preRoll.Clear();
+            _handsFree = false; _activity = null; _preRoll.Clear(); _levelTick=0;
         }
         try
         {

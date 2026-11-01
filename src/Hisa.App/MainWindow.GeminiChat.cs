@@ -106,6 +106,27 @@ public partial class MainWindow
 
         var send=B("➤  Gửi câu hỏi",()=>{ },true);
         var activity=T("Sẵn sàng. Mỗi câu hỏi cần Internet và hạn mức Gemini API.",11,false,Muted);
+        var micSources=GeminiMicrophoneRecorder.AvailableMicrophones();
+        var micSelector=new ComboBox
+        {
+            Width=290,ItemsSource=micSources,
+            DisplayMemberPath=nameof(MicrophoneSource.Label),
+            SelectedValuePath=nameof(MicrophoneSource.Number),SelectedValue=-1,
+            ToolTip="Mặc định dùng micro của Windows. Nếu tín hiệu không tăng khi nói, chọn thiết bị khác."
+        };
+        var sensitivitySelector=new ComboBox
+        {
+            Width=160,DisplayMemberPath="Label",SelectedValuePath="Value",
+            ItemsSource=new[]
+            {
+                new {Label="Cao (mic nhỏ)",Value=0.002},
+                new {Label="Vừa (mặc định)",Value=0.0045},
+                new {Label="Thấp (nơi ồn)",Value=0.010}
+            },
+            SelectedValue=0.0045
+        };
+        int SelectedMicrophone()=>micSelector.SelectedValue is int n?n:-1;
+        double SelectedSensitivity()=>sensitivitySelector.SelectedValue is double v?v:0.0045;
         var autoVoice=new CheckBox{Content="Tự đọc câu trả lời bằng loa hệ thống",
             IsChecked=_geminiChatAutoSpeak};
         autoVoice.Checked+=(_,_)=>_geminiChatAutoSpeak=true;
@@ -125,7 +146,8 @@ public partial class MainWindow
                     message=>Dispatcher.BeginInvoke(new Action(()=>
                     {
                         if(HandsFreeCurrent(session))activity.Text=message;
-                    })));
+                    })),
+                    SelectedMicrophone(),SelectedSensitivity());
                 activity.Text="● RẢNH TAY ĐANG NGHE · Nói tiếng Việt. HISA tự dừng sau khi bạn im lặng; bấm Tắt rảnh tay để ngừng.";
             }
             catch(Exception ex)
@@ -321,7 +343,8 @@ public partial class MainWindow
             try
             {
                 _geminiMicrophone.Start(OnRecorded,
-                    message=>Dispatcher.BeginInvoke(new Action(()=>activity.Text=message)));
+                    message=>Dispatcher.BeginInvoke(new Action(()=>activity.Text=message)),
+                    SelectedMicrophone());
                 activity.Text="● ĐANG THU micro (tối đa 25 giây). Nói tiếng Việt, rồi bấm 'Dừng và nhận dạng'.";
             }
             catch(Exception ex)
@@ -329,6 +352,34 @@ public partial class MainWindow
                 activity.Text="Không mở được micro: "+ex.Message+
                     " · Kiểm tra Windows Settings → Privacy & security → Microphone "+
                     "và System → Sound → Input.";
+            }
+        });
+        var testMic=B("🔎 Thử micro (không gửi)",()=>
+        {
+            if(_geminiHandsFreeActive || _geminiMicrophone.IsRecording)
+            {
+                activity.Text="Tắt rảnh tay hoặc dừng thu hiện tại trước khi thử micro.";
+                return;
+            }
+            if(!_geminiMicrophoneConsent &&
+                !Ask("CHO PHÉP THỬ MICRO?\n\nHISA sẽ thu âm vào bộ nhớ RAM "+
+                    "để hiển thị mức tín hiệu dBFS. Bản ghi thử KHÔNG gửi cho Gemini "+
+                    "và không lưu ra ổ đĩa. Nhấn Hủy micro để kết thúc."))
+            {
+                activity.Text="Bạn chưa cho phép thử micro.";
+                return;
+            }
+            _geminiMicrophoneConsent=true;
+            try
+            {
+                _geminiMicrophone.Start(wav=>Array.Clear(wav),
+                    message=>Dispatcher.BeginInvoke(new Action(()=>activity.Text=message)),
+                    SelectedMicrophone());
+                activity.Text="Đang thử micro, hãy nói. Nếu tín hiệu không tăng, chọn thiết bị khác. Bấm Hủy micro để dừng. Không gửi Gemini.";
+            }
+            catch(Exception ex)
+            {
+                activity.Text="Không thể thử micro: "+ex.Message;
             }
         });
         var transcribe=B("✓  Dừng và nhận dạng",()=>
@@ -537,9 +588,11 @@ public partial class MainWindow
             Row(T("✦  GEMINI CHAT  /  TRỢ LÝ HISA",19,true),
                 B("⚙  Gemini API Key",()=>Navigate("settings")),
                 B("Xóa hội thoại",ClearChat)),
-            T("RẢNH TAY: sau khi bạn đồng ý bật chế độ, HISA tự phát hiện bạn ngừng nói, tự gửi âm thanh từng lượt đến Gemini và phát câu trả lời qua loa. Micro tắt trong lúc phát loa và chỉ nghe tiếp sau khi loa kết thúc. Bấm nút Rảnh tay lần nữa hoặc Hủy để dừng ngay. Chế độ thu thủ công vẫn hỏi xác nhận từng lượt. AI không tự ghi Excel.",12,false,Muted),
+            T("Kiểm tra micro trước: chọn Windows mặc định hoặc đúng thiết bị, bấm Thử micro (không gửi) rồi nói. Mức dBFS phải tăng rõ rệt; nếu không tăng, kiểm tra Windows hoặc chọn thiết bị khác. Chế độ RẢNH TAY chỉ thu và gửi âm thanh tới Gemini sau khi bạn đồng ý, tự nghe → trả lời → nghe tiếp. AI không tự ghi Excel.",12,false,Muted),
             contextToggle,privacyNote,autoVoice,
-            Row(handsFree,listen,transcribe,speak,stopVoice,privacySettings),
+            Row(Field("Thiết bị micro",micSelector),Field("Độ nhạy rảnh tay",sensitivitySelector)),
+            Row(testMic,privacySettings),
+            Row(handsFree,listen,transcribe,speak,stopVoice),
             T("Chỉ bật chia sẻ dữ liệu khi muốn tra cứu hợp đồng, vật tư hoặc kế hoạch thực tế từ HISA.",11,false,Muted)
         ));
         var bottom=Card(Stack(

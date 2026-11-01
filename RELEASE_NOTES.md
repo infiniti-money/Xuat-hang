@@ -1,3 +1,15 @@
+## HISA v1.9.24 — Chẩn đoán micro tiếng Việt và sửa lỗi không phát hiện giọng nói
+
+- Chọn micro **Windows mặc định (audio mapper -1)** thay vì cưỡng ép thiết bị số 0. Khi Windows có nhiều mic, người sử dụng có thể chọn đúng thiết bị từ danh sách.
+- Thêm nút **Thử micro (không gửi)**: xin phép trước khi mở, đọc mức tín hiệu dBFS khi nói; không gọi Gemini và không lưu WAV ra đĩa. Hủy để dừng.
+- Thêm độ nhạy **Cao / Vừa / Thấp** của chế độ rảnh tay. Giảm ngưỡng mặc định để nhận tiếng nói trên microphone có gain thấp. Tính 1,2 giây im lặng theo số mẫu PCM, thay vì số lần callback driver.
+- Trong chế độ rảnh tay, hiện mức âm thanh đầu vào và ngưỡng phát hiện để phân biệt 'mic không nhận âm thanh' với lỗi Gemini qua mạng/API.
+- Trước khi gửi Gemini, kiểm tra WAV chứa header RIFF đúng và PCM 16kHz, mono, 16-bit; từ chối bản ghi hỏng thay vì gửi âm thanh vô hiệu.
+- Không thay đổi chính sách quyền: chỉ thu micro khi bật, có xác nhận rõ ràng cho phiên rảnh tay, không tự sửa Excel; tắt micro khi chuyển trang hoặc tắt chế độ.
+- Kiểm thử tự động âm thanh mềm, buffer dài ngắn khác nhau, định dạng WAV thật, thiếu thiết bị, giới hạn tải. **CI không thể chứng minh mic và Gemini trên máy người sử dụng đã hoạt động; người dùng cần thử thực tế.**
+
+---
+
 ## HISA v1.9.23 — Trò chuyện giọng nói rảnh tay bằng Gemini
 
 - **Bật rảnh tay** có hộp thoại đồng ý rõ ràng: micro được mở trong phiên, từng lượt giọng nói được **tự động gửi cho Google Gemini** để nhận dạng và tự động gửi lời nói đã nhận dạng làm câu hỏi. Không hỏi lại từng lượt sau khi người sử dụng bật.

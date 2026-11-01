@@ -1,4 +1,6 @@
+using System.IO;
 using System.Net.Http;
+using NAudio.Wave;
 using System.Text;
 using System.Text.Json;
 
@@ -23,7 +25,26 @@ public static class GeminiAudioTranscriptionService
                 "Bản ghi âm quá ngắn hoặc quá dài. Chỉ thu tối đa 25 giây.");
         if(wav.Length<12 || Encoding.ASCII.GetString(wav,0,4)!="RIFF" ||
             Encoding.ASCII.GetString(wav,8,4)!="WAVE")
-            throw new InvalidOperationException("Định dạng ghi âm không hợp lệ (cần WAV).");
+            throw new InvalidOperationException("Dữ liệu mic không phải file WAV hợp lệ.");
+        // Validate the actual RIFF chunks, not only the four-character signature.
+        // WAV produced on the user's Windows machine must be a complete 16kHz
+        // mono PCM capture; corrupted headers can make Gemini see no speech.
+        try
+        {
+            using var input=new MemoryStream(wav,false);
+            using var reader=new WaveFileReader(input);
+            var fmt=reader.WaveFormat;
+            if(fmt.Encoding!=WaveFormatEncoding.Pcm || fmt.SampleRate!=16000 ||
+               fmt.Channels!=1 || fmt.BitsPerSample!=16 || reader.Length<6400)
+                throw new InvalidOperationException(
+                    "Micro đã trả WAV không đúng định dạng 16kHz/16bit/mono. Hãy chọn micro khác.");
+        }
+        catch(Exception ex) when(ex is FormatException or InvalidDataException or
+            EndOfStreamException or NotSupportedException)
+        {
+            throw new InvalidOperationException(
+                "Dữ liệu micro bị lỗi hoặc header WAV chưa hoàn chỉnh. Hãy thử micro khác.");
+        }
         var parts=new object[]
         {
             new { text="Chép chính xác câu nói tiếng Việt trong âm thanh thành văn bản. " +

@@ -49,6 +49,31 @@ public static class HandsFreeVoiceDiagnostics
         Check(tracker.Finished,"Sustained silence ends a spoken turn");
         tracker.Feed(loud);
         Check(tracker.Finished,"Completed turn stays complete without implicit restart");
+
+        var soft=Frame(180); // -45.2 dBFS: previously under the -35 dBFS gate.
+        var normal=new HandsFreeVoiceActivity();
+        normal.Feed(soft);normal.Feed(soft);
+        Check(normal.HasSpeech,"Normal sensitivity detects quiet speech on lower-gain microphones");
+        var sensitive=new HandsFreeVoiceActivity(0.002);
+        sensitive.Feed(quiet);sensitive.Feed(quiet);
+        Check(sensitive.HasSpeech,"High sensitivity can recognize very quiet microphone input");
+        var noiseResistant=new HandsFreeVoiceActivity(0.010);
+        noiseResistant.Feed(soft);noiseResistant.Feed(soft);
+        Check(!noiseResistant.HasSpeech,"Low sensitivity does not treat soft background noise as speech");
+        var variableFrames=new HandsFreeVoiceActivity();
+        var twoHundredMillis=new byte[6400];
+        for(int i=0;i<twoHundredMillis.Length;i+=2)
+        {
+            twoHundredMillis[i]=loud[0];
+            twoHundredMillis[i+1]=loud[1];
+        }
+        variableFrames.Feed(twoHundredMillis);
+        Check(variableFrames.HasSpeech,"VAD onset is sample-based even for 200ms driver callbacks");
+        for(int i=0;i<6;i++)variableFrames.Feed(new byte[6400]);
+        Check(variableFrames.Finished,"VAD ends after 1.2 seconds of silence regardless of buffer size");
+        Check(HandsFreeVoiceActivity.MeasureRms(loud)>0.05 &&
+              HandsFreeVoiceActivity.MeasureRms(quiet)<0.005,
+            "Microphone dBFS diagnostics come from raw PCM without uploading");
         return checks;
     }
 }
