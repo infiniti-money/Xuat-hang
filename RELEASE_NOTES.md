@@ -1,3 +1,12 @@
+## HISA v1.9.32 — Serial máy kéo nhập tay ghi ngược MÁY KÉO.xlsx
+
+- Khi lập hoặc in phiếu xuất/bàn giao, HISA **tự tra serial từ MÁY KÉO.xlsx theo HĐ, công trình, đơn vị, model và số máy**. Nếu không tìm thấy đủ serial, ứng dụng **thông báo số máy thiếu** và mở bảng cho người vận hành **nhập serial tay**.
+- Sau khi người vận hành bấm xác nhận trong bảng serial, HISA **đề nghị ghi các serial vừa nhập vào cột I của file MÁY KÉO.xlsx** với danh sách đối chiếu serial → dòng Excel cụ thể; chỉ khi người vận hành xác nhận thì mới ghi nguồn. Serial cũng được lưu trong phiếu để in.
+- Chỉ ghi vào **ô serial đang trống** khi đủ HĐ + công trình + công ty + model, khớp duy nhất số máy với đúng số dòng nguồn (mỗi dòng một máy). Không tự thêm dòng, không đổi trạng thái cột K, không bịa serial, không lấy nhầm công trình T1/T2, không ghi đè serial khác/công thức hoặc file Excel đang mở; tự sao lưu nguồn và kiểm tra trước khi thay file. Nguồn quá mơ hồ sẽ báo không thể ghi an toàn để người dùng sửa cấu trúc/serial trong file gốc.
+- Đã bổ sung kiểm thử workbook XLSX thật: ghi serial vào cột I, không chạm công thức/cột K, khác công trình và serial trùng bị chặn, tạo bản backup, chạy lại không ghi trùng.
+- Ngoài ra, **Máy kéo gia công tại Hưng Yên** có bộ lọc trạng thái dạng ô thống kê bấm được, tô màu từng dòng, tìm hợp đồng/serial và hành động xác nhận Đã làm xong/Chưa làm ngay trên trang; **Cấu hình Mây Mây** có thử Gemini, thử giọng, chọn micro, độ nhạy, tự đọc loa, quyền chia sẻ dữ liệu và quyền micro riêng biệt, lưu tùy chọn qua cập nhật.
+
+---
 ## HISA v1.9.32 — Máy kéo trực quan; Trung tâm cấu hình Mây Mây đầy đủ hơn
 
 - Trang **Máy kéo gia công tại Hưng Yên** có năm ô thống kê bấm được: Tổng số máy / Chưa gửi / Đang gia công / Đã làm xong / Đã bàn giao. Nhấp một ô lọc ngay theo tình trạng; nhấp hợp đồng rồi chọn máy đúng serial. Có bộ lọc tìm trực tiếp HĐ, công trình, máy và serial; nút Bỏ lọc HĐ; bảng dòng máy tô màu nhẹ theo trạng thái.
