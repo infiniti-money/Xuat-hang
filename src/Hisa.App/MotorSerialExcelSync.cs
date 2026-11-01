@@ -173,9 +173,13 @@ public static class MotorSerialExcelSync
                         guard.Position=0;
                         guard.CopyTo(backupStream);
                     }
-                    book.SaveAs(tmp,new SaveOptions{
-                        EvaluateFormulasBeforeSaving=false,GenerateCalculationChain=false});
                 }
+                // ClosedXML may re-open the original internally when saving a
+                // workbook to a new path; do not retain an exclusive source
+                // handle while calling SaveAs. We verify the source again
+                // afterwards before replacing it.
+                book.SaveAs(tmp,new SaveOptions{
+                    EvaluateFormulasBeforeSaving=false,GenerateCalculationChain=false});
                 // Never replace the original if Excel or another writer has
                 // opened it after we released the verification lock.
                 using(var guard=new FileStream(full,FileMode.Open,FileAccess.ReadWrite,FileShare.None))
