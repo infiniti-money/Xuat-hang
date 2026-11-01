@@ -47,9 +47,9 @@ public static class GeminiAudioTranscriptionService
         }
         var parts=new object[]
         {
-            new { text="Chép chính xác câu nói tiếng Việt trong âm thanh thành văn bản. " +
+            new { text="Nhận dạng tiếng nói với ngôn ngữ ưu tiên vi-VN. Luôn CHÉP bằng tiếng Việt có dấu chuẩn, không trả kết quả bằng tiếng Anh, không dịch lời nói. " +
                 "Giữ nguyên số hợp đồng, tên dự án và chữ viết tắt (HISA, cont, T1, T2, Hưng Yên). " +
-                "Không tự thêm dữ liệu hoặc trả lời câu hỏi. Chỉ xuất nội dung lời nói." },
+                "Không tự thêm dữ liệu hoặc trả lời câu hỏi. Chỉ xuất câu đã nói bằng tiếng Việt có dấu." },
             new { inline_data=new { mime_type=MimeType, data=Convert.ToBase64String(wav) } }
         };
         var payload=new

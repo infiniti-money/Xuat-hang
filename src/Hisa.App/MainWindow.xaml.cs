@@ -735,6 +735,14 @@ public partial class MainWindow : Window
             await _service.SaveSettingsAsync(model);await _service.RefreshAsync(true);Notify("Đã lưu cấu hình nguồn.");ShowSettings();
         },true),A("Sao lưu vào Thư viện",async()=>{var path=System.IO.Path.Combine(_service.BackupDirectory,$"HISA-sao-luu-{DateTime.Now:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}.zip");await _service.BackupAsync(path);Notify("Đã sao lưu vào Thư viện → Tài liệu:\n"+path);}),A("Phục hồi từ ZIP",RestoreFromZipAsync),B("Mở thư mục Backup",()=>System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(_service.BackupDirectory){UseShellExecute=true})),B("Mở thư mục dữ liệu",()=>System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(_service.DataDirectory){UseShellExecute=true}))));
         p.Children.Add(GeminiSettingsCard());
+        p.Children.Add(Card(Stack(
+            T("CẬP NHẬT PHẦN MỀM",18,true),
+            T("Nhấn Kiểm tra và tải nền: HISA tự tìm bản mới trên GitHub, tải về và kiểm tra SHA-256. Khi sẵn sàng, ứng dụng hỏi bạn có muốn đóng HISA để cài đặt hay không. Windows UAC vẫn có thể yêu cầu quyền quản trị.",12,false,Muted),
+            T(AutoUpdater.ReadyVersion is string staged?
+                "Bộ cài phiên bản "+staged+" đã tải xong và xác minh.":"Đang dùng HISA "+SoftwareInfo.Version,12,true),
+            Row(B("↑ Kiểm tra, tải nền và cập nhật",()=>_ = CheckDownloadAndOfferUpdateAsync(),true),
+                B("Lịch sử & nhật ký cập nhật",()=>Navigate("information")))
+        )));
         p.Children.Add(Alert($"Dữ liệu ứng dụng: {_service.DataDirectory}\nSao lưu (ZIP và Excel): {_service.BackupDirectory}\nCác bản sao lưu cũ tại nguồn sẽ được giữ nguyên."));
         SetPage("Cấu hình & sao lưu","Gemini AI · lưu / xóa API Key · đồng bộ dữ liệu Excel · sao lưu",new ScrollViewer{Content=p,VerticalScrollBarVisibility=ScrollBarVisibility.Auto});
     }
