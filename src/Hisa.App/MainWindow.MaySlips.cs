@@ -18,7 +18,7 @@ public partial class MainWindow
         var schedules=AiScheduleWorkspace.RecentApproved(_service.DataDirectory);
         var candidates=schedules.SelectMany(d=>(d.Dispatches??[])
             .Where(x=>(string.IsNullOrWhiteSpace(x.PlannedDate)?
-                d.DispatchDate:x.PlannedDate)==request.Day && !x.NeedsReview))
+                d.DispatchDate:x.PlannedDate)==request.Day && !x.NeedsReview)
             .Select(x=>Rules.Contract(x.Contract)))
             .Where(x=>x.Length>=6 && x.Length<=20)
             .Distinct(StringComparer.Ordinal)
