@@ -27,18 +27,25 @@ public sealed class HandsFreeVoiceActivity
         _threshold=threshold;
     }
 
-    public void Feed(ReadOnlySpan<byte> pcm)
+    public static double MeasureRms(ReadOnlySpan<byte> pcm)
     {
-        if(Finished || pcm.Length<2)return;
+        if(pcm.Length<2)return 0;
         double energy=0;
-        int count=pcm.Length/2;
+        var count=pcm.Length/2;
         for(int n=0;n<count;n++)
         {
             var sample=(short)(pcm[n*2]|(pcm[n*2+1]<<8));
             var amplitude=sample/32768.0;
             energy+=amplitude*amplitude;
         }
-        CurrentRms=Math.Sqrt(energy/count);
+        return Math.Sqrt(energy/count);
+    }
+
+    public void Feed(ReadOnlySpan<byte> pcm)
+    {
+        if(Finished || pcm.Length<2)return;
+        CurrentRms=MeasureRms(pcm);
+        var count=pcm.Length/2;
         var voice=CurrentRms>=_threshold;
         if(!HasSpeech)
         {
