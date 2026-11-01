@@ -70,19 +70,19 @@ public partial class MainWindow
         Closed+=(_,_)=>DisposeMayBackground();
     }
 
-    private static Icon ReadMayTrayIcon()
+    private static System.Drawing.Icon ReadMayTrayIcon()
     {
         try
         {
             var path=Environment.ProcessPath;
             if(!string.IsNullOrEmpty(path))
             {
-                using var associated=Icon.ExtractAssociatedIcon(path);
-                if(associated!=null)return (Icon)associated.Clone();
+                using var associated=System.Drawing.Icon.ExtractAssociatedIcon(path);
+                if(associated!=null)return (System.Drawing.Icon)associated.Clone();
             }
         }
         catch (Exception) { /* Use a neutral OS fallback; no image downloads. */ }
-        return (Icon)SystemIcons.Application.Clone();
+        return (System.Drawing.Icon)SystemIcons.Application.Clone();
     }
 
     private void UpdateMayTrayStatus()
