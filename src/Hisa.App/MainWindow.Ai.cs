@@ -235,11 +235,11 @@ public partial class MainWindow
             B("☑ Chọn tất cả cont Hưng Yên",()=>
             {
                 Commit(incoming);
-                foreach(var line in doc.Arrivals)line.SelectedForArrival=true;
+                AiScheduleBulkSelection.SetAll(doc,true,true);
                 incoming.Items.Refresh();
                 saved.Text="Đã chọn "+doc.Arrivals.Count+" HĐ để đối chiếu kiện. CHƯA xác nhận hàng đã về hoặc ghi Excel.";
             },true),
-            B("Bỏ tích cont",()=>{foreach(var r in doc.Arrivals)r.SelectedForArrival=false;incoming.Items.Refresh();}),
+            B("Bỏ tích cont",()=>{AiScheduleBulkSelection.SetAll(doc,true,false);incoming.Items.Refresh();}),
             B("Xem bảng kiện nguồn",()=>ShowAiSchedules()),
             B("Trạng thái lịch xuất",()=>CycleSchedule(incoming))
         ));
@@ -413,11 +413,11 @@ public partial class MainWindow
             B("☑ Chọn tất cả HĐ xuất Hưng Yên",()=>
             {
                 Commit(outgoing);
-                foreach(var line in doc.Dispatches)line.SelectedForHandover=true;
+                AiScheduleBulkSelection.SetAll(doc,false,true);
                 outgoing.Items.Refresh();
                 saved.Text="Đã chọn "+doc.Dispatches.Count+" HĐ dự kiến xuất để đối chiếu. CHƯA lập phiếu/ghi sổ xuất.";
             },true),
-            B("Bỏ tích làm phiếu",()=>{foreach(var r in doc.Dispatches)r.SelectedForHandover=false;outgoing.Items.Refresh();}),
+            B("Bỏ tích làm phiếu",()=>{AiScheduleBulkSelection.SetAll(doc,false,false);outgoing.Items.Refresh();}),
             B("Trạng thái lịch xuất",()=>CycleSchedule(outgoing))
         ));
 
