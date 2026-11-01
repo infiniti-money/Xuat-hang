@@ -145,6 +145,14 @@ public sealed class GeminiMicrophoneRecorder : IDisposable
             }
             else
             {
+                if(++_levelTick%8==0)
+                {
+                    var rms=HandsFreeVoiceActivity.MeasureRms(
+                        e.Buffer.AsSpan(0,e.BytesRecorded));
+                    var db=20*Math.Log10(Math.Max(0.000001,rms));
+                    _status?.Invoke("Kiểm tra micro: mức tín hiệu "+db.ToString("F0")+
+                        " dBFS · Nói và xem chỉ số có tăng không.");
+                }
                 var length=Math.Min(e.BytesRecorded,MaximumSeconds*BytesPerSecond-_recorded);
                 if(length>0){_writer.Write(e.Buffer,0,length);_recorded+=length;}
                 if(_recorded>=MaximumSeconds*BytesPerSecond)
