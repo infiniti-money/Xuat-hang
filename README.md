@@ -1,3 +1,13 @@
+## HISA v1.9.25 — Gemini trả lời/đọc tiếng Việt và cập nhật nền
+
+- Gemini Chat gửi **ràng buộc vi-VN rõ ràng** cả trong hướng dẫn và từng câu hỏi; nhận dạng mic ưu tiên tiếng Việt có dấu. Nội dung hợp đồng, mã kỹ thuật giữ nguyên.
+- Giọng trả lời qua loa nay dùng **Gemini Vietnamese TTS** (giọng nữ Leda), phát WAV trong RAM. Không dùng giọng mặc định tiếng Anh của Windows khi máy chưa có SAPI vi-VN. Tính năng này cần Internet, Gemini API Key và hạn mức Gemini TTS; nếu không hỗ trợ, hiển thị lỗi mà không tự phát giọng tiếng Anh.
+- Không bật micro chỉ vì mở HISA. **Quyền thu và gửi âm thanh** được trình bày đầy đủ trong một ô đồng ý tại Gemini Chat, mặc định tắt, có thể thu hồi; sau khi chấp thuận thì các lần bật micro hoặc rảnh tay không còn hộp thoại lặp lại. Chế độ rảnh tay vẫn tự gửi từng lượt nói đến Google Gemini khi đang bật.
+- Bấm **Cập nhật** trên thanh trên cùng hoặc tại Cấu hình & sao lưu sẽ kiểm tra bản chính thức, **tải nền**, giữ ứng dụng hoạt động, xác minh SHA-256, sau đó mới hỏi có đóng HISA và cài đặt hay không. Chọn Không thì giữ bộ cài đã xác minh và có thể làm việc tiếp; chọn Có thì bộ cài được mở sau khi tiến trình HISA giải phóng Excel. Windows UAC có thể vẫn hiện.
+- Kiểm thử cấu hình TTS, giải mã audio WAV, chính sách quyền mic và kịch bản cập nhật; CI không thể kiểm thử phần cứng loa/micro hoặc quota API Key của người dùng.
+
+---
+
 ## HISA v1.9.24 — Chẩn đoán micro tiếng Việt và sửa lỗi không phát hiện giọng nói
 
 - Chọn micro **Windows mặc định (audio mapper -1)** thay vì cưỡng ép thiết bị số 0. Khi Windows có nhiều mic, người sử dụng có thể chọn đúng thiết bị từ danh sách.
