@@ -41,7 +41,7 @@ public static class GeminiVietnameseTts
                             annotations=new[]
                             {
                                 new {type="speech_metadata",
-                                    style="Speak naturally in Vietnamese (vi-VN) with a clear youthful female voice."}
+                                    style="Speak VERBATIM in Vietnamese (vi-VN), as a gentle, warm young adult female Vietnamese speaker called Mây Mây. Use a natural Southern Vietnam (miền Nam, Sài Gòn) accent, with soft, calm and friendly intonation, a moderate unhurried pace and clear pronunciation. Do not change the words or speak English."}
                             }
                         }
                     }

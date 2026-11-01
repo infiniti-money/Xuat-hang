@@ -27,8 +27,8 @@ public partial class MainWindow
     {
         _geminiHandsFreeActive=false;
         if(_geminiHandsFreeToggle!=null)
-            _geminiHandsFreeToggle.Content="🎙 Nói với HISA";
-        TopVoiceButton.Content="🎙 Nói với HISA";
+            _geminiHandsFreeToggle.Content="🎙 Nói với Mây";
+        TopVoiceButton.Content="🎙 Nói với Mây";
         _geminiHandsFreeSession++;
         var cts=_geminiHandsFreeCancellation;
         _geminiHandsFreeCancellation=null;
@@ -65,7 +65,7 @@ public partial class MainWindow
                 BorderBrush=Brush(assistant?"#DAE6EE":"#BFE8E1"),
                 BorderThickness=new Thickness(1),
                 Child=Stack(
-                    T(assistant?"✦ GEMINI · TRỢ LÝ HISA":"ANH",11,true,Brush(assistant?"#1A8C92":"#307866")),
+                    T(assistant?"✦ MÂY MÂY · TRỢ LÝ HISA":"ANH",11,true,Brush(assistant?"#1A8C92":"#307866")),
                     new TextBlock {
                         Text=content,TextWrapping=TextWrapping.Wrap,
                         Foreground=Brush("#19394D"),FontSize=13.5,
@@ -78,9 +78,9 @@ public partial class MainWindow
 
         if(_geminiChatHistory.Count==0)
         {
-            Bubble("model","Xin chào! Tôi có thể trò chuyện bằng tiếng Việt, giải thích quy trình xuất hàng, " +
-                "tra cứu số hợp đồng và phân tích vật tư trong HISA khi anh bật chia sẻ dữ liệu kho. " +
-                "Tôi chỉ tư vấn, không tự nhập kho hay xác nhận xuất hàng.");
+            Bubble("model","Dạ, Mây chào anh! Cứ gọi Mây hoặc Mây Mây nha. "+
+                "Mây có thể trò chuyện bằng tiếng Việt, xem lịch cont và lịch xuất trong HISA, "+
+                "và giúp lên phiếu xuất nháp để anh kiểm tra, duyệt. Mây không tự lưu phiếu hay ghi Excel đâu ạ.");
         }
         else foreach(var item in _geminiChatHistory) Bubble(item.Role,item.Text);
 
@@ -229,13 +229,13 @@ public partial class MainWindow
         }
 
         Button? handsFree=null;
-        handsFree=B("🎙 Nói với HISA",()=>
+        handsFree=B("🎙 Nói với Mây",()=>
         {
             if(_geminiHandsFreeActive)
             {
                 StopHandsFreeSession();
-                handsFree!.Content="🎙 Nói với HISA";
-                activity.Text="○ ĐÃ DỪNG HISA · micro và loa đã tắt. Bấm Nói với HISA để tiếp tục.";
+                handsFree!.Content="🎙 Nói với Mây";
+                activity.Text="○ ĐÃ DỪNG HISA · micro và loa đã tắt. Bấm Nói với Mây để tiếp tục.";
                 return;
             }
             if(_geminiChatSending||_geminiChatTranscribing||_geminiMicrophone.IsRecording)
@@ -258,7 +258,7 @@ public partial class MainWindow
                 // either can later be revoked in Advanced options.
                 if(MessageBox.Show(this,
                     "BẬT TRỢ LÝ HISA RẢNH TAY?\n\n"+
-                    "• Khi bạn bấm Nói với HISA, micro sẽ mở trong phiên hiện tại. "+
+                    "• Khi bạn bấm Nói với Mây, micro sẽ mở trong phiên hiện tại. "+
                     "Mỗi đoạn nói được tự động gửi đến Google Gemini qua Internet "+
                     "để nhận dạng và hỏi đáp tiếng Việt; Gemini phát trả lời qua loa.\n"+
                     "• Đồng thời cho phép gửi tóm tắt dữ liệu HISA liên quan "+
@@ -299,8 +299,8 @@ public partial class MainWindow
             _geminiHandsFreeCancellation=new CancellationTokenSource();
             _geminiHandsFreeActive=true;
             int session=++_geminiHandsFreeSession;
-            handsFree!.Content="⏹ Dừng HISA";
-            TopVoiceButton.Content="⏹ Dừng HISA";
+            handsFree!.Content="⏹ Dừng Mây";
+            TopVoiceButton.Content="⏹ Dừng Mây";
             StartHandsFreeListening(session);
         });
         _geminiHandsFreeToggle=handsFree;
@@ -472,11 +472,11 @@ public partial class MainWindow
             if(_geminiHandsFreeActive)
             {
                 StopHandsFreeSession();
-                handsFree!.Content="🎙 Nói với HISA";
+                handsFree!.Content="🎙 Nói với Mây";
             }
             _geminiChatHistory.Clear();
             messages.Children.Clear();
-            Bubble("model","Bắt đầu cuộc trò chuyện mới. Tôi chỉ tư vấn và không thay đổi dữ liệu kho.");
+            Bubble("model","Dạ, Mây đây ạ. Mây sẵn sàng xem lịch và soạn phiếu nháp để anh duyệt nha.");
             activity.Text="Đã xóa lịch sử trò chuyện trong phiên này.";
         }
 
@@ -572,6 +572,33 @@ public partial class MainWindow
                     _geminiChatHistory.RemoveRange(0,_geminiChatHistory.Count-24);
                 Bubble("user",userText);
                 Bubble("model",reply);
+                // Extract intents only from the user's own utterance, never
+                // from Gemini output or untrusted workbook/schedule fields.
+                var slipProposal=MaySlipIntent.Parse(userText,DateTime.Today);
+                if(slipProposal!=null)
+                {
+                    var chosen=ResolveMaySlipProposal(slipProposal);
+                    if(chosen!=null)
+                    {
+                        var proposalPanel=new Border
+                        {
+                            Margin=new Thickness(14,4,14,12),
+                            Padding=new Thickness(12),
+                            CornerRadius=new CornerRadius(9),
+                            Background=Brush("#EAF6F2"),
+                            Child=Stack(
+                                T("MÂY ĐỀ XUẤT PHIẾU XUẤT NHÁP",13,true,Brush("#197A70")),
+                                T(chosen.Summary,12,false,Muted),
+                                T("Chưa lưu phiếu · chưa ghi sổ xuất · anh cần kiểm tra và duyệt ở màn hình tiếp theo.",11,false,Muted),
+                                B("▤ Xem phiếu Mây đề xuất",()=>OpenMaySlipReview(chosen),true)
+                            )
+                        };
+                        messages.Children.Add(proposalPanel);
+                        activity.Text="Mây đã chuẩn bị đề xuất phiếu. Anh bấm Xem phiếu Mây đề xuất để kiểm tra trước khi lưu.";
+                    }
+                    else
+                        messages.Children.Add(T("Mây cần số hợp đồng hợp lệ hoặc lịch xuất đã duyệt đúng ngày để lên phiếu; Mây chưa ghi gì vào sổ kho.",12,false,Muted));
+                }
                 if(fromHandsFree && HandsFreeCurrent(session))
                 {
                     // Micro has already stopped: speech output cannot be
@@ -669,11 +696,11 @@ public partial class MainWindow
             )
         };
         var head=Card(Stack(
-            Row(T("✦  TRỢ LÝ HISA",19,true),
+            Row(T("✦  MÂY MÂY · TRỢ LÝ HISA",19,true),
                 B("⚙ Cấu hình Gemini",()=>Navigate("settings"))),
-            T("Một nút để trò chuyện tiếng Việt và hỏi lịch cont về, lịch xuất, hợp đồng trong HISA. "+
-              "Lần đầu xác nhận quyền một lần; về sau chỉ cần bấm Nói với HISA. "+
-              "Bấm lần nữa để dừng micro. AI không tự ghi Excel.",12,false,Muted),
+            T("Mây là trợ lý nữ, trò chuyện nhẹ nhàng bằng tiếng Việt và ưu tiên giọng miền Nam. "+
+              "Bấm Nói với Mây để hỏi lịch cont về, lịch xuất, hoặc nhờ Mây soạn phiếu xuất nháp. "+
+              "Phiếu chỉ được lưu sau khi anh xem và duyệt; Mây không tự ghi Excel.",12,false,Muted),
             Row(handsFree),
             advanced
         ));
@@ -692,7 +719,7 @@ public partial class MainWindow
         layout.Children.Add(head);
         Grid.SetRow(viewer,1);layout.Children.Add(viewer);
         Grid.SetRow(bottom,2);layout.Children.Add(bottom);
-        SetPage("Trợ lý Gemini AI","Một nút nói chuyện · lịch cont về / lịch xuất · AI chỉ đọc Excel",layout);
+        SetPage("Mây Mây · Trợ lý HISA","Một nút trò chuyện · giọng nữ miền Nam · đề xuất phiếu chờ anh duyệt",layout);
         ScrollToEnd();
     }
 }

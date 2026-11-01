@@ -48,6 +48,18 @@ public static class UiWorkflowDiagnostics
             var navigation=(StackPanel)window.FindName("Navigation")!;
             Check(navigation.Children.OfType<Button>().Any(b=>b.Content?.ToString()?.Contains("Cấu hình nguồn dữ liệu")==true),
                 "Excel source settings has a dedicated visible navigation entry");
+            Check(!service.Slips.Any(s=>s.Note.Contains("Mây Mây đề xuất",StringComparison.Ordinal)),
+                "Opening Mây's chat cannot create or save any slip");
+            var beforeMay=service.Slips.Count;
+            Call("OpenMaySlipReview",
+                new MaySlipProposal(new []{"05492026"},"2026-11-02"));
+            var mayDraft=typeof(MainWindow).GetField("_draft",flags)!.GetValue(window) as Slip;
+            Check(mayDraft is {Status:"planned"} &&
+                  mayDraft.HandoverDate=="2026-11-02" &&
+                  string.IsNullOrWhiteSpace(mayDraft.SlipCode),
+                "Mây prepares only an unsaved planned slip in the standard approval editor");
+            Check(service.Slips.Count==beforeMay,
+                "Mây's proposal does not persist a slip or touch shipped inventory without approval");
             Call("ShowSettings");
             var configScroll=(ScrollViewer)((Grid)window.FindName("PageHost")!).Children[0];
             var configStack=(StackPanel)configScroll.Content;
@@ -65,10 +77,10 @@ public static class UiWorkflowDiagnostics
                 "Source setup explains automatic lookup of the six Excel files");
             Call("ShowGeminiChat");
             Check(window.FindName("TopVoiceButton") is Button quickVoice &&
-                quickVoice.Content?.ToString()=="🎙 Nói với HISA",
+                quickVoice.Content?.ToString()=="🎙 Nói với Mây",
                 "Main toolbar has a direct one-click HISA assistant shortcut");
             Check(Children(window).OfType<Button>().Any(b=>
-                    b.Content?.ToString()=="🎙 Nói với HISA"),
+                    b.Content?.ToString()=="🎙 Nói với Mây"),
                 "Gemini Chat has a single prominent voice start/stop control");
             Check(Children(window).OfType<Expander>().Any(e=>
                     e.Header?.ToString()?.Contains("Tùy chọn nâng cao")==true &&

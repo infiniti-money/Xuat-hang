@@ -102,7 +102,7 @@
                        Margin="0,0,0,7"/>
             <WrapPanel HorizontalAlignment="Right">
               <Button x:Name="TopUpdateButton" Content="↑  Cập nhật" Click="OpenUpdateClick"/>
-              <Button x:Name="TopVoiceButton" Content="🎙 Nói với HISA"
+              <Button x:Name="TopVoiceButton" Content="🎙 Nói với Mây"
                       Click="OpenQuickVoiceClick"/>
               <Button x:Name="TopAiButton" Content="✦  Đọc ảnh Zalo"
                       Click="OpenAiClick"/>

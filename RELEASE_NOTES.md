@@ -1,3 +1,14 @@
+## HISA v1.9.28 — Mây Mây, trợ lý nữ giọng miền Nam; đề xuất phiếu xuất chờ duyệt
+
+- Đặt tên trợ lý **Mây**, gọi thân mật **Mây Mây**. Lời chào, khung trò chuyện và nút **Nói với Mây** đồng nhất.
+- Gemini trả lời bằng tiếng Việt có dấu, phong cách nữ dịu dàng, tự nhiên, thân thiện. Gemini TTS dùng giọng **Leda** với mô tả chi tiết yêu cầu phát âm **giọng nữ Nam Bộ / Sài Gòn, ấm áp, tốc độ vừa phải**. Đây là yêu cầu phong cách, giọng vùng miền thực tế còn phụ thuộc mô hình TTS, API Key và thiết bị loa.
+- **Mây được phép đề xuất phiếu xuất nháp để người dùng duyệt**. Câu lệnh ví dụ: “Mây ơi, lập phiếu xuất cho hợp đồng 56062026 ngày mai”. Mây nhận mã HĐ và ngày từ câu nói người dùng, kiểm tra lại dữ liệu kiện/vật tư từ HISA lúc nhấn **Xem phiếu Mây đề xuất**; chuyển tới màn hình phiếu ở trạng thái **Chờ xuất**, chưa lưu; người dùng có thể chỉnh sửa, xem cảnh báo, in và **chủ động bấm Lưu**.
+- Nếu nói “Mây soạn phiếu xuất cho lịch ngày mai” không có mã HĐ, Mây chỉ lấy mã HĐ **từ lịch xuất đã duyệt** đúng ngày. Không lấy mã từ output AI, dữ liệu ghi chú hoặc lịch chưa duyệt. Giới hạn 10 HĐ một lượt, thiếu dữ liệu thì dừng thay vì tạo phiếu sai.
+- **Không tự lưu, không tự chuyển Đã xuất, không ghi Excel, không phê duyệt thay người dùng.** Không tự mở microphone khi chạy HISA; quyền dữ liệu và âm thanh vẫn có thể thu hồi.
+- Kiểm thử Windows: giọng TTS Nam Bộ được yêu cầu, phân tích câu lệnh hợp đồng/ngày, chống tạo nháp khi có phủ định, giám sát giới hạn số HĐ, thao tác từ giao diện tạo được phiếu **chưa lưu** và không phát sinh sổ xuất. Chưa thể kiểm chứng chất giọng thực tế hoặc dữ liệu trên máy người dùng bằng CI.
+
+---
+
 ## HISA v1.9.27 — Trợ lý HISA một nút, rút gọn thao tác
 
 - Thêm nút **🎙 Nói với HISA** ở thanh công cụ trên cùng: **một lần nhấn** mở trực tiếp Trợ lý Gemini và bật rảnh tay; bấm lại để tắt. Không phải đi qua nhiều menu hoặc tìm nút microphone.
