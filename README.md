@@ -1,3 +1,15 @@
+## HISA v1.9.32 — Máy kéo trực quan; Trung tâm cấu hình Mây Mây đầy đủ hơn
+
+- Trang **Máy kéo gia công tại Hưng Yên** có năm ô thống kê bấm được: Tổng số máy / Chưa gửi / Đang gia công / Đã làm xong / Đã bàn giao. Nhấp một ô lọc ngay theo tình trạng; nhấp hợp đồng rồi chọn máy đúng serial. Có bộ lọc tìm trực tiếp HĐ, công trình, máy và serial; nút Bỏ lọc HĐ; bảng dòng máy tô màu nhẹ theo trạng thái.
+- **Nút hành động chính ngay trên trang**: Đã gửi gia công (lưu nhật ký thực tế); **Đã làm xong · Ghi Excel** hoặc **Chưa làm · Ghi Excel** chỉ cho đúng *một* máy đã chọn theo serial. Mỗi thao tác yêu cầu xác nhận rõ ngày và trạng thái, tuân thủ các kiểm tra khóa file, trùng máy và bảo vệ ngày xuất cột K. Các điều khiển nâng cao, lựa chọn trạng thái tùy ý và xem lịch sử chuyển vào mục mở rộng không chiếm diện tích chính.
+- **Trung tâm Cấu hình AI / Mây Mây** nay có kiểm tra kết nối Gemini theo yêu cầu (gửi một câu thử, không kèm dữ liệu kho), hiện rõ model trò chuyện/giọng TTS đang dùng, nút thử giọng nữ miền Nam, danh sách nguồn kho đã liên kết, lối tắt Mây/ảnh Zalo/phiếu nháp/Excel AI.
+- Chọn **micro Windows cụ thể, độ nhạy thu, tự động đọc câu trả lời**; lưu tùy chọn không bí mật trong LocalAppData, giữ khi cài đè, mở Chat cũng sử dụng đúng các tùy chọn. Nếu đổi thiết bị lúc rảnh tay đang nghe thì dừng phiên micro để người dùng chủ động khởi động lại.
+- **Quyền đọc tóm tắt kho qua Gemini và quyền thu micro là hai quyền độc lập**. Cấp mới cần hộp thoại xác nhận trước khi lưu; thu hồi quyền micro lập tức dừng thu âm/loa. Cấu hình giọng nói không bao giờ tự bật quyền. Gemini API Key tiếp tục lưu riêng trong Windows Credential Manager, ô nhập luôn ẩn và không lưu vào cấu hình/Excel/ZIP.
+- Trạng thái Đã làm/Chưa làm không được ghi ngày xuất; chỉ phiếu xuất/bàn giao **Đã xuất** và serial khớp mới được ghi ngày thực tế vào MÁY KÉO.xlsx. Không tự duyệt phiếu.
+- CI Windows kiểm thử bộ điều khiển UI, tùy chọn lưu/tải, cài đặt mới và cài đè. Trường hợp Gemini API thực tế và thiết bị micro/loa của người dùng cần kiểm tra riêng sau cài.
+
+---
+
 ## HISA v1.9.31 — Tự lấy serial MÁY KÉO.xlsx lên phiếu xuất/bàn giao và bản in
 
 - **Điều chỉnh đúng nghiệp vụ**: serial không chỉ để tra cứu tình trạng máy kéo. Khi người dùng lập **phiếu xuất kho hoặc biên bản bàn giao**, HISA đọc file **MÁY KÉO.xlsx** đã cấu hình, lấy serial từng máy đúng số HĐ, công trình, đơn vị, model, số lượng, **điền trực tiếp vào phiếu** và **in serial từng máy** trên tất cả mẫu phiếu. Luồng tạo phiếu bằng tay, từ ảnh Zalo/lịch đã duyệt, từ màn hình kế hoạch hoặc do Mây Mây đề xuất đều dùng chung cơ chế này.
