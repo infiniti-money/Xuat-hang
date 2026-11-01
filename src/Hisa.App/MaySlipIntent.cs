@@ -20,11 +20,11 @@ public sealed record MaySlipProposal(IReadOnlyList<string> Contracts,string Day)
 
 public static class MaySlipIntent
 {
-    private static readonly Regex RequestVerb=new(
-        @"\b(LAP|TAO|SOAN|CHUAN BI|LEN|LAM|DE XUAT)\b",
-        RegexOptions.Compiled|RegexOptions.CultureInvariant);
-    private static readonly Regex SlipNoun=new(
-        @"\b(PHIEU|PHIEU XUAT|PHIEU BAN GIAO)\b",
+    private static readonly Regex OrderedRequest=new(
+        // A user must explicitly ask to CREATE a slip. A question such as
+        // "những phiếu xuất nào đã làm?" contains both words but is NOT
+        // an authorization to prepare a new document.
+        @"\b(LAP|TAO|SOAN|CHUAN BI|LEN|LAM|DE XUAT)\b(?:\s+\S+){0,4}\s+PHIEU\b",
         RegexOptions.Compiled|RegexOptions.CultureInvariant);
     private static readonly Regex Negation=new(
         @"\b(KHONG|DUNG|CHUA|HUY)\s+(?:CO\s+)?(?:LAP|TAO|SOAN|LEN|LAM)\s+PHIEU\b",
@@ -34,7 +34,7 @@ public static class MaySlipIntent
     {
         if(string.IsNullOrWhiteSpace(utterance))return null;
         var norm=Rules.Norm(utterance);
-        if(!RequestVerb.IsMatch(norm)||!SlipNoun.IsMatch(norm)||Negation.IsMatch(norm))
+        if(!OrderedRequest.IsMatch(norm)||Negation.IsMatch(norm))
             return null;
         var codes=GeminiChatService.ContractNumbers(utterance).ToList();
         if(codes.Count>MaySlipProposal.MaximumContracts)
