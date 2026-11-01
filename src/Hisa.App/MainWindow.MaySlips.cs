@@ -85,34 +85,13 @@ public partial class MainWindow
         // selected Hưng Yên package in the source report. This is a proposal
         // only. Machine serials are suggested strictly by exact contract,
         // project, company AND material, never inferred from a similar HĐ.
-        var expected=MotorSerials.BuildRows(draft);
-        if(expected.Count>0)
-        {
-            var sources=EquipmentListReader.Load(_service.Settings);
-            var motors=sources.Rows.Where(x=>x.Category=="Máy kéo" &&
-                !string.IsNullOrWhiteSpace(x.Serial)).ToList();
-            foreach(var group in expected.GroupBy(x=>x.LineId))
-            {
-                var first=group.First();
-                var matching=motors.Where(x=>
-                    Rules.Identity(x.Contract,x.Project,x.Company)==
-                    Rules.Identity(first.Contract,first.Project,first.Company) &&
-                    Rules.Code(x.Material)==Rules.Code(first.Material))
-                    .GroupBy(x=>Rules.Code(x.Serial))
-                    .Where(x=>x.Key.Length>0 && x.Count()==1)
-                    .Select(x=>x.First())
-                    .OrderBy(x=>x.Serial,StringComparer.Ordinal).ToList();
-                // Never fill partial or ambiguous serials automatically.
-                if(matching.Count!=group.Count() ||
-                    matching.Any(x=>motors.Count(y=>Rules.Code(y.Serial)==Rules.Code(x.Serial))>1))
-                    continue;
-                foreach(var pair in group.OrderBy(x=>x.UnitIndex).Zip(matching))
-                    pair.First.SerialNumber=pair.Second.Serial;
-            }
-            draft.MotorSerials=expected;
-            draft.Note+=" Đối chiếu serial máy kéo tự gợi ý chỉ khi khớp duy nhất. "+
-                "Kiểm tra từng serial trước khi xác nhận xuất hoặc bàn giao.";
-        } // Never mark delivered from voice/model.
+        var serials=MotorSerialAutoFill.Fill(draft,
+            EquipmentListReader.Load(_service.Settings).Rows,_service.Slips);
+        if(draft.MotorSerials.Count>0)
+            draft.Note+=" Đã gợi ý "+serials.Assigned+" số serial máy kéo từ MÁY KÉO.xlsx. "+
+                (serials.Missing>0?
+                    "Còn "+serials.Missing+" máy cần kiểm tra trước khi in và xuất hàng. ":"")+
+                "Serial từng máy được in trên phiếu xuất/bàn giao khi đã đối chiếu.";
         draft.Note=(draft.Note.Length>0?draft.Note+" · ":"")+
             "Mây Mây đề xuất phiếu CHỜ XUẤT; chờ người sử dụng kiểm tra, duyệt và lưu.";
         var ambiguous=report.Rows.Concat(report.NoMaterialMatch)
