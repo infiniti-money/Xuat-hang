@@ -30,11 +30,15 @@ public static class MaySlipIntent
         @"\b(KHONG|DUNG|CHUA|HUY)\s+(?:CO\s+)?(?:LAP|TAO|SOAN|LEN|LAM)\s+PHIEU\b",
         RegexOptions.Compiled|RegexOptions.CultureInvariant);
 
+    private static readonly Regex HistoricalQuestion=new(
+        @"\bDA\s+(?:LAP|TAO|SOAN|LEN|LAM)\s+PHIEU\b|\bCO THE\s+(?:LAP|TAO|SOAN|LEN|LAM)(?:\s+\S+){0,4}\s+PHIEU\b",
+        RegexOptions.Compiled|RegexOptions.CultureInvariant);
+
     public static MaySlipProposal? Parse(string? utterance,DateTime today)
     {
         if(string.IsNullOrWhiteSpace(utterance))return null;
         var norm=Rules.Norm(utterance);
-        if(!OrderedRequest.IsMatch(norm)||Negation.IsMatch(norm))
+        if(!OrderedRequest.IsMatch(norm)||Negation.IsMatch(norm)||HistoricalQuestion.IsMatch(norm))
             return null;
         var codes=GeminiChatService.ContractNumbers(utterance).ToList();
         if(codes.Count>MaySlipProposal.MaximumContracts)
