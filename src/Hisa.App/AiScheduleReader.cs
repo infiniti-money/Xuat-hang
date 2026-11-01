@@ -32,7 +32,7 @@ public sealed class AiScheduleLine
     public string ReviewNote { get; set; } = "";
     public string ScheduleLabel => HasExportSchedule switch
     {
-        true => "Đã có lịch xuất",
+        true => "Đã có lịch xuất từ trước",
         false => "Chưa có lịch xuất trước đó",
         null => "Mới phát sinh (ô LX để trống)"
     };
