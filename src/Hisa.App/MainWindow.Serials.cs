@@ -18,6 +18,14 @@ public partial class MainWindow
         // operator has not yet clicked Save. Printing itself does not
         // alter the saved slip, delivery status or the source workbook.
         var copy=ReferenceEquals(slip,_draft)?slip:WarehouseService.Clone(slip);
+        if(copy.Lines.Where(MotorSerials.IsMotor).Any(x=>
+            x.Quantity is null||x.Quantity<0||
+            x.Quantity!=decimal.Truncate(x.Quantity.Value)||x.Quantity>10000))
+        {
+            Notify("Phiếu có dòng máy kéo chưa rõ số lượng máy nguyên. "+
+                "Hãy kiểm tra số máy trên phiếu trước khi lấy serial và in.");
+            return;
+        }
         var imported=FillMotorSerialsFromSource(copy);
         if(imported.Missing>0)
         {
