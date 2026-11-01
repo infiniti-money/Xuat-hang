@@ -1,3 +1,14 @@
+## HISA v1.9.31 — Tự lấy serial MÁY KÉO.xlsx lên phiếu xuất/bàn giao và bản in
+
+- **Điều chỉnh đúng nghiệp vụ**: serial không chỉ để tra cứu tình trạng máy kéo. Khi người dùng lập **phiếu xuất kho hoặc biên bản bàn giao**, HISA đọc file **MÁY KÉO.xlsx** đã cấu hình, lấy serial từng máy đúng số HĐ, công trình, đơn vị, model, số lượng, **điền trực tiếp vào phiếu** và **in serial từng máy** trên tất cả mẫu phiếu. Luồng tạo phiếu bằng tay, từ ảnh Zalo/lịch đã duyệt, từ màn hình kế hoạch hoặc do Mây Mây đề xuất đều dùng chung cơ chế này.
+- **Tự điền trước khi xem/in, lưu, xác nhận xuất**. Mở màn hình Phiếu bàn giao có nút **Lấy serial từ MÁY KÉO.xlsx** và **Kiểm tra / sửa serial**. Khi nguồn khớp chắc chắn, người dùng không phải dán serial bằng tay. In một phiếu đã lưu dùng bản sao có serial từ nguồn, không tự thay đổi phiếu cũ; với phiếu nháp đang mở, serial được giữ trong nháp để lưu sau.
+- **Bản in thực sự chứa serial**: mẫu nội bộ, mẫu theo hợp đồng và mẫu chuẩn đã có đường in serial trong dòng máy kéo; bổ sung kiểm thử xuyên suốt lấy serial từ nguồn rồi kết xuất trang in cho tất cả mẫu.
+- **Bảo vệ đối chiếu**: không lấy nhầm HĐ trùng số nhưng khác công trình T1/T2 hoặc đơn vị; từ chối tự gán khi trùng serial trong Excel, khác số máy, không đủ model hoặc serial đã xuất trong phiếu trước. Giữ nguyên serial đã nhập đúng; không tự ghi đè dữ liệu người dùng. Nếu chưa xác định được tất cả serial, HISA mở bảng để kiểm tra thay vì in phiếu máy kéo thiếu serial.
+- **Ngày xuất thực tế** vẫn chỉ được đồng bộ vào cột K của MÁY KÉO.xlsx theo đúng serial sau khi người dùng xác nhận phiếu **Đã xuất**. Lấy serial hoặc in phiếu khi **Chờ xuất** không đánh dấu xuất kho và không sửa Excel.
+- Bộ kiểm thử Windows kiểm tra trường hợp nhiều máy cùng HĐ, serial khác T1/T2, model khác tên nhưng nguồn duy nhất, lưu serial nhập tay, trùng serial, serial đã xuất và sự xuất hiện serial trên các mẫu in. Chưa thể thử trên file Excel/máy in thực tế của người dùng trong CI.
+
+---
+
 ## HISA v1.9.30 — Mây đối chiếu nguồn HISA, chọn tất cả trên ảnh Zalo và phiếu nháp
 
 - **Mây có thể đọc toàn bộ các nguồn HISA đã cấu hình qua trình đọc nội bộ**: dữ liệu Tổng hợp, cont/kiện chi tiết, danh sách Máy kéo, Tủ điện, Đầu cửa car, phiếu đã lưu và lịch Zalo đã duyệt. Tình trạng hiện diện của các file Excel Xuất hàng và KT cũng được kiểm tra, nhưng không trực tiếp tải nguyên văn file lên Gemini. Khi người dùng bật riêng ô chia sẻ dữ liệu HISA, chỉ tóm tắt có giới hạn và chi tiết HĐ được hỏi mới gửi tới Gemini, không gửi file gốc, API Key hay đường dẫn tuyệt đối. Các tệp bên ngoài nguồn được cấu hình không tự được quét.
