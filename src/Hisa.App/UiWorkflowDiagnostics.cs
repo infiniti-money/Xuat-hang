@@ -63,6 +63,22 @@ public static class UiWorkflowDiagnostics
             Check(Children(configStack).OfType<TextBlock>().Any(x=>
                     x.Text.Contains("không phải chọn từng file",StringComparison.OrdinalIgnoreCase)),
                 "Source setup explains automatic lookup of the six Excel files");
+            Call("ShowGeminiChat");
+            Check(window.FindName("TopVoiceButton") is Button quickVoice &&
+                quickVoice.Content?.ToString()=="🎙 Nói với HISA",
+                "Main toolbar has a direct one-click HISA assistant shortcut");
+            Check(Children(window).OfType<Button>().Any(b=>
+                    b.Content?.ToString()=="🎙 Nói với HISA"),
+                "Gemini Chat has a single prominent voice start/stop control");
+            Check(Children(window).OfType<Expander>().Any(e=>
+                    e.Header?.ToString()?.Contains("Tùy chọn nâng cao")==true &&
+                    !e.IsExpanded),
+                "Secondary microphone, consent and TTS controls are collapsed by default");
+            Check(typeof(MainWindow).GetField("_geminiMicrophone",flags)?
+                    .GetValue(window) is GeminiMicrophoneRecorder recorder &&
+                  !recorder.IsRecording,
+                "Merely opening Gemini Chat never starts microphone without an explicit click");
+            Call("ShowSettings");
             Check(navigation.Children.OfType<Button>().Any(b=>b.Content?.ToString()
                     ?.Contains("Máy kéo gia công tại Hưng Yên")==true),
                 "Motor Hưng Yên tracker has its own visible navigation menu");
