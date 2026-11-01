@@ -410,7 +410,7 @@ public partial class MainWindow
         incomingBody.Children.Add(arrivalMaterials);
         UpdateMaterialDetail(incoming,arrivalMaterials);
 
-        outgoingBody.Children.Add(T("Tích ô 'Làm phiếu' của các hợp đồng cần bàn giao. Sau khi đối chiếu vật tư, chỉ tạo phiếu CHỜ XUẤT, không tự đánh dấu Đã xuất.",12,false,Muted));
+        outgoingBody.Children.Add(T("Tích ô 'Làm phiếu' của các HĐ cần xuất/bàn giao. Khi lập phiếu, HISA tự lấy số serial máy kéo từ MÁY KÉO.xlsx điền vào từng máy trên phiếu và IN KÈM serial. Mây không tự ghi ngày xuất hoặc xác nhận Đã xuất.",12,false,Muted));
         outgoingBody.Children.Add(Row(
             B("☑ Chọn tất cả HĐ xuất Hưng Yên",()=>
             {
@@ -537,7 +537,7 @@ public partial class MainWindow
         outgoingBody.Children.Add(Row(
             B("▤ Xem 3 danh sách thiết bị",()=>OpenEquipmentLists(doc.Dispatches,"Thiết bị của các HĐ làm phiếu")),
             B("▤ Xem toàn bộ vật tư HĐ bàn giao",()=>OpenAllMaterials(doc.Dispatches,"Vật tư các hợp đồng làm phiếu")),
-            B("⚙ Đối chiếu máy kéo & ngày xuất",()=>OpenMotorStatuses(doc.Dispatches,"Máy kéo các HĐ dự kiến xuất"))));
+            B("🔢 Xem serial nguồn sẽ điền vào phiếu",()=>OpenMotorStatuses(doc.Dispatches,"Serial máy kéo của các HĐ dự kiến xuất"))));
         outgoingBody.Children.Add(dispatchMaterials);
         UpdateMaterialDetail(outgoing,dispatchMaterials);
         var tools = Card(Stack(
