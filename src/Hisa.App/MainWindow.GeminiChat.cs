@@ -37,6 +37,7 @@ public partial class MainWindow
         cts?.Dispose();
         _geminiMicrophone.Stop(false);
         _geminiVoice.StopSpeaking();
+        UpdateMayTrayStatus();
     }
 
     private bool HandsFreeCurrent(int session) =>
@@ -301,6 +302,7 @@ public partial class MainWindow
             int session=++_geminiHandsFreeSession;
             handsFree!.Content="⏹ Dừng Mây";
             TopVoiceButton.Content="⏹ Dừng Mây";
+            UpdateMayTrayStatus();
             StartHandsFreeListening(session);
         });
         _geminiHandsFreeToggle=handsFree;
@@ -698,9 +700,8 @@ public partial class MainWindow
         var head=Card(Stack(
             Row(T("✦  MÂY MÂY · TRỢ LÝ HISA",19,true),
                 B("⚙ Cấu hình Gemini",()=>Navigate("settings"))),
-            T("Mây là trợ lý nữ, trò chuyện nhẹ nhàng bằng tiếng Việt và ưu tiên giọng miền Nam. "+
-              "Bấm Nói với Mây để hỏi lịch cont về, lịch xuất, hoặc nhờ Mây soạn phiếu xuất nháp. "+
-              "Phiếu chỉ được lưu sau khi anh xem và duyệt; Mây không tự ghi Excel.",12,false,Muted),
+            T("Mây là trợ lý nữ nói tiếng Việt dịu dàng, ưu tiên giọng miền Nam. Bấm Nói với Mây để trao đổi công việc hoặc soạn phiếu xuất nháp chờ duyệt. "+
+              "Thu nhỏ HISA để Mây chạy trong khay hệ thống; micro chỉ tiếp tục nghe nếu anh đã bật rảnh tay. Nhấp phải biểu tượng khay để dừng micro hoặc thoát.",12,false,Muted),
             Row(handsFree),
             advanced
         ));
