@@ -88,6 +88,19 @@ public static class UiWorkflowDiagnostics
             Check(Children(configStack).OfType<TextBlock>().Any(x=>
                     x.Text.Contains("không phải chọn từng file",StringComparison.OrdinalIgnoreCase)),
                 "Source setup explains automatic lookup of the six Excel files");
+            Check(Children(configStack).OfType<Button>().Any(x=>x.Content?.ToString()=="◉ Thử kết nối Gemini") &&
+                  Children(configStack).OfType<Button>().Any(x=>x.Content?.ToString()=="🔊 Thử giọng đọc Mây"),
+                "AI settings have user-initiated Gemini network test and Mây speaker test");
+            Check(Children(configStack).OfType<Button>().Any(x=>
+                    x.Content?.ToString()=="✓ Lưu tùy chọn giọng nói / micro") &&
+                  Children(configStack).OfType<Button>().Any(x=>
+                    x.Content?.ToString()=="Lưu quyền AI / micro"),
+                "AI settings separately save device options and explicit microphone/data-sharing grants");
+            Check(Children(configStack).OfType<CheckBox>().Any(x=>
+                    x.Content?.ToString()?.Contains("dữ liệu HISA liên quan")==true) &&
+                  Children(configStack).OfType<CheckBox>().Any(x=>
+                    x.Content?.ToString()?.Contains("chủ động bật thu âm")==true),
+                "AI settings show independent microphone and read-only HISA data controls");
             Call("ShowGeminiChat");
             Check(window.FindName("TopVoiceButton") is Button quickVoice &&
                 quickVoice.Content?.ToString()=="🎙 Nói với Mây",
