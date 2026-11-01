@@ -39,11 +39,11 @@ public static class AiScheduleDiagnostics
               document.Arrivals[0].ContainerExportDate == "2026-10-26",
             "Container shipping date is distinct from Hưng Yên arrival date");
         Check(document.Dispatches[0].HasExportSchedule == true &&
-              document.Dispatches[0].ScheduleLabel == "Đã có lịch xuất",
+              document.Dispatches[0].ScheduleLabel == "Đã có lịch xuất từ trước",
             "Đã có LX means export schedule, never driver or shipped");
         Check(document.Dispatches[1].HasExportSchedule == null &&
-              document.Dispatches[1].ScheduleLabel == "Chưa xác nhận lịch xuất",
-            "Empty LX note is unknown, not false");
+              document.Dispatches[1].ScheduleLabel == "Mới phát sinh (ô LX để trống)",
+            "Blank LX note indicates newly arising schedule, not unplanned or already shipped");
         document.AnalyzedBy = "Gemini";
         Check(document.AnalyzedBy == "Gemini", "Analysis source is Gemini only");
         var snapshot = new WorkbookSnapshot
