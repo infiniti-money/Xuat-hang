@@ -13,8 +13,21 @@ public static class MotorSerialAutoFill
     public static Result Fill(Slip slip,IEnumerable<EquipmentListReader.Row> productionRows,
         IEnumerable<Slip>? slipHistory=null)
     {
-        var expected=MotorSerials.BuildRows(slip);
         var warnings=new List<string>();
+        // Legacy material slips may contain fractional or unknown quantities,
+        // including a line classified as "Máy kéo" that is not an individual
+        // machine. Preserve those saved documents and skip auto-import rather
+        // than making unrelated slip editing or report printing fail.
+        var invalid=slip.Lines.Where(MotorSerials.IsMotor).Where(x=>
+            x.Quantity is null||x.Quantity<0||
+            x.Quantity!=decimal.Truncate(x.Quantity.Value)||x.Quantity>10000).ToList();
+        if(invalid.Count>0)
+        {
+            warnings.Add("Phiếu có "+invalid.Count+" dòng máy kéo chưa có số lượng máy nguyên hợp lệ. "+
+                "Chỉ nhập serial khi đã kiểm tra số máy thực tế.");
+            return new Result(0,invalid.Count,warnings);
+        }
+        var expected=MotorSerials.BuildRows(slip);
         if(expected.Count==0){slip.MotorSerials=[];return new Result(0,0,warnings);}
 
         var all=productionRows.Where(x=>x.Category=="Máy kéo")
