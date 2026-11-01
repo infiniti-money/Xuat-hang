@@ -32,16 +32,10 @@ public partial class MainWindow
         ),new Thickness(26));
         var updating=Card(Stack(
             T("Cập nhật phần mềm",18,true),
-            T("Kiểm tra bản chính thức trên GitHub Releases. HISA tải và xác minh SHA-256; chỉ cài khi bạn đồng ý. Không thay đổi dữ liệu Excel, phiếu và API Key.",12,false,Muted),
+            T("Nhấn kiểm tra để HISA tự tìm bản chính thức mới, tải xuống trong nền và xác minh SHA-256. Sau khi tải xong HISA mới hỏi đóng ứng dụng để cài bản mới; chọn Không để làm việc tiếp. Không thay đổi Excel, phiếu hoặc API Key.",12,false,Muted),
             T(AutoUpdater.ReadyVersion is string ready?"ĐÃ SẴN SÀNG CÀI PHIÊN BẢN "+ready:"PHIÊN BẢN ĐANG SỬ DỤNG: "+SoftwareInfo.Version,13,true,Brush("#117D83")),
             Row(
-                A("Kiểm tra / Thử lại",async()=>
-                {
-                    var version=await AutoUpdater.CheckAndStageAsync();
-                    if(version==null)Notify("Bạn đang dùng phiên bản "+SoftwareInfo.Version+" hoặc chưa có bản phát hành mới hơn.");
-                    else Notify("Đã tải và xác minh bản "+version+". Chọn Cài bản đã tải để bắt đầu nâng cấp.");
-                    ShowInformation();
-                },true),
+                B("Kiểm tra, tải nền và cập nhật",()=>_ = CheckDownloadAndOfferUpdateAsync(),true),
                 B("Cài bản đã tải",()=>
                 {
                     var version=AutoUpdater.ReadyVersion;
