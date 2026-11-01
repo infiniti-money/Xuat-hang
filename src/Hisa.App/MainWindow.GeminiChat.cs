@@ -108,11 +108,15 @@ public partial class MainWindow
         var activity=T("Sẵn sàng. Mỗi câu hỏi cần Internet và hạn mức Gemini API.",11,false,Muted);
         var voicePermission=new CheckBox
         {
-            Content="Tôi đồng ý: khi bật micro/rảnh tay, HISA được thu âm và gửi "+
-                "các lượt nói tới Google Gemini qua Internet để nhận dạng tiếng Việt. "+
-                "Rảnh tay tự gửi câu hỏi; không lưu file âm thanh. Có thể thu hồi quyền bất kỳ lúc nào.",
+            Content=new TextBlock
+            {
+                Text="Tôi đồng ý: khi bật micro/rảnh tay, HISA được thu âm và gửi "+
+                     "các lượt nói tới Google Gemini qua Internet để nhận dạng tiếng Việt. "+
+                     "Rảnh tay tự gửi câu hỏi; không lưu file âm thanh. Có thể thu hồi quyền bất kỳ lúc nào.",
+                TextWrapping=TextWrapping.Wrap,MaxWidth=780
+            },
             IsChecked=GeminiVoiceConsentStore.Read(),
-            TextWrapping=TextWrapping.Wrap
+            HorizontalContentAlignment=HorizontalAlignment.Stretch
         };
         voicePermission.Checked+=(_,_)=>{try{GeminiVoiceConsentStore.Save(true);}
             catch(Exception ex){voicePermission.IsChecked=false;activity.Text="Không lưu được sự đồng ý: "+ex.Message;}};
@@ -332,8 +336,6 @@ public partial class MainWindow
             }
             try
             {
-                _geminiMicrophone.Start(OnRecorded,            try
-            {
                 _geminiMicrophone.Start(OnRecorded,
                     message=>Dispatcher.BeginInvoke(new Action(()=>activity.Text=message)),
                     SelectedMicrophone());
@@ -359,8 +361,6 @@ public partial class MainWindow
                 return;
             }
             try
-            {
-                _geminiMicrophone.Start(wav=>Array.Clear(wav),            try
             {
                 _geminiMicrophone.Start(wav=>Array.Clear(wav),
                     message=>Dispatcher.BeginInvoke(new Action(()=>activity.Text=message)),
