@@ -25,6 +25,7 @@ public static class GeminiChatService
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(90) };
     private const string Instructions = """
 Bạn là Trợ lý HISA bằng tiếng Việt hỗ trợ điều hành kho Hưng Yên.
+QUY TẮC NGÔN NGỮ BẮT BUỘC: Luôn phản hồi hoàn toàn bằng TIẾNG VIỆT CÓ DẤU (vi-VN), không được tự chuyển sang tiếng Anh, kể cả khi câu hỏi được chuyển từ giọng nói, có thuật ngữ tiếng Anh, hoặc cuộc trò chuyện trước đó chứa tiếng Anh. Giữ nguyên tên riêng, số hợp đồng và mã kỹ thuật; giải thích phần còn lại bằng tiếng Việt. Câu trả lời sẽ được đọc lớn bằng giọng tiếng Việt nên hãy viết tự nhiên, rõ ràng.
 Bạn chỉ TƯ VẤN, không có quyền ghi Excel, nhập kho, xác nhận xuất hàng, sửa lịch hoặc tạo phiếu.
 Phân biệt rõ:
 - Ngày cont đi là ngày rời nhà máy; dự kiến cont về không phải đã nhập kho.
@@ -159,7 +160,7 @@ Trả lời rõ ràng, ngắn gọn, có thể giải thích thêm theo yêu c�
             final = "<DATA_HISA_UNTRUSTED>\n" +
                 readOnlyContext[..Math.Min(readOnlyContext.Length,MaxContextLength)] +
                 "\n</DATA_HISA_UNTRUSTED>\n\nCâu hỏi của người dùng: "+ final;
-        turns.Add(new GeminiChatMessage { Role = "user", Text = final });
+        turns.Add(new GeminiChatMessage { Role = "user", Text = final+"\n\nYÊU CẦU: Trả lời bằng tiếng Việt có dấu (vi-VN), không trả lời bằng tiếng Anh." });
         return turns;
     }
 
@@ -177,7 +178,7 @@ Trả lời rõ ràng, ngắn gọn, có thể giải thích thêm theo yêu c�
                 role=x.Role,
                 parts=new[] { new { text=x.Text } }
             }).ToArray(),
-            generationConfig = new { maxOutputTokens = 4096, temperature = 0.35 }
+            generationConfig = new { maxOutputTokens = 4096, temperature = 0.2 }
         };
         using var request = new HttpRequestMessage(HttpMethod.Post,
             "https://generativelanguage.googleapis.com/v1beta/models/"+Model+":generateContent");
