@@ -19,6 +19,7 @@ public static class MayWarehouseAudit
         public string Serial { get; set; }="";
         public string Material { get; set; }="";
         public string WorkStatus { get; set; }="";
+        public string FactoryNote { get; set; }="";
         public string PlannedWork { get; set; }="";
         public string DispatchDate { get; set; }="";
         public string HandoverDate { get; set; }="";
@@ -27,8 +28,9 @@ public static class MayWarehouseAudit
     }
 
     public static List<MotorStatus> MotorsFor(AiScheduleLine line,
-        IEnumerable<MotorHungYenStore.Item> machines)
+        IEnumerable<MotorHungYenStore.Item> machines,IEnumerable<Slip>? confirmedSlips=null)
     {
+        var delivered=MotorHandoverExcel.ConfirmedDates(confirmedSlips??[]);
         var code=Rules.Contract(line.Contract);
         var identity=Rules.Identity(line.Contract,line.Project,line.Company);
         return machines.Where(x=>Rules.Contract(x.Contract)==code)
@@ -36,10 +38,12 @@ public static class MayWarehouseAudit
             {
                 Contract=x.Contract,Project=x.Project,Company=x.Company,
                 Serial=x.Serial,Material=x.Material,WorkStatus=x.WorkLabel,
+                FactoryNote=x.SourceNote,
                 PlannedWork=line.HasExportSchedule==true?"Đã có lịch xuất từ trước":
                     line.HasExportSchedule==null?"Mới phát sinh":"Chưa có lịch xuất trước đó",
                 DispatchDate=x.ExcelDispatchDay,
-                HandoverDate=x.HandoverDay,
+                HandoverDate=delivered.GetValueOrDefault(MotorHandoverExcel.IdentityFor(x))
+                    ?? x.HandoverDay,
                 Verification=Rules.Identity(x.Contract,x.Project,x.Company)==identity &&
                     !string.IsNullOrWhiteSpace(x.Serial)
                     ? "Khớp HĐ, công trình, đơn vị và có serial"
@@ -56,8 +60,9 @@ public static class MayWarehouseAudit
 
     public static string BuildReadOnlyProjection(string question,AppSettings settings,
         WorkbookSnapshot snapshot,EquipmentListReader.Catalog equipment,
-        IEnumerable<MotorHungYenStore.Item> machines)
+        IEnumerable<MotorHungYenStore.Item> machines,IEnumerable<Slip>? confirmedSlips=null)
     {
+        var delivered=MotorHandoverExcel.ConfirmedDates(confirmedSlips??[]);
         var sources=new (string Kind,string Path)[]
         {
             ("Tổng hợp.xlsx",settings.MasterPath),
@@ -101,9 +106,11 @@ public static class MayWarehouseAudit
                     " · tên "+Clean(x.Material,65)+
                     " · serial "+Clean(x.Serial,45)+
                     " · tiến độ="+Clean(x.WorkLabel,30)+
+                    " · ghi chú/lịch từ file="+Clean(x.SourceNote,80)+
                     " · trạng thái HISA="+Clean(x.StatusLabel,45)+
                     " · ngày xuất thực tế cột K="+Clean(x.ExcelDispatchDay,15)+
-                    " · ngày bàn giao HISA="+Clean(x.HandoverDay,15));
+                    " · ngày bàn giao HISA đã xác nhận="+
+                    Clean(delivered.GetValueOrDefault(MotorHandoverExcel.IdentityFor(x))??x.HandoverDay,15));
             foreach(var eq in equipment.Rows.Where(x=>Rules.Contract(x.Contract)==code &&
                 x.Category!="Máy kéo").Take(15))
                 sb.AppendLine("Thiết bị "+Clean(eq.Category,16)+
