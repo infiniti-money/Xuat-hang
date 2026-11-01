@@ -18,7 +18,21 @@ public partial class MainWindow
         // operator has not yet clicked Save. Printing itself does not
         // alter the saved slip, delivery status or the source workbook.
         var copy=WarehouseService.Clone(slip);
-        FillMotorSerialsFromSource(copy);
+        var imported=FillMotorSerialsFromSource(copy);
+        if(imported.Missing>0)
+        {
+            // Never silently produce a motor handover without its serials.
+            // Only ambiguous/missing cases require a manual review.
+            if(!EditMotorSerials(copy,false))return;
+            var left=MotorSerials.BuildRows(copy).Count(x=>
+                string.IsNullOrWhiteSpace(x.SerialNumber));
+            if(left>0)
+            {
+                Notify("Phiếu còn "+left+" máy kéo thiếu serial. "+
+                    "Hãy kiểm tra MÁY KÉO.xlsx hoặc nhập đúng serial trước khi in.");
+                return;
+            }
+        }
         PrintService.PreviewSlip(this,copy,FindTemplate(copy.TemplateId));
     }
 
