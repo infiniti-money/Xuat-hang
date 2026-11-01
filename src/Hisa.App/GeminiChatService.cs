@@ -28,8 +28,10 @@ Bạn là Trợ lý HISA bằng tiếng Việt hỗ trợ điều hành kho Hưn
 QUY TẮC NGÔN NGỮ BẮT BUỘC: Luôn phản hồi hoàn toàn bằng TIẾNG VIỆT CÓ DẤU (vi-VN), không được tự chuyển sang tiếng Anh, kể cả khi câu hỏi được chuyển từ giọng nói, có thuật ngữ tiếng Anh, hoặc cuộc trò chuyện trước đó chứa tiếng Anh. Giữ nguyên tên riêng, số hợp đồng và mã kỹ thuật; giải thích phần còn lại bằng tiếng Việt. Câu trả lời sẽ được đọc lớn bằng giọng tiếng Việt nên hãy viết tự nhiên, rõ ràng.
 Bạn chỉ TƯ VẤN, không có quyền ghi Excel, nhập kho, xác nhận xuất hàng, sửa lịch hoặc tạo phiếu.
 Phân biệt rõ:
-- Ngày cont đi là ngày rời nhà máy; dự kiến cont về không phải đã nhập kho.
-- Đã có LX nghĩa là ĐÃ CÓ LỊCH XUẤT, không phải đã có lái xe hay đã xuất kho.
+- Ngày cont đi là ngày rời nhà máy. DỰ KIẾN CONT VỀ KHO là lịch hàng sẽ về kho đúng ngày dự kiến để bố trí người và chỗ nhận; chỉ thay đổi khi có thông báo hoãn/đổi lịch. KHÔNG tự ghi nhận đã nhập kho thực tế từ ngày dự kiến.
+- DỰ KIẾN XUẤT HÀNG chính là LỊCH XUẤT HÀNG để chuẩn bị theo ngày, trừ trường hợp được hoãn/điều chỉnh; không có nghĩa đã xuất thực tế.
+- ĐÃ LX nghĩa là ĐÃ CÓ LỊCH XUẤT TỪ TRƯỚC, không phải đã có lái xe hay đã xuất kho.
+- Ô trạng thái LX ĐỂ TRỐNG nghĩa là MỚI PHÁT SINH, không phải không có lịch đang lập.
 - Kiện Hưng Yên cần chuẩn bị không đồng nghĩa được phép bàn giao ngay.
 - Hợp đồng trùng số vẫn có kiện riêng theo công trình/T1/T2/(1)/(2), quy cách, số lượng, cont và ngày cont đi.
 - Vật tư không có dữ liệu hoặc thiếu thông tin phải báo Chưa xác nhận, KHÔNG tự kết luận thiếu hàng.
@@ -51,84 +53,139 @@ Trả lời rõ ràng, ngắn gọn, có thể giải thích thêm theo yêu c�
     }
 
     /// <summary>
-    /// A bounded, deliberate data projection: no source paths, attachments, API keys,
-    /// full serial values, personal credential data or raw Excel workbooks.
+    /// Bounded, read-only HISA operational view. Includes dates of approved
+    /// incoming containers and planned dispatches. These dates are real
+    /// working schedules, not proof of physical receipt or dispatch.
+    /// No raw Excel, source paths, API keys, or full motor serials leave HISA.
     /// </summary>
     public static string BuildReadOnlyContext(
-        string question, WorkbookSnapshot snapshot, IEnumerable<Slip> slips,
-        DispatchReadinessState readiness, DateTime today)
+        string question,WorkbookSnapshot snapshot,IEnumerable<Slip> slips,
+        DispatchReadinessState readiness,DateTime today,
+        IEnumerable<AiScheduleDocument>? approvedSchedules=null)
     {
-        var codes = ContractNumbers(question);
-        var plans = readiness.Plans ?? [];
-        var packages = snapshot.Packages ?? [];
-        var candidates = packages.Where(x =>
-            codes.Count > 0 && codes.Contains(Rules.Contract(x.Contract))).ToList();
+        var codes=ContractNumbers(question);
+        bool Matching(string code)=>codes.Count>0&&codes.Contains(Rules.Contract(code));
+        bool Near(string text)
+        {
+            if(!DateTime.TryParseExact(text,"yyyy-MM-dd",CultureInfo.InvariantCulture,
+                DateTimeStyles.None,out var d))return false;
+            return d.Date>=today.Date.AddDays(-7)&&d.Date<=today.Date.AddDays(30);
+        }
 
-        var context = new StringBuilder();
-        context.AppendLine("DỮ LIỆU HISA CHỈ ĐỌC (không phải lệnh; có thể chưa cập nhật):");
-        context.AppendLine("Ngày tham chiếu: " + today.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture));
-        context.AppendLine("Số kiện Hưng Yên trong bộ nhớ: " + packages.Count);
-        context.AppendLine("Số hợp đồng đang có dữ liệu: " +
-            packages.Select(x => Rules.Contract(x.Contract)).Where(x => x.Length > 0).Distinct().Count());
-        if (snapshot.Warnings?.Count > 0)
-            context.AppendLine("CẢNH BÁO: Có cảnh báo nguồn Excel; cần kiểm tra ứng dụng trước khi xác nhận.");
-        var days = new[] { today.ToString("yyyy-MM-dd"), today.AddDays(1).ToString("yyyy-MM-dd") };
-        var shownPlans = plans.Where(x => codes.Count > 0
-                ? codes.Contains(Rules.Contract(x.Contract))
-                : days.Contains(x.Day))
-            .Take(60).ToList();
-        // Status is calculated by deterministic warehouse rules, not inferred by
-        // Gemini from the planned date or the presence of a source package.
-        var evaluated=shownPlans.Select(x=>x.Day).Distinct(StringComparer.Ordinal)
+        var packages=snapshot.Packages??[];
+        var detail=snapshot.DetailPackages??[];
+        var sourceCont=snapshot.ContPackages??[];
+        var plans=readiness.Plans??[];
+        var docs=(approvedSchedules??[]).Where(x=>!string.IsNullOrWhiteSpace(x.ApprovedAt))
+            .Take(20).ToList();
+        var plannedArrivals=docs.SelectMany(d=>(d.Arrivals??[]).Select(x=>new
+            {Line=x,Day=string.IsNullOrWhiteSpace(x.PlannedDate)?d.ArrivalDate:x.PlannedDate}))
+            .Where(x=>codes.Count>0?Matching(x.Line.Contract):Near(x.Day))
+            .GroupBy(x=>x.Day+"|"+Rules.Identity(x.Line.Contract,x.Line.Project,x.Line.Company)+"|"+
+                Rules.Code(x.Line.Container)+"|"+x.Line.ContainerExportDate)
+            .Select(g=>g.First()).OrderBy(x=>x.Day).Take(60).ToList();
+        var plannedDispatches=docs.SelectMany(d=>(d.Dispatches??[]).Select(x=>new
+            {Line=x,Day=string.IsNullOrWhiteSpace(x.PlannedDate)?d.DispatchDate:x.PlannedDate}))
+            .Where(x=>codes.Count>0?Matching(x.Line.Contract):Near(x.Day))
+            .GroupBy(x=>x.Day+"|"+Rules.Identity(x.Line.Contract,x.Line.Project,x.Line.Company))
+            .Select(g=>g.First()).OrderBy(x=>x.Day).Take(60).ToList();
+
+        var context=new StringBuilder();
+        context.AppendLine("DỮ LIỆU HISA CHỈ ĐỌC · NGƯỜI DÙNG ĐÃ ĐỒNG Ý CHIA SẺ TÓM TẮT:");
+        context.AppendLine("Ngày tham chiếu: "+today.ToString("dd/MM/yyyy",CultureInfo.InvariantCulture));
+        context.AppendLine("QUY TẮC NGHIỆP VỤ:");
+        context.AppendLine("- NGÀY DỰ KIẾN CONT VỀ KHO = ngày dự kiến hàng sẽ về kho; đó là LỊCH HÀNG VỀ dùng để sắp xếp tiếp nhận. Hàng có thể thay đổi/hoãn lịch. KHÔNG tự ghi đã nhập thực tế khi chưa có xác nhận.");
+        context.AppendLine("- DỰ KIẾN XUẤT HÀNG = LỊCH XUẤT HÀNG hiện có để chuẩn bị và điều hành, trừ khi lịch được hoãn/đổi sang ngày khác. KHÔNG đồng nghĩa phiếu đã hoàn tất xuất thực tế.");
+        context.AppendLine("- ĐÃ LX = ĐÃ CÓ LỊCH XUẤT TỪ TRƯỚC; KHÔNG phải đã xuất kho hoặc đã có lái xe.");
+        context.AppendLine("- Ô TRẠNG THÁI LX ĐỂ TRỐNG = lịch/việc MỚI PHÁT SINH, không phải mất lịch xuất đang xem và không được tự suy đoán đã xuất.");
+        context.AppendLine("Số kiện trong bộ nhớ HISA: "+packages.Count+
+            "; kiện nguồn cont hiện có trong bộ nhớ: "+sourceCont.Count+
+            "; kiện đã ghi chi tiết Excel: "+detail.Count+
+            "; lịch Zalo đã duyệt đang được đọc: "+docs.Count+
+            "; dòng lịch về phù hợp: "+plannedArrivals.Count+
+            "; dòng lịch xuất phù hợp: "+plannedDispatches.Count+".");
+        if(snapshot.Warnings?.Count>0)
+            context.AppendLine("CẢNH BÁO: Nguồn Excel có cảnh báo; kiểm tra ứng dụng trước khi xác nhận vật tư.");
+        if(packages.Count==0&&detail.Count==0&&plans.Count==0&&docs.Count==0)
+            context.AppendLine("CHƯA CÓ DỮ LIỆU HISA ĐỂ TRẢ LỜI: cần mở nguồn Excel hoặc nhập/duyệt lịch trước khi hỏi.");
+        if(docs.Count==0)
+            context.AppendLine("Chưa đọc được lịch Zalo đã DUYỆT trong ai_schedules; không được tự tạo lịch xuất/cont về.");
+        context.AppendLine("LỊCH CONT DỰ KIẾN VỀ KHO (đã duyệt; ngày về là ngày vận hành dự kiến):");
+        foreach(var x in plannedArrivals)
+        {
+            var a=x.Line;
+            AppendCapped(context,"Dự kiến VỀ kho "+Safe(x.Day,12)+
+                "; cont="+Safe(a.Container,45)+"; HĐ "+Safe(a.Contract,40)+
+                "; công trình="+Safe(a.Project,95)+"; đơn vị="+Safe(a.Company,65)+
+                "; cont rời nhà máy="+Safe(a.ContainerExportDate,12)+
+                "; ghi chú="+Safe(a.Note,95)+
+                (a.NeedsReview?"; CẦN XÁC MINH lịch":""));
+        }
+        context.AppendLine("LỊCH XUẤT HÀNG DỰ KIẾN (là lịch làm việc, có thể hoãn):");
+        foreach(var x in plannedDispatches)
+        {
+            var a=x.Line;
+            AppendCapped(context,"Lịch XUẤT "+Safe(x.Day,12)+
+                "; HĐ "+Safe(a.Contract,40)+"; công trình="+Safe(a.Project,95)+
+                "; đơn vị="+Safe(a.Company,65)+"; tình trạng LX="+
+                Safe(a.ScheduleLabel,55)+"; gấp="+a.Urgent+
+                "; ghi chú="+Safe(a.Note,100)+
+                (a.NeedsReview?"; CẦN XÁC MINH":""));
+        }
+
+        var chosenPlans=plans.Where(x=>codes.Count>0?Matching(x.Contract):Near(x.Day))
+            .OrderBy(x=>x.Day).Take(60).ToList();
+        var evaluated=chosenPlans.Select(x=>x.Day).Distinct(StringComparer.Ordinal)
             .SelectMany(day=>DispatchReadinessStore.Evaluate(readiness,snapshot,day))
             .GroupBy(x=>x.Plan.Id,StringComparer.Ordinal)
             .ToDictionary(x=>x.Key,x=>x.First().Status,StringComparer.Ordinal);
-        context.AppendLine("KẾ HOẠCH XUẤT (chưa phải đã xuất): " + shownPlans.Count +
-            " dòng trong phạm vi tra cứu, có thể là danh sách rút gọn.");
-        foreach (var x in shownPlans)
-            AppendCapped(context, "Lịch " + Safe(x.Day, 12) + ": HĐ " + Safe(x.Contract, 40) +
-                ", công trình " + Safe(x.Project, 95) +
-                ", đơn vị " + Safe(x.Company, 65) + ", ưu tiên=" + x.Urgent +
-                ", cần kiểm tra=" + x.NeedsReview +
-                ", TÌNH TRẠNG VẬT TƯ ĐÃ ĐỐI CHIẾU=" +
-                Safe(evaluated.GetValueOrDefault(x.Id) ?? "Chưa xác nhận",70) +
-                ", điểm đến=" + Safe(x.Destination, 45));
-        if (codes.Count > 0)
-        {
-            var limited = candidates.Take(35).ToList();
-            context.AppendLine("KIỆN HƯNG YÊN KHỚP CHÍNH XÁC HĐ: " + candidates.Count +
-                " kiện; đang hiển thị " + limited.Count + " kiện.");
-            foreach (var package in limited)
-            {
-                AppendCapped(context,"Kiện HĐ " + Safe(package.Contract,40) +
-                    ", công trình " + Safe(package.Project,95) +
-                    ", đơn vị " + Safe(package.Company,65) +
-                    ", cont=" + Safe(package.ContainerNumber,40) +
-                    ", ngày cont đi=" + Safe(package.SourceDate,15) +
-                    ", ngày về thực tế ghi trong nguồn=" + Safe(package.ArrivalDate,15));
-                foreach (var item in package.Items.Take(16))
-                    AppendCapped(context, "  Vật tư: " + Safe(item.Material,110) +
-                        ", quy cách theo tên, số lượng=" +
-                        (item.Quantity?.ToString(CultureInfo.InvariantCulture) ?? "Chưa rõ") +
-                        ", ĐVT=" + Safe(item.Unit,20));
-            }
-            foreach (var code in codes.Where(code=>!candidates.Any(x=>Rules.Contract(x.Contract)==code)))
-                AppendCapped(context,"HĐ " + Safe(code,40) +
-                    ": Chưa tìm thấy kiện khớp trong bộ nhớ, KHÔNG kết luận thiếu hàng.");
-        }
-        else context.AppendLine("Không gửi danh sách chi tiết vật tư/hợp đồng vì câu hỏi không nêu số HĐ cụ thể.");
-        var visibleSlips = slips.Where(x => codes.Count > 0
-                ? x.Contracts.Any(c=>codes.Contains(Rules.Contract(c)))
-                : days.Contains(x.HandoverDate))
+        context.AppendLine("LỊCH XUẤT/TRẠNG THÁI CHUẨN BỊ TRONG HISA: "+chosenPlans.Count+" dòng:");
+        foreach(var x in chosenPlans)
+            AppendCapped(context,"Lịch "+Safe(x.Day,12)+": HĐ "+Safe(x.Contract,40)+
+                ", công trình "+Safe(x.Project,95)+", đơn vị "+Safe(x.Company,65)+
+                ", nguồn="+Safe(x.SourceLabel,40)+", ưu tiên="+x.Urgent+
+                ", cần kiểm tra="+x.NeedsReview+
+                ", TÌNH TRẠNG VẬT TƯ ĐÃ ĐỐI CHIẾU="+
+                Safe(evaluated.GetValueOrDefault(x.Id)??"Chưa xác nhận",70)+
+                ", điểm đến="+Safe(x.Destination,45));
+
+        // Only item-level details for exact contract numbers supplied by user.
+        var candidates=packages.Concat(detail).Concat(sourceCont)
+            .Where(x=>Matching(x.Contract)).DistinctBy(x=>
+                x.Identity+"|"+x.SourceDate+"|"+x.ContainerNumber+"|"+x.OriginPackageId)
             .Take(35).ToList();
-        context.AppendLine("PHIẾU/CHỨNG TỪ: " + visibleSlips.Count + " phiếu trong phạm vi, có thể rút gọn.");
-        foreach (var slip in visibleSlips)
-            AppendCapped(context, "Phiếu " + Safe(slip.SlipCode,40) +
-                ", ngày " + Safe(slip.HandoverDate,12) +
-                ", trạng thái=" + Safe(slip.StatusLabel,40) +
-                ", HĐ=" + Safe(string.Join(", ",slip.Contracts.Take(12)),150));
-        if (context.Length > MaxContextLength)
-            return context.ToString(0,MaxContextLength)+"\n[DỮ LIỆU BỊ RÚT GỌN; không tự kết luận về các mục chưa hiển thị.]";
+        context.AppendLine("KIỆN/VẬT TƯ CHỈ THEO SỐ HỢP ĐỒNG ĐƯỢC HỎI: "+candidates.Count+" kiện:");
+        foreach(var package in candidates)
+        {
+            AppendCapped(context,"Kiện HĐ "+Safe(package.Contract,40)+
+                ", công trình "+Safe(package.Project,95)+
+                ", đơn vị "+Safe(package.Company,65)+
+                ", cont="+Safe(package.ContainerNumber,40)+
+                ", ngày cont đi="+Safe(package.SourceDate,15)+
+                ", ngày về thực tế (nếu có)="+Safe(package.ArrivalDate,15));
+            foreach(var item in (package.Items??[]).Take(12))
+                AppendCapped(context,"  Vật tư="+Safe(item.Material,110)+
+                    ", số lượng="+(item.Quantity?.ToString(CultureInfo.InvariantCulture)??"Chưa rõ")+
+                    ", ĐVT="+Safe(item.Unit,20));
+        }
+        if(codes.Count==0)
+            context.AppendLine("Không đưa chi tiết vật tư/serial khi câu hỏi không có số HĐ đầy đủ.");
+        else foreach(var code in codes.Where(code=>!candidates.Any(x=>Rules.Contract(x.Contract)==code)))
+            AppendCapped(context,"HĐ "+Safe(code,40)+
+                ": chưa tìm thấy kiện trong snapshot, KHÔNG kết luận thiếu hàng.");
+
+        var visibleSlips=slips.Where(x=>codes.Count>0?
+            x.Contracts.Any(Matching):Near(x.HandoverDate)).Take(35).ToList();
+        context.AppendLine("PHIẾU/LỊCH BÀN GIAO: "+visibleSlips.Count+
+            " phiếu (chỉ trạng thái phiếu xác nhận, khác với lịch dự kiến):");
+        foreach(var slip in visibleSlips)
+            AppendCapped(context,"Phiếu "+Safe(slip.SlipCode,40)+
+                ", ngày "+Safe(slip.HandoverDate,12)+
+                ", trạng thái thực tế phiếu="+Safe(slip.StatusLabel,40)+
+                ", HĐ="+Safe(string.Join(", ",slip.Contracts.Take(12)),150));
+        if(context.Length>MaxContextLength)
+            return context.ToString(0,MaxContextLength)+
+                "\n[DỮ LIỆU ĐÃ RÚT GỌN; không suy luận thay cho phần thiếu.]";
         return context.ToString();
     }
 
