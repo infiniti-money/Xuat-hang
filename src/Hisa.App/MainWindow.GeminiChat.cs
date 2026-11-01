@@ -21,6 +21,7 @@ public partial class MainWindow
     private int _geminiHandsFreeSession;
     private CancellationTokenSource? _geminiHandsFreeCancellation;
     private Button? _geminiHandsFreeToggle;
+    private FrameworkElement? _geminiChatSurface;
 
     /// <summary>Close the microphone immediately on explicit stop, navigation or exit.</summary>
     private void StopHandsFreeSession()
@@ -41,11 +42,20 @@ public partial class MainWindow
     }
 
     private bool HandsFreeCurrent(int session) =>
-        _geminiHandsFreeActive && session==_geminiHandsFreeSession && _page=="gemini-chat";
+        _geminiHandsFreeActive && session==_geminiHandsFreeSession;
 
     private void ShowGeminiChat()
     {
         _page="gemini-chat";
+        // Reattach the live chat UI when returning from another HISA tab.
+        // Keeping the same surface preserves the active voice session and
+        // its Dispatcher callbacks, while the chat history remains visible.
+        if(_geminiHandsFreeActive && _geminiChatSurface is FrameworkElement live)
+        {
+            SetPage("Mây Mây · Trợ lý HISA",
+                "Mây đang nghe trong nền · bấm ⏹ Dừng Mây để tắt micro",live);
+            return;
+        }
         var messages=new StackPanel { Margin=new Thickness(6,8,8,8) };
         var viewer=new ScrollViewer
         {
@@ -720,6 +730,7 @@ public partial class MainWindow
         layout.Children.Add(head);
         Grid.SetRow(viewer,1);layout.Children.Add(viewer);
         Grid.SetRow(bottom,2);layout.Children.Add(bottom);
+        _geminiChatSurface=layout;
         SetPage("Mây Mây · Trợ lý HISA","Một nút trò chuyện · giọng nữ miền Nam · đề xuất phiếu chờ anh duyệt",layout);
         ScrollToEnd();
     }
