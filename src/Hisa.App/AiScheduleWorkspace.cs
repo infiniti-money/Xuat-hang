@@ -125,6 +125,44 @@ public static class AiScheduleWorkspace
         }
     }
 
+    /// <summary>
+    /// Read recently approved Zalo schedules for Gemini's bounded, consented
+    /// context. Never imports a schedule into dispatch readiness and never
+    /// scans source Container folders or modifies warehouse files.
+    /// </summary>
+    public static List<AiScheduleDocument> RecentApproved(string dataDirectory,int limit=20)
+    {
+        if(limit<1||limit>50)throw new ArgumentOutOfRangeException(nameof(limit));
+        var folder=Path.Combine(dataDirectory,"ai_schedules");
+        var result=new List<AiScheduleDocument>();
+        if(!Directory.Exists(folder))return result;
+        IEnumerable<string> files;
+        try
+        {
+            files=Directory.EnumerateFiles(folder,"lich-kho-*.json")
+                .OrderByDescending(File.GetLastWriteTimeUtc).Take(150).ToList();
+        }
+        catch(Exception ex) when(ex is IOException or UnauthorizedAccessException)
+        {return result;}
+        foreach(var file in files)
+        {
+            if(result.Count>=limit)break;
+            try
+            {
+                if(new FileInfo(file).Length>512*1024)continue;
+                var doc=JsonSerializer.Deserialize<AiScheduleDocument>(
+                    File.ReadAllText(file),WarehouseService.Json);
+                if(doc==null||string.IsNullOrWhiteSpace(doc.ApprovedAt))continue;
+                doc.Arrivals??=[];doc.Dispatches??=[];
+                if(doc.Arrivals.Count+doc.Dispatches.Count==0)continue;
+                result.Add(doc);
+            }
+            catch(Exception ex) when(ex is IOException or JsonException or UnauthorizedAccessException)
+            { /* Never use damaged or unapproved schedules as real evidence. */ }
+        }
+        return result;
+    }
+
     /// <summary>Loads approved schedules of either direction, including dispatch-only drafts.</summary>
     public static AiScheduleDocument? LatestApproved(string dataDirectory)
     {

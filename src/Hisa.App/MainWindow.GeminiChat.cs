@@ -10,7 +10,7 @@ namespace Hisa.App;
 public partial class MainWindow
 {
     private readonly List<GeminiChatMessage> _geminiChatHistory = [];
-    private bool _geminiChatIncludeWarehouse;
+    private bool _geminiChatIncludeWarehouse=GeminiWarehouseSharingConsent.Read();
     private bool _geminiChatSending;
     private readonly GeminiVoice _geminiVoice=new();
     private readonly GeminiMicrophoneRecorder _geminiMicrophone=new();
@@ -94,14 +94,14 @@ public partial class MainWindow
 
         var contextToggle=new CheckBox
         {
-            Content="Cho phép Gemini đọc tóm tắt dữ liệu kho liên quan",
+            Content="Cho phép Gemini đọc dữ liệu HISA liên quan (kiện, lịch cont về, lịch xuất đã duyệt, phiếu và trạng thái chuẩn bị)",
             IsChecked=_geminiChatIncludeWarehouse,
             Foreground=Brush("#244C60"),FontWeight=FontWeights.SemiBold
         };
         var privacyNote=T(
             _geminiChatIncludeWarehouse
-            ? "ĐÃ BẬT: chỉ thông tin liên quan, giới hạn dung lượng, được gửi đến Google khi anh đặt câu hỏi. Không gửi file Excel hoặc API Key."
-            : "MẶC ĐỊNH TẮT: chỉ câu hỏi và lịch sử trò chuyện được gửi đến Gemini. Không tự gửi dữ liệu kho.",
+            ? "ĐÃ BẬT: Gemini có thể nhận dữ liệu HISA chỉ đọc được chọn lọc, gồm lịch hàng về và lịch xuất. Không gửi file Excel gốc, đường dẫn hay API Key."
+            : "CHƯA CHIA SẺ: Gemini không thể biết tình hình kho HISA. Đánh dấu ô trên để cho phép đọc tóm tắt, không gửi file Excel gốc.",
             11,false,Muted);
 
         var send=B("➤  Gửi câu hỏi",()=>{ },true);
@@ -440,15 +440,27 @@ public partial class MainWindow
 
         contextToggle.Checked+=(_,_) =>
         {
-            _geminiChatIncludeWarehouse=true;
-            ClearChat(); // prevent context from leaking into the wrong consent mode
-            privacyNote.Text="ĐÃ BẬT: tóm tắt dữ liệu kho liên quan sẽ được gửi đến Gemini khi đặt câu hỏi. Không gửi file Excel hoặc API Key.";
+            try
+            {
+                GeminiWarehouseSharingConsent.Save(true);
+                _geminiChatIncludeWarehouse=true;
+                ClearChat(); // discard turns from an incompatible privacy mode
+                privacyNote.Text="✓ ĐÃ CHO PHÉP: HISA chia sẻ dữ liệu vận hành liên quan (chỉ đọc) khi hỏi Gemini, kể cả câu hỏi bằng mic/rảnh tay. Ô này được nhớ cho lần mở sau; bỏ chọn để thu hồi.";
+            }
+            catch(Exception ex)
+            {
+                _geminiChatIncludeWarehouse=false;
+                contextToggle.IsChecked=false;
+                privacyNote.Text="Không lưu được quyền chia sẻ: "+ex.Message;
+            }
         };
         contextToggle.Unchecked+=(_,_) =>
         {
             _geminiChatIncludeWarehouse=false;
-            ClearChat(); // old model turns could contain private data
-            privacyNote.Text="ĐÃ TẮT: chỉ câu hỏi và lịch sử trò chuyện mới được gửi đến Gemini. Không tự gửi dữ liệu kho.";
+            ClearChat();
+            try{GeminiWarehouseSharingConsent.Save(false);}
+            catch(Exception ex){privacyNote.Text="Không lưu được trạng thái tắt chia sẻ: "+ex.Message;return;}
+            privacyNote.Text="ĐÃ TẮT: Gemini chỉ nhận câu hỏi, không được đọc dữ liệu HISA. Bật lại khi cần hỏi lịch cont/lịch xuất.";
         };
 
         async Task SendAsync(string? voiceText=null,bool fromHandsFree=false,int session=0)
@@ -489,12 +501,22 @@ public partial class MainWindow
             try
             {
                 string? context=null;
-                if(_geminiChatIncludeWarehouse)
+                if(_geminiChatIncludeWarehouse && GeminiWarehouseSharingConsent.Read())
                 {
                     var warehouse=_service.Snapshot;
                     var readiness=new DispatchReadinessStore(_service.DataDirectory).Load();
+                    var approved=AiScheduleWorkspace.RecentApproved(_service.DataDirectory);
                     context=GeminiChatService.BuildReadOnlyContext(
-                        userText,warehouse,_service.Slips,readiness,DateTime.Today);
+                        userText,warehouse,_service.Slips,readiness,DateTime.Today,approved);
+                    activity.Text="Đã cấp dữ liệu HISA chỉ đọc: "+
+                        approved.Count+" lịch đã duyệt, "+
+                        (warehouse.Packages?.Count??0)+" kiện trong bộ nhớ · Đang hỏi Gemini…";
+                }
+                else if(_geminiChatIncludeWarehouse)
+                {
+                    _geminiChatIncludeWarehouse=false;
+                    contextToggle.IsChecked=false;
+                    activity.Text="Quyền chia sẻ HISA đã thu hồi. Gemini chỉ nhận câu hỏi.";
                 }
                 var reply=await GeminiChatService.AskAsync(
                     key,_geminiChatHistory,userText,context,
@@ -596,7 +618,7 @@ public partial class MainWindow
             Row(Field("Thiết bị micro",micSelector),Field("Độ nhạy rảnh tay",sensitivitySelector)),
             Row(testMic,privacySettings),
             Row(handsFree,listen,transcribe,speak,stopVoice),
-            T("Chỉ bật chia sẻ dữ liệu khi muốn tra cứu hợp đồng, vật tư hoặc kế hoạch thực tế từ HISA.",11,false,Muted)
+            T("Để Gemini biết hôm nay cont nào dự kiến về, có lịch xuất nào hoặc việc nào mới phát sinh, hãy bật chia sẻ HISA phía trên. HISA chỉ gửi lịch đã duyệt và tóm tắt dữ liệu đang có; không tự nạp lịch vào sổ xuất, không tự ghi Excel.",11,false,Muted)
         ));
         var bottom=Card(Stack(
             T("CÂU HỎI GỢI Ý",11,true,Brush("#1D8E91")),

@@ -1,3 +1,15 @@
+## HISA v1.9.26 — Gemini hiểu dữ liệu vận hành HISA và lịch cont/lịch xuất
+
+- Gemini Chat có nút đồng ý riêng **Cho phép Gemini đọc dữ liệu HISA liên quan**; lựa chọn được lưu cho các lần mở sau và có thể thu hồi bất kỳ lúc nào. Tắt mặc định cho tới khi chủ động đồng ý. Không gửi Excel gốc, đường dẫn tệp, API Key hoặc serial máy kéo đầy đủ.
+- Khi đã bật, HISA cung cấp dữ liệu **chỉ đọc có giới hạn**: số kiện đang tải, nguồn cont đã có trong bộ nhớ, phiếu thực tế, tình trạng chuẩn bị, **nhiều lịch Zalo đã duyệt**, gồm hàng dự kiến về kho và lịch xuất hàng; hỗ trợ hỏi qua bàn phím hoặc micro/rảnh tay. Không tự quét toàn bộ Container hoặc nhập lịch đã duyệt vào sổ xuất.
+- **Ngày dự kiến cont về kho** là lịch ngày hàng sẽ về để chuẩn bị tiếp nhận, trừ khi có thay đổi/hoãn; không tự ghi thành đã nhập kho.
+- **Dự kiến xuất hàng** chính là lịch xuất hàng để điều hành, trừ khi hoãn/đổi ngày; không tự ghi phiếu đã xuất thực tế.
+- **Đã LX** = đã có lịch xuất từ trước, không phải đã có lái xe/đã xuất thực tế. **Ô LX để trống** = việc/lịch mới phát sinh; không tự hiểu là không có lịch xuất. Giữ phân biệt này trong phân tích ảnh Zalo và trong câu trả lời Gemini.
+- Khi dữ liệu kho chưa được phép chia sẻ, ứng dụng nói rõ Gemini chỉ thấy câu hỏi, không thể biết tình hình HISA; khi không có lịch đã duyệt, không bịa lịch.
+- Tự động kiểm thử đọc lịch JSON đã duyệt/loại lịch chưa duyệt, đúng nghĩa trạng thái, lọc hợp đồng, không suy ngày dự kiến thành nhập/xuất thực tế. Chưa thể kiểm chứng live Gemini hoặc file Excel của máy người dùng chỉ từ CI.
+
+---
+
 ## HISA v1.9.25 — Gemini trả lời/đọc tiếng Việt và cập nhật nền
 
 - Gemini Chat gửi **ràng buộc vi-VN rõ ràng** cả trong hướng dẫn và từng câu hỏi; nhận dạng mic ưu tiên tiếng Việt có dấu. Nội dung hợp đồng, mã kỹ thuật giữ nguyên.
