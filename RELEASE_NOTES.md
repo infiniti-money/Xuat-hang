@@ -1,3 +1,15 @@
+## HISA v1.9.30 — Mây đối chiếu nguồn HISA, chọn tất cả trên ảnh Zalo và phiếu nháp
+
+- **Mây có thể đọc toàn bộ các nguồn HISA đã cấu hình qua trình đọc nội bộ**: dữ liệu Tổng hợp, cont/kiện chi tiết, danh sách Máy kéo, Tủ điện, Đầu cửa car, phiếu đã lưu và lịch Zalo đã duyệt. Tình trạng hiện diện của các file Excel Xuất hàng và KT cũng được kiểm tra, nhưng không trực tiếp tải nguyên văn file lên Gemini. Khi người dùng bật riêng ô chia sẻ dữ liệu HISA, chỉ tóm tắt có giới hạn và chi tiết HĐ được hỏi mới gửi tới Gemini, không gửi file gốc, API Key hay đường dẫn tuyệt đối. Các tệp bên ngoài nguồn được cấu hình không tự được quét.
+- **Mây đề xuất phiếu ngay cả khi Gemini API không trả lời**: trong Trợ lý Mây có ô nhập số hợp đồng và nút **Mây đề xuất phiếu xuất** để tạo đề xuất nội bộ. Lệnh giọng nói/văn bản “Mây lập phiếu xuất HĐ …” cũng hiện nút **Xem phiếu Mây đề xuất** trước khi gọi Gemini API. Chỉ sau khi người dùng bấm Xem, HISA mới đối chiếu kiện và mở phiếu nháp ở trạng thái **Chờ xuất**. Chưa tự lưu và không đánh dấu xuất thực tế.
+- Khi Mây lập phiếu nháp, các vật tư của **toàn bộ kiện Hưng Yên trong phạm vi HĐ/công trình được chọn** đều được đưa vào phiếu. Serial máy kéo chỉ tự gợi ý nếu khớp duy nhất số HĐ, công trình, đơn vị, loại máy và số máy; không tự bịa serial, có cảnh báo và còn phải duyệt.
+- **Ảnh Zalo**: bổ sung **Chọn tất cả cont Hưng Yên** ở danh sách hàng dự kiến về và **Chọn tất cả HĐ xuất Hưng Yên** ở danh sách xuất. Hai lựa chọn độc lập, chỉ tích các hợp đồng để đối chiếu. Chưa xác nhận hàng đã về hoặc đã xuất. Có nút bỏ tích riêng.
+- **Đối chiếu Máy kéo.xlsx**: ở chi tiết và nút riêng của hai danh sách Zalo hiển thị tình trạng gia công, đã/chưa làm, lịch xuất cũ/mới, serial, ngày xuất ở cột K và ngày bàn giao từ HISA. Cùng số HĐ mà khác T1/T2, công trình hoặc đơn vị bị cảnh báo, không coi là trùng máy đã bàn giao.
+- Chỉ khi nhân viên **xác nhận phiếu ở trạng thái Đã xuất/đã bàn giao** thì nghiệp vụ sổ hàng mới ghi các dòng vật tư đã chọn. Riêng máy kéo, HISA đã có cơ chế ghi ngày **cột K MÁY KÉO.xlsx** theo serial xác minh và ngày trên phiếu; cấm ghi ngày từ kế hoạch. Dữ liệu Excel được sao lưu và kiểm tra trùng/sửa bên ngoài. Nếu không khớp serial chính xác thì cảnh báo và không ghi nhầm dòng.
+- Kiểm thử tự động bao gồm lựa chọn hàng loạt độc lập, không đổi lịch khi tích; đọc trạng thái K và ngày xuất máy kéo, phân biệt HĐ T1/T2 và chỉ gửi serial cho câu hỏi HĐ cụ thể. Không thể kiểm tra live dữ liệu Excel và API Key trên máy người dùng bằng CI.
+
+---
+
 ## HISA v1.9.29 — Mây Mây chạy nền Windows; cập nhật chỉ một lần nhấn
 
 - Khi nhấn **Thu nhỏ HISA**, cửa sổ ẩn vào **khay hệ thống Windows** (notification area), không đóng ứng dụng. Nhấp đúp biểu tượng HISA để mở lại; nhấp chuột phải có **Mở HISA / Mây Mây**, **Dừng micro Mây** và **Thoát hẳn HISA**.
