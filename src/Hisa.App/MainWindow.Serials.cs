@@ -17,7 +17,7 @@ public partial class MainWindow
         // A printed copy includes serials from MÁY KÉO.xlsx even if the
         // operator has not yet clicked Save. Printing itself does not
         // alter the saved slip, delivery status or the source workbook.
-        var copy=WarehouseService.Clone(slip);
+        var copy=ReferenceEquals(slip,_draft)?slip:WarehouseService.Clone(slip);
         var imported=FillMotorSerialsFromSource(copy);
         if(imported.Missing>0)
         {
