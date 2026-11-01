@@ -1,5 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
+using System.Windows.Media;
 
 namespace Hisa.App;
 
@@ -49,7 +51,8 @@ public partial class MainWindow
             return result;
         }
         var items=ReadVisibleItems();
-        var query=Input();query.Width=230;
+        var query=Input();query.Width=310;
+        query.ToolTip="Gõ hợp đồng, công trình, tên máy hoặc số serial: danh sách tự lọc ngay.";
         var stage=new ComboBox
         {
             Width=175,
@@ -68,6 +71,7 @@ public partial class MainWindow
         var effectiveDay=DateInput(DateTime.Today.ToString("yyyy-MM-dd"));
         var note=Input();note.Width=340;
         var summary=T("",12,true,Muted);
+        var hints=T("① Tìm hoặc chọn hợp đồng  →  ② Chọn đúng máy/serial  →  ③ Xác nhận tiến độ.",12,true,Brush("#137B75"));
         var selection=T("Chọn một máy kéo trong bảng bên dưới để xác nhận tiến độ.",12,true);
         var contractsSummary=T("",12,true,Muted);
         var confirmedOnly=new CheckBox
@@ -98,6 +102,26 @@ public partial class MainWindow
         grid.IsReadOnly=true;
         grid.SelectionMode=DataGridSelectionMode.Single;
         grid.CanUserAddRows=false;
+        grid.MinHeight=155;
+        grid.RowHeight=34;
+        contractGrid.RowHeight=34;
+        var rowStyle=new Style(typeof(DataGridRow));
+        foreach(var (code,color) in new[]{
+            (MotorHungYenStore.Pending,"#F8FAFC"),
+            (MotorHungYenStore.Sent,"#FFF8E9"),
+            (MotorHungYenStore.Completed,"#EBF8F5"),
+            (MotorHungYenStore.HandedOver,"#EAF4FF")
+        })
+        {
+            var trigger=new DataTrigger{Binding=new Binding("State"),Value=code};
+            trigger.Setters.Add(new Setter(DataGridRow.BackgroundProperty,Brush(color)));
+            rowStyle.Triggers.Add(trigger);
+        }
+        var selectedRow=new Trigger{Property=DataGridRow.IsSelectedProperty,Value=true};
+        selectedRow.Setters.Add(new Setter(DataGridRow.BackgroundProperty,Brush("#C9E8E4")));
+        selectedRow.Setters.Add(new Setter(DataGridRow.ForegroundProperty,Brush("#15394B")));
+        rowStyle.Triggers.Add(selectedRow);
+        grid.RowStyle=rowStyle;
         grid.SelectionChanged+=(_,_)=>
         {
             if(grid.SelectedItem is MotorHungYenStore.Item picked)
@@ -107,7 +131,15 @@ public partial class MainWindow
                     " · "+picked.StatusLabel;
                 note.Text=picked.LastNote;
                 workChoice.SelectedIndex=picked.ExcelDispatchDay.Length>0?-1:picked.WorkLabel=="Đã làm"?1:0;
+                hints.Text="ĐÃ CHỌN · HĐ "+picked.Contract+" · Serial "+
+                    (picked.Serial.Length>0?picked.Serial:"CHƯA CÓ")+
+                    " · "+picked.WorkLabel+" · "+
+                    (picked.ExcelDispatchDay.Length>0?
+                        "Có ngày xuất: "+Rules.Day(picked.ExcelDispatchDay):
+                        "Chưa ghi ngày xuất thực tế");
             }
+            else
+                hints.Text="① Tìm hoặc chọn hợp đồng  →  ② Chọn đúng máy/serial  →  ③ Xác nhận tiến độ.";
         };
 
         void FilterMachines()
@@ -206,64 +238,112 @@ public partial class MainWindow
                 Notify("Không thể ghi nhận:\n"+ex.Message);
             }
         }
+        async Task SaveWorkChoiceAsync(int chosenIndex)
+        {
+            if(grid.SelectedItem is not MotorHungYenStore.Item selected)
+            {
+                Notify("Chọn một dòng máy kéo có serial trước khi cập nhật.");return;
+            }
+            if(selected.State==MotorHungYenStore.HandedOver || selected.ExcelDispatchDay.Length>0)
+            {
+                Notify("Máy đã xuất/bàn giao hoặc cột K có ngày. Không thay thế ngày xuất bằng trạng thái làm.");return;
+            }
+            if(chosenIndex is not (0 or 1)||Day(effectiveDay).Length==0)
+            {
+                Notify("Chọn ngày thực tế và trạng thái Chưa làm / Đã làm.");return;
+            }
+            var choice=chosenIndex==1?"Đã làm":"Chưa làm";
+            if(!Ask("LƯU TÌNH TRẠNG MÁY KÉO VÀO EXCEL CỘT K\n"+
+                "HĐ: "+selected.Contract+"\nCông trình: "+selected.Project+
+                "\nMáy: "+selected.Material+"\nSerial: "+selected.Serial+
+                "\nNgày ghi nhận: "+Rules.Day(Day(effectiveDay))+
+                "\nTrạng thái mới: "+choice+
+                "\n\nChỉ phiếu Đã xuất mới được ghi ngày xuất thực tế. Tiếp tục?"))return;
+            var result=await _service.SetMotorWorkAsync(selected,chosenIndex==1,
+                Day(effectiveDay),note.Text);
+            machineRows=EquipmentListReader.Read(
+                _service.Settings.TractionMachineListPath,"Máy kéo");
+            var preserved=selected.Key;
+            items=ReadVisibleItems();
+            RefreshContracts();
+            FilterMachines();
+            grid.SelectedItem=(grid.ItemsSource as IEnumerable<MotorHungYenStore.Item>)
+                ?.FirstOrDefault(x=>x.Key==preserved);
+            if(result.Warnings.Count>0)Notify(string.Join("\n",result.Warnings.Take(8)));
+        }
+
+        Button StageTile(string label,int count,int value,string tint,bool showUnconfirmed=false)
+        {
+            var button=B("",()=>
+            {
+                if(showUnconfirmed)confirmedOnly.IsChecked=false;
+                stage.SelectedIndex=value;
+            });
+            button.Content=Stack(T(count.ToString("N0"),22,true,Ink),
+                T(label,11,true,Muted));
+            button.Background=Brush(tint);
+            button.BorderBrush=Brush("#D6E6E7");
+            button.Padding=new Thickness(16,8,18,8);
+            button.Margin=new Thickness(0,0,8,6);
+            button.MinWidth=135;
+            button.HorizontalContentAlignment=HorizontalAlignment.Left;
+            button.ToolTip="Nhấp để lọc ngay những máy kéo ở trạng thái này";
+            return button;
+        }
+        var filters=Row(
+            StageTile("TỔNG SỐ MÁY",items.Count,0,"#EFF4F9",true),
+            StageTile("CHƯA GỬI",items.Count(x=>x.State==MotorHungYenStore.Pending),1,"#F4F6F8",true),
+            StageTile("ĐANG GIA CÔNG",items.Count(x=>x.State==MotorHungYenStore.Sent),2,"#FFF4DC"),
+            StageTile("ĐÃ LÀM XONG",items.Count(x=>x.State==MotorHungYenStore.Completed),3,"#E3F6F0"),
+            StageTile("ĐÃ BÀN GIAO",items.Count(x=>x.State==MotorHungYenStore.HandedOver),4,"#E6F1FF")
+        );
+
         var tools=Card(Stack(
-            T("HỢP ĐỒNG MÁY KÉO GIA CÔNG TẠI HƯNG YÊN",18,true),
-            T("Đồng bộ hai chiều cột K: đọc trực tiếp trạng thái/ngày xuất từ Excel; bấm Lưu để ghi Chưa làm / Đã làm. Ngày xuất kho chỉ tự ghi theo phiếu Đã xuất, không tự xác nhận từ ngày nhập tay.",12,false,Muted),
-            T("Chỉ hợp đồng đã được người thao tác xác nhận GỬI mới vào danh sách gia công; việc xuất hiện trong MÁY KÉO.xlsx hay ghi chú DXH không có nghĩa đã gửi gia công tại Hưng Yên.",11,false,Muted),
-            Row(Field("Tìm số HĐ / công trình / máy / seri",query),
-                Field("Trạng thái máy",stage),
-                B("Làm mới từ file Máy kéo",()=>ShowMotorHungYen())),
-            contractsSummary,
+            T("MÁY KÉO GIA CÔNG TẠI HƯNG YÊN",19,true),
+            T("Theo dõi từng máy bằng số serial · trạng thái xuất thực tế chỉ xác nhận từ phiếu xuất/bàn giao.",12,false,Muted),
+            filters,
+            Row(Field("Tìm hợp đồng, công trình, serial",query),
+                Field("Lọc theo tiến độ",stage),
+                B("↻ Làm mới từ Excel",()=>ShowMotorHungYen()),
+                B("Bỏ lọc HĐ",()=>{selectedContractKey="";contractGrid.SelectedItem=null;FilterMachines();})),
             confirmedOnly,
+            contractsSummary,
             summary,
-            selection,
+            hints,
             Row(Field("Ngày xác nhận thực tế",effectiveDay),
-                Field("Ghi chú / chứng từ / người nhận",note)),
-            Row(B("Xác nhận đã gửi gia công tại Hưng Yên",()=>MoveTo(MotorHungYenStore.Sent)),
-                Field("Tình trạng gia công (chọn một)",workChoice),
-                A("Lưu trạng thái vào Excel cột K",async()=>
-                {
-                    if(grid.SelectedItem is not MotorHungYenStore.Item selected)
-                    {
-                        Notify("Chọn đúng máy kéo và seri cần cập nhật.");return;
-                    }
-                    if(selected.State==MotorHungYenStore.HandedOver || selected.ExcelDispatchDay.Length>0)
-                    {
-                        Notify("Cột K đã có ngày xuất kho hoặc phiếu đã xác nhận Đã xuất; không ghi đè ngày bằng Chưa làm / Đã làm. Hãy kiểm tra phiếu và dữ liệu Excel.");return;
-                    }
-                    if(workChoice.SelectedIndex<0 || Day(effectiveDay).Length==0)
-                    {
-                        Notify("Chọn Chưa làm hoặc Đã làm và ngày xác nhận.");return;
-                    }
-                    var choice=workChoice.SelectedIndex==1?"Đã làm":"Chưa làm";
-                    if(!Ask("CẬP NHẬT MÁY KÉO VÀ FILE EXCEL CỘT K\n"+
-                        "HĐ: "+selected.Contract+"\nCông trình: "+selected.Project+
-                        "\nSeri: "+selected.Serial+"\nTình trạng: "+choice+
-                        "\n\nChỉ khi xác nhận phiếu Đã xuất mới đổi chữ thành ngày bàn giao."))return;
-                    var result=await _service.SetMotorWorkAsync(selected,workChoice.SelectedIndex==1,
-                        Day(effectiveDay),note.Text);
-                    // Refresh the original L cells immediately after writing:
-                    // the equipment catalog loaded when this page opened is stale.
-                    machineRows=EquipmentListReader.Read(_service.Settings.TractionMachineListPath,"Máy kéo");
-                    items=ReadVisibleItems();
-                    RefreshContracts();FilterMachines();
-                    grid.SelectedItem=(grid.ItemsSource as IEnumerable<MotorHungYenStore.Item>)
-                        ?.FirstOrDefault(x=>x.Key==selected.Key);
-                    if(result.Warnings.Count>0)Notify(string.Join("\n",result.Warnings));
-                },true),
-                B("Lịch sử dòng chọn",()=>
-                {
-                    if(grid.SelectedItem is not MotorHungYenStore.Item selected)
-                    {
-                        Notify("Chọn máy kéo để xem lịch sử.");return;
-                    }
-                    ShowDialogGrid("Lịch sử máy kéo HĐ "+selected.Contract,
-                        Table(store.HistoryFor(selected.Key),
-                            ("Trạng thái","Label",210),("Ngày thực tế","EffectiveDay",140),
-                            ("Ghi nhận lúc","RecordedAt",210),("Người thao tác","By",150),
-                            ("Ghi chú","Note",-1)));
-                })),
-            T("Cột K trong MÁY KÉO.xlsx là nguồn trạng thái hai chiều. Sửa trực tiếp Excel rồi bấm Làm mới để đọc lại; chọn Chưa làm / Đã làm tại HISA để ghi Excel. Ngày xuất kho có sẵn được giữ nguyên; chỉ phiếu Đã xuất mới cập nhật ngày tự động. HISA sao lưu trước khi ghi.",11,false,Muted)
+                Field("Ghi chú / chứng từ",note)),
+            Row(
+                B("→ ĐÃ GỬI GIA CÔNG",()=>MoveTo(MotorHungYenStore.Sent),true),
+                A("✓ ĐÃ LÀM XONG · GHI EXCEL",async()=>await SaveWorkChoiceAsync(1),true),
+                A("○ CHƯA LÀM · GHI EXCEL",async()=>await SaveWorkChoiceAsync(0))
+            ),
+            new Expander{
+                Header="⚙ Tùy chọn bổ sung · tình trạng cột K, lịch sử và hướng dẫn",
+                IsExpanded=false,
+                Content=Stack(
+                    Row(Field("Tình trạng làm",workChoice),
+                        A("Lưu trạng thái vào Excel cột K",
+                            async()=>await SaveWorkChoiceAsync(workChoice.SelectedIndex),true),
+                        B("Lịch sử dòng chọn",()=>
+                        {
+                            if(grid.SelectedItem is not MotorHungYenStore.Item selected)
+                            {
+                                Notify("Chọn máy kéo để xem lịch sử.");return;
+                            }
+                            ShowDialogGrid("Lịch sử máy kéo HĐ "+selected.Contract,
+                                Table(store.HistoryFor(selected.Key),
+                                    ("Trạng thái","Label",210),("Ngày thực tế","EffectiveDay",140),
+                                    ("Ghi nhận lúc","RecordedAt",210),("Người thao tác","By",150),
+                                    ("Ghi chú","Note",-1)));
+                        })),
+                    T("Nguồn MÁY KÉO.xlsx, cột K: Đã làm / Chưa làm hoặc ngày xuất thực tế. "+
+                        "HISA đọc lại những thay đổi bạn đã lưu trong Excel. Chỉ phiếu Đã xuất mới có quyền "+
+                        "ghi ngày theo serial và luôn tạo bản sao trước khi ghi.",12,false,Muted),
+                    T("Lưu ý: tên HĐ xuất hiện trong file không chứng minh đã gửi gia công. "+
+                        "Chọn máy theo đúng serial và chỉ bấm Đã gửi khi việc gửi đã diễn ra thực tế.",11,false,Muted)
+                ),
+                Margin=new Thickness(0,10,0,0)
+            }
         ));
         var page=Stack(tools);
         if(_service.Settings.TractionMachineListPath.Length==0)
@@ -272,7 +352,7 @@ public partial class MainWindow
             page.Children.Add(Alert("Nguồn Excel: "+string.Join(" | ",catalog.Warnings)));
         var header=new ScrollViewer
         {
-            Content=page,VerticalScrollBarVisibility=ScrollBarVisibility.Auto,MaxHeight=335
+            Content=page,VerticalScrollBarVisibility=ScrollBarVisibility.Auto,MaxHeight=390
         };
 
         var tables=new Grid();
@@ -280,16 +360,16 @@ public partial class MainWindow
         tables.RowDefinitions.Add(new RowDefinition{Height=new GridLength(2,GridUnitType.Star)});
         tables.RowDefinitions.Add(new RowDefinition{Height=GridLength.Auto});
         tables.RowDefinitions.Add(new RowDefinition{Height=new GridLength(3,GridUnitType.Star)});
-        var contractHeading=T("1 · HỢP ĐỒNG MÁY KÉO GIA CÔNG TẠI HƯNG YÊN",14,true);
+        var contractHeading=T("1 · CHỌN HỢP ĐỒNG (BẤM DÒNG ĐỂ XEM MÁY BÊN DƯỚI)",14,true);
         tables.Children.Add(contractHeading);
         Grid.SetRow(contractGrid,1);tables.Children.Add(contractGrid);
-        var machineHeading=T("2 · CHI TIẾT MÁY KÉO THEO HỢP ĐỒNG (CHỌN MÁY ĐỂ XÁC NHẬN)",14,true);
+        var machineHeading=T("2 · CHỌN MÁY THEO SERIAL → THAO TÁC Ở THANH TRÊN",14,true);
         Grid.SetRow(machineHeading,2);tables.Children.Add(machineHeading);
         Grid.SetRow(grid,3);tables.Children.Add(grid);
         RefreshContracts();
         FilterMachines();
         SetPage("Máy kéo gia công tại Hưng Yên",
-            "Xem hợp đồng đã gửi gia công → đã làm xong → đã bàn giao · theo từng HĐ và seri",
+            "Tìm HĐ/serial · bộ lọc tiến độ trực quan · một lần xác nhận trạng thái",
             Layout(header,tables));
     }
 }

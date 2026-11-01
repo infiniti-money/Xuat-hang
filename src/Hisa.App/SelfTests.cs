@@ -201,6 +201,7 @@ public static class SelfTests
             result.Checks.AddRange(await UiWorkflowDiagnostics.RunAsync());
             result.Checks.AddRange(await MotorSerialDiagnostics.RunAsync());
             result.Checks.AddRange(MotorSerialAutoFillDiagnostics.Run());
+            result.Checks.AddRange(MotorSerialExcelSyncDiagnostics.Run());
             result.Checks.AddRange(LogoDiagnostics.Run());
             result.Checks.AddRange(await AuditUiDiagnostics.RunAsync());
             result.Checks.AddRange(await AuditExcelDiagnostics.RunAsync());
@@ -215,6 +216,7 @@ public static class SelfTests
             result.Checks.AddRange(GeminiCredentialDiagnostics.Run());
             result.Checks.AddRange(GeminiChatDiagnostics.Run());
             result.Checks.AddRange(MayAssistantDiagnostics.Run());
+            result.Checks.AddRange(MayAssistantPreferencesDiagnostics.Run());
             result.Checks.AddRange(GeminiHisaContextDiagnostics.Run());
             result.Checks.AddRange(MayWarehouseAuditDiagnostics.Run());
             result.Checks.AddRange(GeminiAudioDiagnostics.Run());
