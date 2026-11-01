@@ -27,7 +27,8 @@ public partial class MainWindow
     {
         _geminiHandsFreeActive=false;
         if(_geminiHandsFreeToggle!=null)
-            _geminiHandsFreeToggle.Content="🎧 Bật rảnh tay";
+            _geminiHandsFreeToggle.Content="🎙 Nói với HISA";
+        TopVoiceButton.Content="🎙 Nói với HISA";
         _geminiHandsFreeSession++;
         var cts=_geminiHandsFreeCancellation;
         _geminiHandsFreeCancellation=null;
@@ -228,13 +229,13 @@ public partial class MainWindow
         }
 
         Button? handsFree=null;
-        handsFree=B("🎧 Bật rảnh tay",()=>
+        handsFree=B("🎙 Nói với HISA",()=>
         {
             if(_geminiHandsFreeActive)
             {
                 StopHandsFreeSession();
-                handsFree!.Content="🎧 Bật rảnh tay";
-                activity.Text="○ ĐÃ TẮT RẢNH TAY · micro đã dừng. Bấm Bật để sử dụng lại.";
+                handsFree!.Content="🎙 Nói với HISA";
+                activity.Text="○ ĐÃ DỪNG HISA · micro và loa đã tắt. Bấm Nói với HISA để tiếp tục.";
                 return;
             }
             if(_geminiChatSending||_geminiChatTranscribing||_geminiMicrophone.IsRecording)
@@ -252,13 +253,54 @@ public partial class MainWindow
             }
             if(voicePermission.IsChecked!=true || !GeminiVoiceConsentStore.Read())
             {
-                activity.Text="Hãy đánh dấu đồng ý thu và gửi âm thanh tới Gemini ở phía trên để bật rảnh tay.";
-                return;
+                // One clear consent covers both microphone and a bounded HISA
+                // read-only projection. Persist independent permissions so
+                // either can later be revoked in Advanced options.
+                if(MessageBox.Show(this,
+                    "BẬT TRỢ LÝ HISA RẢNH TAY?\n\n"+
+                    "• Khi bạn bấm Nói với HISA, micro sẽ mở trong phiên hiện tại. "+
+                    "Mỗi đoạn nói được tự động gửi đến Google Gemini qua Internet "+
+                    "để nhận dạng và hỏi đáp tiếng Việt; Gemini phát trả lời qua loa.\n"+
+                    "• Đồng thời cho phép gửi tóm tắt dữ liệu HISA liên quan "+
+                    "(lịch cont về, lịch xuất đã duyệt, kiện, phiếu, trạng thái kho) "+
+                    "cho Gemini khi bạn đặt câu hỏi. Không gửi nguyên file Excel, API Key "+
+                    "hay dữ liệu ngoài phạm vi câu hỏi.\n"+
+                    "• Lựa chọn được ghi nhớ để lần sau chỉ cần bấm một nút. "+
+                    "Bạn có thể tắt và thu hồi từng quyền trong Tùy chọn. "+
+                    "Micro KHÔNG tự bật khi mở HISA và AI KHÔNG tự sửa Excel.\n\n"+
+                    "Bạn đồng ý bật micro và chia sẻ tóm tắt HISA như trên chứ?",
+                    "HISA · Quyền micro và dữ liệu (một lần)",
+                    MessageBoxButton.YesNo,MessageBoxImage.Question)!=MessageBoxResult.Yes)
+                {
+                    activity.Text="Chưa bật HISA. Micro không được mở và dữ liệu kho không được gửi.";
+                    return;
+                }
+                try
+                {
+                    GeminiVoiceConsentStore.Save(true);
+                    voicePermission.IsChecked=true;
+                    if(!GeminiWarehouseSharingConsent.Read())
+                    {
+                        GeminiWarehouseSharingConsent.Save(true);
+                        contextToggle.IsChecked=true;
+                    }
+                }
+                catch(Exception ex)
+                {
+                    activity.Text="Không lưu được quyền đã đồng ý: "+ex.Message;
+                    return;
+                }
+                if(!GeminiVoiceConsentStore.Read() || voicePermission.IsChecked!=true)
+                {
+                    activity.Text="Quyền micro chưa được cấp. HISA không thu âm.";
+                    return;
+                }
             }
             _geminiHandsFreeCancellation=new CancellationTokenSource();
             _geminiHandsFreeActive=true;
             int session=++_geminiHandsFreeSession;
-            handsFree!.Content="⏹ Tắt rảnh tay";
+            handsFree!.Content="⏹ Dừng HISA";
+            TopVoiceButton.Content="⏹ Dừng HISA";
             StartHandsFreeListening(session);
         });
         _geminiHandsFreeToggle=handsFree;
@@ -430,7 +472,7 @@ public partial class MainWindow
             if(_geminiHandsFreeActive)
             {
                 StopHandsFreeSession();
-                handsFree!.Content="🎧 Bật rảnh tay";
+                handsFree!.Content="🎙 Nói với HISA";
             }
             _geminiChatHistory.Clear();
             messages.Children.Clear();
@@ -609,16 +651,31 @@ public partial class MainWindow
                 contextToggle.IsChecked=true;question.Text="Dựa trên dữ liệu kho đã chia sẻ, tóm tắt công việc hôm nay, kiện cont chờ nhận, hợp đồng chờ xuất, máy kéo cần kiểm tra và việc cần ưu tiên. Nêu rõ những gì chưa có dữ liệu."; }),
             B("Quy tắc cont đi",()=>question.Text="Nếu cùng hợp đồng nhưng khác ngày cont đi và T1/T2 thì quản lý kiện thế nào?")
         );
+        var advanced=new Expander
+        {
+            Header="⚙ Tùy chọn nâng cao · quyền riêng tư, micro, giọng đọc",
+            IsExpanded=false,
+            Margin=new Thickness(0,9,0,2),
+            Content=Stack(
+                T("Có thể bỏ chọn một trong hai quyền bất kỳ lúc nào. "+
+                  "Tắt chia sẻ kho thì Gemini chỉ biết nội dung bạn hỏi; "+
+                  "tắt quyền micro sẽ ngừng thu ngay.",11,false,Muted),
+                contextToggle,privacyNote,voicePermission,autoVoice,
+                Row(Field("Thiết bị micro",micSelector),Field("Độ nhạy rảnh tay",sensitivitySelector)),
+                Row(testMic,privacySettings),
+                Row(listen,transcribe,speak,stopVoice),
+                B("Xóa cuộc trò chuyện",ClearChat),
+                B("⚙ Gemini API Key",()=>Navigate("settings"))
+            )
+        };
         var head=Card(Stack(
-            Row(T("✦  GEMINI CHAT  /  TRỢ LÝ HISA",19,true),
-                B("⚙  Gemini API Key",()=>Navigate("settings")),
-                B("Xóa hội thoại",ClearChat)),
-            T("Giọng đọc tiếng Việt qua Gemini TTS (không dùng giọng tiếng Anh Windows). Chọn thiết bị micro, đồng ý một lần bằng ô chọn bên dưới; sau đó bật/tắt rảnh tay hoặc thu thủ công không hiện hộp thoại. Trạng thái đang thu luôn hiển thị. Bỏ chọn để thu hồi quyền; AI không tự ghi Excel.",12,false,Muted),
-            contextToggle,privacyNote,voicePermission,autoVoice,
-            Row(Field("Thiết bị micro",micSelector),Field("Độ nhạy rảnh tay",sensitivitySelector)),
-            Row(testMic,privacySettings),
-            Row(handsFree,listen,transcribe,speak,stopVoice),
-            T("Để Gemini biết hôm nay cont nào dự kiến về, có lịch xuất nào hoặc việc nào mới phát sinh, hãy bật chia sẻ HISA phía trên. HISA chỉ gửi lịch đã duyệt và tóm tắt dữ liệu đang có; không tự nạp lịch vào sổ xuất, không tự ghi Excel.",11,false,Muted)
+            Row(T("✦  TRỢ LÝ HISA",19,true),
+                B("⚙ Cấu hình Gemini",()=>Navigate("settings"))),
+            T("Một nút để trò chuyện tiếng Việt và hỏi lịch cont về, lịch xuất, hợp đồng trong HISA. "+
+              "Lần đầu xác nhận quyền một lần; về sau chỉ cần bấm Nói với HISA. "+
+              "Bấm lần nữa để dừng micro. AI không tự ghi Excel.",12,false,Muted),
+            Row(handsFree),
+            advanced
         ));
         var bottom=Card(Stack(
             T("CÂU HỎI GỢI Ý",11,true,Brush("#1D8E91")),
@@ -635,7 +692,7 @@ public partial class MainWindow
         layout.Children.Add(head);
         Grid.SetRow(viewer,1);layout.Children.Add(viewer);
         Grid.SetRow(bottom,2);layout.Children.Add(bottom);
-        SetPage("Trợ lý Gemini AI","Rảnh tay có xin phép · tự nghe & trả lời tiếng Việt · Excel vẫn cần phê duyệt",layout);
+        SetPage("Trợ lý Gemini AI","Một nút nói chuyện · lịch cont về / lịch xuất · AI chỉ đọc Excel",layout);
         ScrollToEnd();
     }
 }
