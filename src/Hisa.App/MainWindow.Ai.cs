@@ -293,12 +293,13 @@ public partial class MainWindow
                 view.Children.Add(equipmentGrid);
                 var machines=new MotorHungYenStore(_service.DataDirectory)
                     .List(production.Rows.Where(x=>x.Category=="Máy kéo"));
-                var statuses=MayWarehouseAudit.MotorsFor(line,machines);
+                var statuses=MayWarehouseAudit.MotorsFor(line,machines,_service.Slips);
                 if(statuses.Count>0)
                 {
                     var motorGrid=Table(statuses,
                         ("Serial máy kéo","Serial",125),("Máy kéo","Material",165),
                         ("Tình trạng làm","WorkStatus",135),
+                        ("Ghi chú/lịch làm (J)","FactoryNote",210),
                         ("Lịch xuất","PlannedWork",155),
                         ("Ngày đã xuất (K)","DispatchDate",115),
                         ("Ngày bàn giao","HandoverDate",112),
@@ -358,13 +359,14 @@ public partial class MainWindow
             var catalog=Production();
             var machines=new MotorHungYenStore(_service.DataDirectory)
                 .List(catalog.Rows.Where(x=>x.Category=="Máy kéo"));
-            var rows=schedules.SelectMany(x=>MayWarehouseAudit.MotorsFor(x,machines))
+            var rows=schedules.SelectMany(x=>MayWarehouseAudit.MotorsFor(x,machines,_service.Slips))
                 .GroupBy(x=>x.Contract+"|"+x.Project+"|"+x.Company+"|"+x.Serial+
                     "|"+x.PlannedWork).Select(g=>g.First()).ToList();
             var table=Table(rows,
                 ("Hợp đồng","Contract",110),("Công trình","Project",195),
                 ("Đơn vị","Company",130),("Serial","Serial",125),
                 ("Loại máy","Material",175),("Tình trạng làm","WorkStatus",125),
+                ("Nguồn/lịch làm (J)","FactoryNote",190),
                 ("Lịch xuất","PlannedWork",150),
                 ("Ngày đã xuất (K)","DispatchDate",115),
                 ("Ngày bàn giao","HandoverDate",115),("Khớp nguồn","Verification",250));
