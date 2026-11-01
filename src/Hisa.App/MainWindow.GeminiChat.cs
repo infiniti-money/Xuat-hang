@@ -106,7 +106,7 @@ public partial class MainWindow
 
         var contextToggle=new CheckBox
         {
-            Content="Cho phép Gemini đọc dữ liệu HISA liên quan (kiện, lịch cont về, lịch xuất đã duyệt, phiếu và trạng thái chuẩn bị)",
+            Content="Cho phép Mây gửi tóm tắt đối chiếu HISA lên Gemini khi hỏi (gồm serial máy kéo của HĐ cụ thể, lịch cont, phiếu và tình trạng Excel; không gửi nguyên tệp)",
             IsChecked=_geminiChatIncludeWarehouse,
             Foreground=Brush("#244C60"),FontWeight=FontWeights.SemiBold
         };
@@ -638,7 +638,7 @@ public partial class MainWindow
                     var motors=new MotorHungYenStore(_service.DataDirectory)
                         .List(equipment.Rows.Where(x=>x.Category=="Máy kéo"));
                     var cross=MayWarehouseAudit.BuildReadOnlyProjection(
-                        userText,_service.Settings,warehouse,equipment,motors);
+                        userText,_service.Settings,warehouse,equipment,motors,_service.Slips);
                     context=cross+"\n"+context;
                     activity.Text="Đã cấp dữ liệu HISA chỉ đọc: "+
                         approved.Count+" lịch đã duyệt, "+
