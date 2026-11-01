@@ -90,6 +90,17 @@ public static class UiWorkflowDiagnostics
                     GetValue(window) is GeminiMicrophoneRecorder recorder &&
                   !recorder.IsRecording,
                 "Merely opening Gemini Chat never starts microphone without an explicit click");
+            Check(typeof(MainWindow).GetField("_mayTray",flags)?.GetValue(window)==null,
+                "No background tray or microphone is started before the real window loads");
+            Check(typeof(MainWindow).GetMethod("RestoreMayWindow",flags)!=null &&
+                  typeof(MainWindow).GetMethod("UpdateMayTrayStatus",flags)!=null,
+                "Mây has dedicated Windows-tray restore and listening status controls");
+            Call("ShowInformation");
+            var updateButtons=Children(window).OfType<Button>()
+                .Where(x=>x.Content?.ToString()?.Contains("CẬP NHẬT HISA")==true).ToList();
+            Check(updateButtons.Count==1 &&
+                  !Children(window).OfType<Button>().Any(x=>x.Content?.ToString()=="Cài bản đã tải"),
+                "Updater information screen exposes a single action instead of two installation steps");
             Call("ShowSettings");
             Check(navigation.Children.OfType<Button>().Any(b=>b.Content?.ToString()
                     ?.Contains("Máy kéo gia công tại Hưng Yên")==true),
