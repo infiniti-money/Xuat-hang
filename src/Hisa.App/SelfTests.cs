@@ -215,6 +215,7 @@ public static class SelfTests
             result.Checks.AddRange(GeminiChatDiagnostics.Run());
             result.Checks.AddRange(MayAssistantDiagnostics.Run());
             result.Checks.AddRange(GeminiHisaContextDiagnostics.Run());
+            result.Checks.AddRange(MayWarehouseAuditDiagnostics.Run());
             result.Checks.AddRange(GeminiAudioDiagnostics.Run());
             result.Checks.AddRange(GeminiVietnameseTtsDiagnostics.Run());
             result.Checks.AddRange(HandsFreeVoiceDiagnostics.Run());
