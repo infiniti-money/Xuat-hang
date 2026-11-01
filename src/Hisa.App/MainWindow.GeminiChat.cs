@@ -16,7 +16,7 @@ public partial class MainWindow
     private readonly GeminiMicrophoneRecorder _geminiMicrophone=new();
     private bool _geminiMicrophoneConsent;
     private bool _geminiChatTranscribing;
-    private bool _geminiChatAutoSpeak;
+    private bool _geminiChatAutoSpeak=MayAssistantPreferences.Read().AutoSpeak;
     private bool _geminiHandsFreeActive;
     private int _geminiHandsFreeSession;
     private CancellationTokenSource? _geminiHandsFreeCancellation;
@@ -140,12 +140,15 @@ public partial class MainWindow
             catch(Exception ex){activity.Text="Không lưu được trạng thái quyền micro: "+ex.Message;}
             activity.Text="Đã tắt quyền micro/Gemini. Micro đã dừng.";
         };
+        var userVoice=MayAssistantPreferences.Read();
         var micSources=GeminiMicrophoneRecorder.AvailableMicrophones();
         var micSelector=new ComboBox
         {
             Width=290,ItemsSource=micSources,
             DisplayMemberPath=nameof(MicrophoneSource.Label),
-            SelectedValuePath=nameof(MicrophoneSource.Number),SelectedValue=-1,
+            SelectedValuePath=nameof(MicrophoneSource.Number),
+            SelectedValue=micSources.Any(x=>x.Number==userVoice.MicrophoneNumber)?
+                userVoice.MicrophoneNumber:-1,
             ToolTip="Mặc định dùng micro của Windows. Nếu tín hiệu không tăng khi nói, chọn thiết bị khác."
         };
         var sensitivitySelector=new ComboBox
@@ -157,14 +160,45 @@ public partial class MainWindow
                 new {Label="Vừa (mặc định)",Value=0.0045},
                 new {Label="Thấp (nơi ồn)",Value=0.010}
             },
-            SelectedValue=0.0045
+            SelectedValue=userVoice.Sensitivity
         };
         int SelectedMicrophone()=>micSelector.SelectedValue is int n?n:-1;
         double SelectedSensitivity()=>sensitivitySelector.SelectedValue is double v?v:0.0045;
         var autoVoice=new CheckBox{Content="Tự đọc câu trả lời bằng loa hệ thống",
             IsChecked=_geminiChatAutoSpeak};
-        autoVoice.Checked+=(_,_)=>_geminiChatAutoSpeak=true;
-        autoVoice.Unchecked+=(_,_)=>_geminiChatAutoSpeak=false;
+        autoVoice.Checked+=(_,_)=>
+        {
+            _geminiChatAutoSpeak=true;
+            MayAssistantPreferences.Read() is var prefs && SaveAutoVoice(prefs,true);
+        };
+        autoVoice.Unchecked+=(_,_)=>
+        {
+            _geminiChatAutoSpeak=false;
+            MayAssistantPreferences.Read() is var prefs && SaveAutoVoice(prefs,false);
+        };
+        void SaveAutoVoice(MayAssistantPreferences prefs,bool enabled)
+        {
+            try{prefs.AutoSpeak=enabled;prefs.Save();}
+            catch(Exception ex){activity.Text="Không lưu được tùy chọn loa: "+ex.Message;}
+        }
+        void SaveInputChoice()
+        {
+            try
+            {
+                var prefs=MayAssistantPreferences.Read();
+                prefs.MicrophoneNumber=SelectedMicrophone();
+                prefs.Sensitivity=SelectedSensitivity();
+                prefs.Save();
+                if(_geminiHandsFreeActive)
+                {
+                    StopHandsFreeSession();
+                    activity.Text="Đã đổi micro/độ nhạy. Mây đã dừng nghe; bấm Nói với Mây để khởi động lại.";
+                }
+            }
+            catch(Exception ex){activity.Text="Không lưu được micro: "+ex.Message;}
+        }
+        micSelector.SelectionChanged+=(_,_)=>SaveInputChoice();
+        sensitivitySelector.SelectionChanged+=(_,_)=>SaveInputChoice();
         void StartHandsFreeListening(int session)
         {
             if(!HandsFreeCurrent(session))return;
