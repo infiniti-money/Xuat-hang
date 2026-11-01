@@ -33,8 +33,8 @@ public sealed class AiScheduleLine
     public string ScheduleLabel => HasExportSchedule switch
     {
         true => "Đã có lịch xuất",
-        false => "Chưa có lịch xuất",
-        null => "Chưa xác nhận lịch xuất"
+        false => "Chưa có lịch xuất trước đó",
+        null => "Mới phát sinh (ô LX để trống)"
     };
 }
 public sealed class AiScheduleDocument
@@ -58,10 +58,10 @@ Bạn đang trích xuất dữ liệu của một ảnh chụp BẢNG EXCEL lị
 Trả về DUY NHẤT JSON object, KHÔNG thêm Markdown; khuôn dạng:
 {"arrivalDate":"yyyy-MM-dd","dispatchDate":"yyyy-MM-dd","arrivals":[{"project":"","company":"","contract":"","plannedDate":"","container":"","containerExportDate":"","note":"","urgent":false,"hasExportSchedule":null}],"dispatches":[{"project":"","company":"","contract":"","plannedDate":"","container":"","containerExportDate":"","note":"","urgent":false,"hasExportSchedule":null}]}
 - Mỗi hàng công trình/hợp đồng là một object; hợp đồng là CHUỖI, giữ nguyên số 0 đầu. Không tự bịa hợp đồng, người, ghi chú hoặc ngày tháng.
-- arrivalDate là ngày dự kiến hàng VỀ kho ở tiêu đề toàn phần nhập; dispatchDate là ngày DỰ KIẾN xuất kho ở tiêu đề bảng xuất.
+- arrivalDate là LỊCH HÀNG DỰ KIẾN SẼ VỀ KHO theo ngày ghi ở tiêu đề; dùng để sắp xếp nhận kho, chỉ đổi khi hoãn. dispatchDate là NGÀY LỊCH XUẤT HÀNG để chuẩn bị và xuất theo lịch (có thể hoãn sang ngày khác). Không nhầm dự kiến với xác nhận hàng đã về hoặc đã xuất thực tế.
 - Dòng nhập: plannedDate = arrivalDate; container và containerExportDate lấy từ tiêu đề khối container tương ứng (chú ý 'Ngày Xuất Hàng' trong từng khối KHÁC arrivalDate).
 - Dòng xuất: plannedDate = dispatchDate; container và containerExportDate để "" nếu bảng không ghi.
-- 'Đã có lx' hoặc 'Đã có LX' là ĐÃ CÓ LỊCH XUẤT, TUYỆT ĐỐI KHÔNG PHẢI 'đã có lái xe' hoặc 'đã xuất kho'. Điền hasExportSchedule=true khi thấy ghi chú này; nếu không có ghi chú thì null, KHÔNG suy diễn false.
+- 'Đã có LX' hoặc 'Đã lx' nghĩa là ĐÃ CÓ LỊCH XUẤT TỪ TRƯỚC, KHÔNG PHẢI đã có lái xe hay đã xuất kho. Điền hasExportSchedule=true nếu có ghi chú. Nếu ô trạng thái LX ĐỂ TRỐNG thì đây là lịch/việc MỚI PHÁT SINH: hasExportSchedule=null, KHÔNG suy diễn false hay không có lịch. hasExportSchedule=false chỉ khi ghi rõ 'chưa có lịch xuất'.
 - Cụm 'Khách cần gấp' làm urgent=true. Giữ những ghi chú vật tư khác như tủ điện, domino, ARD.
 - Các dòng chỉ có 'VT trả nợ' hoặc 'VT gửi kho HY' không phải công trình, không tạo hàng hợp đồng.
 - Ngày đổi từ dd/MM/yyyy sang yyyy-MM-dd. Ô không nhìn rõ giữ "" và không phỏng đoán.
