@@ -1,3 +1,5 @@
+using System.IO;
+
 namespace Hisa.App;
 
 public static class GeminiCredentialDiagnostics
@@ -11,6 +13,20 @@ public static class GeminiCredentialDiagnostics
             if (!result) throw new InvalidOperationException("Credential regression failed: " + label);
             checks.Add("Gemini key: " + label);
         }
+        Check(GeminiCredentialStore.CredentialTarget=="HISA.KhoVatTu.Gemini.API",
+            "Gemini credential target remains stable across installer versions");
+        var userLocal=Environment.GetFolderPath(
+            Environment.SpecialFolder.LocalApplicationData);
+        var configPaths=new[]{
+            MayAssistantPreferences.ConfigPath,
+            GeminiVoiceConsentStore.ConfigPath,
+            GeminiWarehouseSharingConsent.ConfigPath
+        };
+        Check(configPaths.All(path=>Path.GetFullPath(path).StartsWith(
+                  Path.GetFullPath(userLocal)+Path.DirectorySeparatorChar,
+                  StringComparison.OrdinalIgnoreCase)) &&
+              configPaths.All(path=>path.Contains("HISA-Kho-Vat-Tu")),
+            "Gemini speech, microphone and warehouse-sharing preferences persist under user's LocalAppData instead of Program Files");
         var target = "HISA.TEST.Gemini." + Guid.NewGuid().ToString("N");
         var first = new GeminiCredentialStore(target);
         try
