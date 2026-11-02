@@ -46,7 +46,7 @@ Name: "{autodesktop}\HISA Quản lý kho"; Filename: "{app}\{#AppExeName}"; Task
 
 [Run]
 Filename: "{app}\{#AppExeName}"; Description: "Mở HISA Quản lý kho"; Flags: nowait postinstall skipifsilent
-Filename: "{app}\{#AppExeName}"; Flags: nowait; Check: ShouldRelaunchAfterUpgrade
+Filename: "{app}\{#AppExeName}"; Flags: nowait runasoriginaluser; Check: ShouldRelaunchAfterUpgrade
 
 [Code]
 function ShouldRelaunchAfterUpgrade(): Boolean;
@@ -56,4 +56,7 @@ begin
   Result := WizardSilent and (ExpandConstant('{param:HISAUPGRADE|0}') = '1');
 end;
 
-// No [UninstallDelete] for Documents: application data and backups survive upgrades/uninstall.
+// No [UninstallDelete]: Documents, LocalAppData Gemini preferences and the
+// Windows Credential Manager API key remain outside {app} during upgrades.
+// The silent-upgrade relaunch runs under the original interactive user.
+
