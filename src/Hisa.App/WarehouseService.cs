@@ -706,7 +706,22 @@ public sealed partial class WarehouseService : IDisposable
             foreach(var selected in verified)
             {
                 if(!source.TryGetValue(selected.Id,out var matches) || matches.Count!=1)
-                    throw new InvalidOperationException("Kiện nguồn không tồn tại duy nhất: "+selected.Contract);
+                {
+                    // Another operator may have confirmed the receipt and the
+                    // source file may already be archived after preview.
+                    var prior=_excel.ReadMaster(Settings.MasterPath).DetailPackages
+                        .Where(x=>x.OriginPackageId==selected.Id)
+                        .Select(x=>x.ArrivalDate).Distinct().OrderBy(x=>x)
+                        .Select(x=>x.Length==0?"chưa rõ (xem cột B)":Rules.Day(x)).ToList();
+                    if(prior.Count>0)
+                        throw new InvalidOperationException("KHÔNG NHẬP TRÙNG: HĐ "+
+                            selected.Contract+" · "+selected.Project+" · kiện "+
+                            selected.PackageNo+" đã nhập ngày "+
+                            string.Join(", ",prior)+" trong Tổng hợp.xlsx / chi tiết.");
+                    throw new InvalidOperationException("Kiện nguồn Container của HĐ "+
+                        selected.Contract+" · kiện "+selected.PackageNo+
+                        " không còn khớp duy nhất. Chưa ghi Excel; tìm lại nguồn và kiểm tra file.");
+                }
                 var fresh=matches[0];
                 if(fresh.Identity!=selected.Identity ||
                     fresh.SourceDate!=selected.SourceDate ||
