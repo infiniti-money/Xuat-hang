@@ -386,7 +386,17 @@ public partial class MainWindow : Window
         var tabs=Tabs(($"Hợp đồng ({report.Rows.Count:N0})",contracts),($"Không có vật tư ({report.NoMaterialMatch.Count:N0})",noMaterial),("Vật tư chi tiết",materials),("Sáu nhóm vật tư",categories),("Trạng thái / phiếu",statuses),($"{(report.DataAvailable?"Chưa có dữ liệu":"Chưa xác nhận")} ({report.Missing.Count})",missing),("Không khớp ngày",excluded));
         if(actions)
         {
-            var bar=Row(B("Tạo phiếu từ HĐ đã chọn",()=>{Commit(contracts);Commit(noMaterial);StartDraft(report,false);},true),B("Lập kế hoạch riêng từng HĐ",()=>{Commit(contracts);Commit(noMaterial);Commit(missing);StartDraft(report,true);}),B("In báo cáo",()=>PrintService.PreviewReport(this,report)),A("Xuất Excel",async()=>{var path=SavePath(this,$"Bao cao hop dong {DateTime.Now:yyyyMMdd-HHmm}.xlsx");if(path!=null){await _service.ExportReportAsync(path,report);Notify("Đã xuất báo cáo: "+path);}}));
+            var bar=Row(B("☑ Chọn tất cả HĐ có vật tư",()=>
+            {
+                Commit(contracts);
+                foreach(var row in report.Rows)row.Selected=row.Materials.Count>0;
+                foreach(var row in report.NoMaterialMatch.Concat(report.Missing))row.Selected=false;
+                contracts.Items.Refresh();noMaterial.Items.Refresh();missing.Items.Refresh();
+            }),B("Bỏ chọn tất cả",()=>
+            {
+                foreach(var row in report.Rows.Concat(report.NoMaterialMatch).Concat(report.Missing))row.Selected=false;
+                contracts.Items.Refresh();noMaterial.Items.Refresh();missing.Items.Refresh();
+            }),B("Tạo phiếu từ HĐ đã chọn",()=>{Commit(contracts);Commit(noMaterial);StartDraft(report,false);},true),B("Lập kế hoạch riêng từng HĐ",()=>{Commit(contracts);Commit(noMaterial);Commit(missing);StartDraft(report,true);}),B("In báo cáo",()=>PrintService.PreviewReport(this,report)),A("Xuất Excel",async()=>{var path=SavePath(this,$"Bao cao hop dong {DateTime.Now:yyyyMMdd-HHmm}.xlsx");if(path!=null){await _service.ExportReportAsync(path,report);Notify("Đã xuất báo cáo: "+path);}}));
             header.Children.Add(bar);
         }
         return Layout(header,tabs);
