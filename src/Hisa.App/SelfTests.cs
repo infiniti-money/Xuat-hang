@@ -206,6 +206,7 @@ public static class SelfTests
             result.Checks.AddRange(await AuditUiDiagnostics.RunAsync());
             result.Checks.AddRange(await AuditExcelDiagnostics.RunAsync());
             result.Checks.AddRange(AuditPrintDiagnostics.Run());
+            result.Checks.AddRange(PlannedArrivalBulkDiagnostics.Run());
             result.Checks.AddRange(await AuditStateDiagnostics.RunAsync());
             result.Checks.AddRange(ContDiArrivalLookupDiagnostics.Run());
             result.Checks.AddRange(await ContDiArrivalLookupDiagnostics.RunWorkbookAsync());
