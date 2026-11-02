@@ -249,7 +249,9 @@ public static class EquipmentListReader
                 {
                     var contract=Txt(sheet,i,4);
                     var material=Txt(sheet,i,5);
-                    if(!LooksLikeContract(contract)||material.Length==0)continue;
+                    // The HĐ in column D alone is the serial lookup key;
+                    // the optional model in column E need not be filled.
+                    if(!LooksLikeContract(contract))continue;
                     output.Add(new Row{
                         Category=category,Contract=contract,Project=Txt(sheet,i,2),
                         Company=Txt(sheet,i,3),Material=material,
