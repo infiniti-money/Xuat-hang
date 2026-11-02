@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Printing;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
@@ -11,7 +12,10 @@ namespace Hisa.App;
 /// <summary>Native fixed-page printing. Every row is measured, paginated and repeated headers are retained.</summary>
 public static class PrintService
 {
-    public static void PreviewSlip(Window owner, Slip slip, PrintTemplate template) => Preview(owner, BuildSlipDocument(slip, template), slip.SlipCode.Length > 0 ? slip.SlipCode : "Phiếu bàn giao");
+    public static void PreviewSlip(Window owner, Slip slip, PrintTemplate template) =>
+        Preview(owner, BuildSlipDocument(slip,template),
+            slip.SlipCode.Length>0?slip.SlipCode:"Phiếu bàn giao",
+            template, selected=>BuildSlipDocument(slip,selected));
     public static void PreviewReport(Window owner, ContractReport report) => Preview(owner, BuildReportDocument(report), "Báo cáo hợp đồng và vật tư");
     public static void PreviewDaily(Window owner, DailyReport report) => Preview(owner, BuildDailyDocument(report), "Báo cáo xuất hàng " + Rules.Day(report.Date));
 
@@ -278,30 +282,213 @@ public static class PrintService
         p.EndTable();
     }
 
-    private static void Preview(Window owner, FixedDocument document, string title)
+    // Preview and printer consume the EXACT same FixedDocument paginator.
+    // Paper changes rebuild the document before preview, never after printing.
+    private static void Preview(Window owner,FixedDocument original,string title,
+        PrintTemplate? sourceTemplate=null,Func<PrintTemplate,FixedDocument>? rebuild=null)
     {
-        var window=new Window{Title="Xem trước khi in · "+title,Width=1180,Height=850,MinWidth=760,MinHeight=560,WindowStartupLocation=WindowStartupLocation.CenterOwner,Owner=owner,Background=new SolidColorBrush(Color.FromRgb(235,241,247))};
+        var window=new Window
+        {
+            Title="Xem trước khi in · "+title,Width=1180,Height=850,
+            MinWidth=760,MinHeight=560,WindowStartupLocation=WindowStartupLocation.CenterOwner,
+            Owner=owner,Background=new SolidColorBrush(Color.FromRgb(235,241,247))
+        };
+        var document=original;
+        var working=sourceTemplate==null?null:
+            JsonSerializer.Deserialize<PrintTemplate>(JsonSerializer.Serialize(sourceTemplate));
         var root=new DockPanel();
         var bar=new Border{Background=Brushes.White,Padding=new Thickness(18,12,18,12)};
         var controls=new DockPanel();
-        var close=new Button{Content="Đóng",Padding=new Thickness(18,9,18,9),Margin=new Thickness(10,0,0,0)};close.Click+=(_,_)=>window.Close();DockPanel.SetDock(close,Dock.Right);controls.Children.Add(close);
-        var print=new Button{Content="In / Lưu PDF",Padding=new Thickness(22,9,22,9),Background=new SolidColorBrush(Color.FromRgb(13,116,132)),Foreground=Brushes.White,BorderThickness=new Thickness(0)};
+        var close=new Button
+        {
+            Content="Đóng",Padding=new Thickness(18,9,18,9),Margin=new Thickness(10,0,0,0)
+        };
+        close.Click+=(_,_)=>window.Close();
+        DockPanel.SetDock(close,Dock.Right);controls.Children.Add(close);
+        var print=new Button
+        {
+            Content="In đúng bản xem trước / PDF",Padding=new Thickness(18,9,18,9),
+            Background=new SolidColorBrush(Color.FromRgb(13,116,132)),
+            Foreground=Brushes.White,BorderThickness=new Thickness(0)
+        };
         DockPanel.SetDock(print,Dock.Right);controls.Children.Add(print);
-        controls.Children.Add(new TextBlock{Text=$"{title}   ·   {document.Pages.Count} trang",VerticalAlignment=VerticalAlignment.Center,FontWeight=FontWeights.SemiBold,FontSize=15,Foreground=new SolidColorBrush(Color.FromRgb(25,48,70))});bar.Child=controls;DockPanel.SetDock(bar,Dock.Top);root.Children.Add(bar);
-        var hint=new TextBlock{Text="Chọn Microsoft Print to PDF trong hộp thoại in để lưu thành tệp PDF. In không thay đổi trạng thái xuất hàng.",Margin=new Thickness(20,8,20,8),Foreground=Brushes.DimGray,TextWrapping=TextWrapping.Wrap};DockPanel.SetDock(hint,Dock.Bottom);root.Children.Add(hint);
-        root.Children.Add(new DocumentViewer{Document=document,Background=new SolidColorBrush(Color.FromRgb(222,230,238))});
-        print.Click+=(_,_)=>
+        var status=new TextBlock
+        {
+            Text=title+" · "+document.Pages.Count+" trang",VerticalAlignment=VerticalAlignment.Center,
+            FontWeight=FontWeights.SemiBold,FontSize=13,
+            Foreground=new SolidColorBrush(Color.FromRgb(25,48,70))
+        };
+        controls.Children.Add(status);
+        bar.Child=controls;DockPanel.SetDock(bar,Dock.Top);root.Children.Add(bar);
+
+        var hint=new TextBlock
+        {
+            Text="Chọn khổ giấy và chiều giấy để tự dàn lại toàn bộ nội dung trước khi in. "+
+                 "Bản in dùng đúng tài liệu đang hiển thị. Nếu máy in không hỗ trợ "+
+                 "khổ hoặc vùng in, HISA sẽ cảnh báo thay vì tự thu nhỏ/cắt mất chữ.",
+            Margin=new Thickness(20,8,20,8),Foreground=Brushes.DimGray,
+            TextWrapping=TextWrapping.Wrap
+        };
+        DockPanel.SetDock(hint,Dock.Bottom);root.Children.Add(hint);
+        var viewer=new DocumentViewer
+        {
+            Document=document,Background=new SolidColorBrush(Color.FromRgb(222,230,238))
+        };
+        if(rebuild!=null && working!=null)
+        {
+            var choices=new StackPanel
+            {
+                Orientation=Orientation.Horizontal,Margin=new Thickness(18,0,18,9)
+            };
+            choices.Children.Add(new TextBlock
+            {
+                Text="Khổ giấy:",VerticalAlignment=VerticalAlignment.Center,
+                Margin=new Thickness(0,0,8,0)
+            });
+            var paper=new ComboBox
+            {
+                Width=155,ItemsSource=PrintPaperSizes.Options.Select(x=>
+                    new KeyValuePair<string,string>(x.Key,x.Label)).ToList(),
+                DisplayMemberPath="Value",SelectedValuePath="Key",
+                SelectedValue=working.PaperSize
+            };
+            choices.Children.Add(paper);
+            choices.Children.Add(new TextBlock
+            {
+                Text="Chiều giấy:",VerticalAlignment=VerticalAlignment.Center,
+                Margin=new Thickness(18,0,8,0)
+            });
+            var orientation=new ComboBox
+            {
+                Width=95,ItemsSource=new[]
+                {
+                    new KeyValuePair<string,string>("landscape","Ngang"),
+                    new KeyValuePair<string,string>("portrait","Dọc")
+                },DisplayMemberPath="Value",SelectedValuePath="Key",
+                SelectedValue=working.Orientation
+            };
+            choices.Children.Add(orientation);
+            void Relayout()
+            {
+                var selectedPaper=paper.SelectedValue?.ToString();
+                var selectedOrientation=orientation.SelectedValue?.ToString();
+                if(selectedPaper==null||selectedOrientation==null)return;
+                var previousPaper=working.PaperSize;
+                var previousOrientation=working.Orientation;
+                try
+                {
+                    working.PaperSize=selectedPaper;
+                    working.Orientation=selectedOrientation;
+                    var updated=rebuild(working);
+                    document=updated;
+                    viewer.Document=updated;
+                    status.Text=title+" · "+updated.Pages.Count+" trang · "+
+                        selectedPaper+" · "+(selectedOrientation=="landscape"?"Ngang":"Dọc");
+                }
+                catch(Exception ex)
+                {
+                    working.PaperSize=previousPaper;
+                    working.Orientation=previousOrientation;
+                    // Do not print an unpreviewed or partially rendered document.
+                    MessageBox.Show(window,"Không dàn được giấy vừa chọn: "+ex.Message,
+                        "Kiểm tra bản in",MessageBoxButton.OK,MessageBoxImage.Warning);
+                }
+            }
+            paper.SelectionChanged+=(_,_)=>Relayout();
+            orientation.SelectionChanged+=(_,_)=>Relayout();
+            DockPanel.SetDock(choices,Dock.Top);root.Children.Add(choices);
+            status.Text=title+" · "+document.Pages.Count+" trang · "+
+                working.PaperSize+" · "+
+                (working.Orientation=="landscape"?"Ngang":"Dọc");
+        }
+        root.Children.Add(viewer);
+        print.Click+=(_,_) =>
         {
             try
             {
                 var dialog=new PrintDialog();
-                dialog.PrintTicket.PageOrientation=document.DocumentPaginator.PageSize.Width>document.DocumentPaginator.PageSize.Height?PageOrientation.Landscape:PageOrientation.Portrait;
-                dialog.PrintTicket.PageMediaSize=new PageMediaSize(document.DocumentPaginator.PageSize.Width,document.DocumentPaginator.PageSize.Height);
-                if(dialog.ShowDialog()==true) dialog.PrintDocument(document.DocumentPaginator,title);
+                var size=document.DocumentPaginator.PageSize;
+                var landscape=size.Width>size.Height;
+                dialog.PrintTicket.PageOrientation=landscape
+                    ?PageOrientation.Landscape:PageOrientation.Portrait;
+                // Use the named A4 size for printer drivers instead of a
+                // custom size; preview dimensions still come from our pages.
+                dialog.PrintTicket.PageMediaSize=working?.PaperSize=="A4"
+                    ?new PageMediaSize(PageMediaSizeName.ISOA4)
+                    :new PageMediaSize(Math.Min(size.Width,size.Height),
+                        Math.Max(size.Width,size.Height));
+                if(dialog.ShowDialog()!=true)return;
+                var mismatch=CheckPrinterGeometry(document,dialog);
+                if(mismatch!=null)
+                {
+                    MessageBox.Show(window,mismatch,
+                        "Máy in khác bản xem trước",MessageBoxButton.OK,MessageBoxImage.Warning);
+                    return;
+                }
+                dialog.PrintDocument(document.DocumentPaginator,title);
             }
-            catch(Exception ex){MessageBox.Show(window,"Chưa thể in: "+ex.Message,"In tài liệu",MessageBoxButton.OK,MessageBoxImage.Warning);}
+            catch(Exception ex)
+            {
+                MessageBox.Show(window,"Chưa thể in: "+ex.Message,
+                    "In tài liệu",MessageBoxButton.OK,MessageBoxImage.Warning);
+            }
         };
         window.Content=root;window.ShowDialog();
+    }
+
+    /// <summary>
+    /// Reject a printer ticket that would scale, crop or change the paper.
+    /// This keeps the printed visual identical to the already shown preview.
+    /// </summary>
+    private static string? CheckPrinterGeometry(FixedDocument document,PrintDialog dialog)
+    {
+        var size=document.DocumentPaginator.PageSize;
+        var ticket=dialog.PrintTicket;
+        if(ticket.PageMediaSize?.Width is double pw &&
+           ticket.PageMediaSize?.Height is double ph &&
+           (Math.Abs(Math.Min(pw,ph)-Math.Min(size.Width,size.Height))>3 ||
+            Math.Abs(Math.Max(pw,ph)-Math.Max(size.Width,size.Height))>3))
+            return "Khổ giấy máy in khác bản xem trước. Hãy chọn đúng khổ giấy "+
+                "ở bản xem trước và trong cài đặt máy in, sau đó thử lại.";
+        if(ticket.PageOrientation is PageOrientation.Landscape &&
+           size.Width<size.Height ||
+           ticket.PageOrientation is PageOrientation.Portrait &&
+           size.Width>size.Height)
+            return "Chiều giấy của máy in khác bản xem trước. "+
+                "Chọn cùng chiều Ngang/Dọc ở cả hai nơi.";
+        // Not all printer drivers expose their nonprintable margins.
+        // Validate when available; don't pretend a cropped print will match.
+        var area=dialog.PrintQueue?.GetPrintCapabilities(ticket)?.PageImageableArea;
+        if(area!=null &&
+           area.ExtentWidth>0&&area.ExtentHeight>0 &&
+           area.ExtentWidth<=size.Width+2&&area.ExtentHeight<=size.Height+2 &&
+           !ContentFitsPrintArea(document,new Rect(area.OriginWidth,area.OriginHeight,
+               area.ExtentWidth,area.ExtentHeight)))
+            return "Vùng in thực tế của máy in nhỏ hơn nội dung A4 đang xem. "+
+                "Hãy tăng lề trong mẫu in hoặc chọn máy in hỗ trợ khổ/vùng in này. "+
+                "HISA chưa gửi lệnh in để tránh mất chữ.";
+        return null;
+    }
+
+    /// <summary>Tests inspect the same fixed-page content bounds sent to print.</summary>
+    internal static bool ContentFitsPrintArea(FixedDocument document,Rect printableArea)
+    {
+        const double tolerance=1.5;
+        foreach(var item in document.Pages)
+        {
+            if(item.Child is not FixedPage page)continue;
+            foreach(var canvas in page.Children.OfType<Canvas>())
+            foreach(var child in canvas.Children.OfType<FrameworkElement>())
+            {
+                var rect=new Rect(Canvas.GetLeft(child),Canvas.GetTop(child),
+                    child.ActualWidth,child.ActualHeight);
+                if(rect.Left<printableArea.Left-tolerance||
+                   rect.Top<printableArea.Top-tolerance||
+                   rect.Right>printableArea.Right+tolerance||
+                   rect.Bottom>printableArea.Bottom+tolerance)return false;
+            }
+        }
+        return true;
     }
 
     /// <summary>Measured fixed-page writer. No overflow clipping: oversized rows are split at wrapped text lines.</summary>
