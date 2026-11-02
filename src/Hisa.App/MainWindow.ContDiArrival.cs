@@ -19,6 +19,19 @@ public partial class MainWindow
             "giữ riêng công trình, thang 1/2, T1/T2, hậu tố (1)/(2) và ngày cont đi. "+
             "Không tra cứu hay ghi trang Cont đi Hưng Yên trong Tổng hợp.xlsx.",12,false,Muted);
         var feedback=T("Bấm Tìm kiện để đọc mới "+SourceLabel()+".",12,false,Muted);
+        var receivedText=T("",12,false,Brush("#87571E"));
+        var receivedNotice=new Expander
+        {
+            Header="Lịch sử đã nhập trong Tổng hợp.xlsx",
+            IsExpanded=true,
+            Visibility=Visibility.Collapsed,
+            Margin=new Thickness(0,7,0,8),
+            Content=new ScrollViewer
+            {
+                Content=receivedText,MaxHeight=190,
+                VerticalScrollBarVisibility=ScrollBarVisibility.Auto
+            }
+        };
         var rows=new List<PlannedArrivalRow>();
         var scanned=false;
         var searchedSelection="";
@@ -42,6 +55,8 @@ public partial class MainWindow
         {
             scanned=false;
             rows=[];grid.ItemsSource=rows;searchedSelection="";
+            receivedNotice.Visibility=Visibility.Collapsed;
+            receivedText.Text="";
             feedback.Text="Ngày thực tế hoặc danh sách hợp đồng đã thay đổi. Bấm Tìm kiện để đối chiếu mới.";
         }
         actualDate.SelectedDateChanged+=(_,_)=>InvalidateSearch();
@@ -56,14 +71,24 @@ public partial class MainWindow
             scanned=false;
             feedback.Text="Đang đọc nguồn: "+SourceLabel()+"…";
             await _service.RefreshContDiForArrivalAsync();
-            rows=ContDiArrivalLookup.Preview(input,_service.ContDiLookupSnapshot,Day(actualDate));
+            var snapshot=_service.ContDiLookupSnapshot;
+            rows=ContDiArrivalLookup.Preview(input,snapshot,Day(actualDate));
+            var received=ContDiArrivalLookup.PreviouslyReceived(input,snapshot);
             grid.ItemsSource=rows;searchedSelection=SelectionSignature();scanned=true;
             var ready=rows.Count(x=>x.Status==ContDiArrivalLookup.Ready);
-            var already=rows.Count(x=>x.Status=="Kiện đã nhập kho");
-            feedback.Text=$"Đã tìm trong {SourceLabel()}: {rows.Count} dòng/kiện · "+
-                $"{ready} kiện đủ nguồn, chờ xác nhận thực tế · {already} kiện đã nhập. "+
-                "Mỗi ô tích chỉ chọn một kiện, KHÔNG lấy tất cả kiện cùng HĐ. "+
-                "Sửa file nguồn hoặc số HĐ thì bấm Tìm kiện lại.";
+            receivedNotice.Visibility=received.Count>0?Visibility.Visible:Visibility.Collapsed;
+            receivedNotice.Header="ĐÃ NHẬP TRƯỚC ĐÓ TRONG TỔNG HỢP.XLSX · "+received.Count+
+                " kiện (KHÔNG hiển thị trong bảng Container)";
+            receivedText.Text=string.Join("\n",received.Select(x=>"• "+x.Description));
+            feedback.Text=$"Bảng Container chỉ hiển thị {rows.Count} dòng CHƯA XÁC NHẬN NHẬP "+
+                $"({ready} kiện đủ nguồn; {rows.Count-ready} dòng cần kiểm tra). "+
+                (received.Count>0
+                    ? $"{received.Count} kiện đã nhập được ẨN khỏi bảng chọn; xem ngày thực nhập trong thông báo bên dưới. "
+                    : "Chưa có kiện đã nhập được xác định chính xác theo mã nguồn. ")+
+                (rows.Count==0
+                    ? "Không còn kiện chưa nhập cho danh sách hợp đồng này. "
+                    : "Tích đúng những kiện mới thực tế đã về. ")+
+                "Khi Excel hoặc số hợp đồng thay đổi, hãy bấm Tìm kiện lại.";
         }
         var buttons=Row(
             A("⌕ Tìm kiện Hưng Yên trong Container",SearchAsync,true),
@@ -124,7 +149,7 @@ public partial class MainWindow
             T("CONTAINER → XÁC NHẬN KIỆN → TỔNG HỢP.XLSX / CHI TIẾT",16,true),
             explanation,
             Row(Field("Ngày cont thực tế về kho",actualDate)),
-            buttons,feedback)),
+            buttons,feedback,receivedNotice)),
             grid);
         if(searchWhenLoaded)
         {
