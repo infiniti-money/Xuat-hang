@@ -225,7 +225,13 @@ public partial class MainWindow
             MarkWorkingSchedule();
             grid.Items.Refresh();
         }
-        incomingBody.Children.Add(T("Nếu cont THỰC TẾ đã về, tích đúng hợp đồng ở cột 'Cont đã về?', rồi đối chiếu và chọn từng kiện. Ngày dự kiến không phải ngày thực tế.",12,false,Muted));
+        incomingBody.Children.Add(Alert(
+            "CHỌN HỢP ĐỒNG ĐỂ NHẬP VÀO TỔNG HỢP.XLSX: tích ô 'Cont đã về?' "+
+            "cho từng HĐ thực nhận, sau đó bấm Tìm kiện, chọn đúng kiện và "+
+            "xác nhận ngày thực tế. Chưa tích HĐ thì không ghi dữ liệu."));
+        incomingBody.Children.Add(T("Không phải tất cả hợp đồng trong ảnh đều đã về. "+
+            "Chỉ các số HĐ đã tích mới được đối chiếu với thư mục Container. "+
+            "Không tự lấy tất cả kiện cùng một HĐ.",12,false,Muted));
         incomingBody.Children.Add(Row(
             B("☑ Chọn tất cả cont Hưng Yên",()=>
             {
