@@ -67,6 +67,27 @@ public static class AuditUiDiagnostics
             Call("Navigate","dashboard");
             var draft=(Slip)typeof(MainWindow).GetField("_draft",methods)!.GetValue(window)!;
             Check(draft.Name=="Tên đang sửa chưa lưu","Navigating away retains current draft header edits");
+            var beforeMayWindows=Application.Current?.Windows.Count??0;
+            Call("OpenFloatingMay","Tra cứu HĐ 05492026");
+            Check((Application.Current?.Windows.Count??0)==beforeMayWindows,
+                "Preparing Mây chat does not create a popup Window");
+            Check((string)typeof(MainWindow).GetField("_page",methods)!.GetValue(window)! == "dashboard",
+                "Mây button leaves the active dashboard workspace unchanged");
+            var retained=typeof(MainWindow).GetField("_geminiChatSurface",methods)!.GetValue(window);
+            Call("Navigate","lookup");
+            Check(ReferenceEquals(retained,typeof(MainWindow).GetField("_geminiChatSurface",methods)!.GetValue(window)),
+                "Navigating to contract lookup retains Mây conversation service surface");
+            Call("Navigate","gemini-chat");
+            var question=(TextBox)typeof(MainWindow).GetField("_mayFloatingQuestion",methods)!.GetValue(window)!;
+            Check(question.Text=="Tra cứu HĐ 05492026",
+                "Prepared contract question survives navigation and remains editable");
+            typeof(MainWindow).GetField("_geminiHandsFreeActive",methods)!.SetValue(window,true);
+            Call("Navigate","dashboard");
+            Check((bool)typeof(MainWindow).GetField("_geminiHandsFreeActive",methods)!.GetValue(window)!,
+                "Navigation does not deactivate already active hands-free mode");
+            Call("StopHandsFreeSession");
+            Check(!(bool)typeof(MainWindow).GetField("_geminiHandsFreeActive",methods)!.GetValue(window)!,
+                "Explicit stop deactivates Mây before any future microphone callback");
         }
         finally{window.Close();}
         return checks;
