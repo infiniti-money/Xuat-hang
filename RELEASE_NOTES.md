@@ -1,4 +1,10 @@
-## HISA v1.9.37 — Chỉ tra số hợp đồng để ghi serial máy kéo (đang kiểm thử PR)
+## HISA v1.9.37 — Tra serial bằng HĐ, Gemini giữ cấu hình và Mây hỗ trợ ngay trên trang (đang kiểm thử PR)
+
+- **Gemini giữ cấu hình khi cập nhật:** API Key có định danh cố định trong Windows Credential Manager; cấu hình micro, loa và quyền chia sẻ nằm dưới LocalAppData của cùng tài khoản Windows. Bộ cài không xóa các vị trí này. Luồng cập nhật được điều chỉnh để trình cài đặt tự nâng quyền nếu cần, còn HISA được mở lại với tài khoản Windows gốc thay vì chạy dưới phiên admin khác.
+- **Tra cứu số hợp đồng:** thêm nút **✦ Hỏi Mây về hợp đồng**, điền sẵn các số HĐ đang tra cứu vào ô hỏi Gemini trong cửa sổ nổi. Chỉ khi người dùng tự bấm Gửi (và đã cấp quyền chia sẻ HISA nếu cần) mới truyền dữ liệu tới Gemini; không tự lưu/chỉnh sửa Excel.
+- **Nói chuyện với Mây:** nút **🎙 Nói với Mây** trên thanh công cụ mở cửa sổ Mây riêng mà **giữ nguyên trang** đang mở, không làm mất bộ lọc/phiếu đang soạn. Khi đóng cửa sổ Mây, micro tự dừng; không tự bật micro khi mở HISA hoặc điều hướng.
+- **Nhập cont về:** trang Cont & kiện và bước 1 của lịch Zalo tự hiển thị thông báo **Chọn số hợp đồng cont đã về để ghi Tổng hợp.xlsx**. Người dùng phải tích hợp đồng đã nhận, tìm kiện nguồn và xác nhận ngày thực tế trước khi phần mềm ghi `chi tiết`; không tự ghi khi chỉ mở trang hay đọc ảnh.
+- Kiểm thử hồi quy giao diện, cấu hình Gemini và bộ cài Windows. Các tương tác Gemini thật/thiết bị micro vẫn cần xác minh trên máy sử dụng.
 
 - Ghi serial vào **cột I** của `MÁY KÉO.xlsx` chỉ bằng **số hợp đồng cột D**. Không cần model (cột E), công trình, đơn vị trên phiếu trùng với tên tương ứng trong Excel; dòng có model trống vẫn được tìm theo HĐ.
 - Chỉ điền vào ô serial đang trống, tuyệt đối không ghi đè công thức hoặc số seri đã có. Nếu một HĐ có nhiều dòng, hệ thống chỉ tự đề xuất gán khi **số serial mới bằng đúng số dòng nguồn còn trống** và mỗi dòng có số lượng 1 (hoặc chưa khai báo); không chọn bừa một dòng khi chưa đủ thông tin.
