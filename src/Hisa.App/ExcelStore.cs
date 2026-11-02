@@ -1026,7 +1026,19 @@ public sealed class ExcelStore
                     WriteValues(orders,ro++,[slip.SlipCode,slip.HandoverDate,record.Contract,record.Project,record.Company,contractOnly?0:slip.ContractPackages.Count(x=>x.Identity==identity),slip.Lines.Count(x=>x.Include&&Rules.Identity(x.Contract,x.Project,x.Company)==identity),slip.Name,slip.UpdatedAt,slip.Note]);
                 }
                 foreach(var line in slip.Lines.Where(x=>x.Include)) WriteValues(material,rm++,[slip.SlipCode,slip.HandoverDate,line.Contract,line.Project,line.Company,line.Group,line.Material,line.Unit,line.Quantity,line.SourceDate,line.SourceFile,line.Note,ExcelSerialCell(slip,line)]);
-                foreach(var p in slip.ContractPackages.Where(x=>exportedIds.Contains(x.Identity)&&!slip.ContractOnly.Any(c=>Rules.Identity(c.Contract,c.Project,c.Company)==x.Identity))) foreach(var line in p.Items) WriteValues(packages,rp++,[slip.SlipCode,slip.HandoverDate,p.Contract,p.Project,p.Company,p.SourceDate,p.SourceFile,p.Id,line.Material,line.Unit,line.Quantity,line.Group,line.Note]);
+                // The contract package snapshot is retained for provenance.
+                // It is NOT proof that every material in that package was shipped.
+                // Only selected slip lines with the same source package ID may
+                // appear in the package-level outgoing ledger.
+                foreach(var p in slip.ContractPackages.Where(x=>
+                    exportedIds.Contains(x.Identity) &&
+                    !slip.ContractOnly.Any(c=>Rules.Identity(c.Contract,c.Project,c.Company)==x.Identity)))
+                foreach(var line in slip.Lines.Where(x=>x.Include &&
+                    x.PackageId==p.Id &&
+                    Rules.Identity(x.Contract,x.Project,x.Company)==p.Identity))
+                    WriteValues(packages,rp++,[slip.SlipCode,slip.HandoverDate,p.Contract,
+                        p.Project,p.Company,p.SourceDate,p.SourceFile,p.Id,
+                        line.Material,line.Unit,line.Quantity,line.Group,line.Note]);
             }
             WriteMotorSerialSheet(ledger,slips);
             foreach(var ws in ledger.Worksheets) FormatExport(ws);
