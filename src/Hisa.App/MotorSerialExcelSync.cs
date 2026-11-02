@@ -6,8 +6,10 @@ namespace Hisa.App;
 
 /// <summary>
 /// Commit user-typed motor serials back to the original production workbook,
-/// column I only. Exact HĐ + project + company + model and a complete one-to-one
-/// match of empty single-machine source rows are mandatory. No contract-only
+/// column I only. Exact HĐ + project + company is mandatory. When the
+/// description of a motor model differs between the slip and the Excel source,
+/// an unambiguous single-model / one-machine-per-row fallback is permitted,
+/// using the SAME strict scope as automatic serial lookup. No contract-only
 /// fallback, formula edits, fabricated rows or shipment/status changes.
 /// </summary>
 public static class MotorSerialExcelSync
@@ -55,17 +57,65 @@ public static class MotorSerialExcelSync
                 warnings.Add("HĐ "+first.Contract+": thiếu công trình/đơn vị, chưa thể ghi serial.");
                 continue;
             }
-            var sourceGroup=rows.Where(x=>
-                Rules.Identity(x.Contract,x.Project,x.Company)==
-                    Rules.Identity(first.Contract,first.Project,first.Company) &&
+            var wanted=group.OrderBy(x=>x.LineId,StringComparer.Ordinal)
+                .ThenBy(x=>x.UnitIndex).ToList();
+            var identity=Rules.Identity(first.Contract,first.Project,first.Company);
+            var byContract=rows.Where(x=>
+                Rules.Contract(x.Contract)==Rules.Contract(first.Contract)).ToList();
+            var sameIdentity=byContract.Where(x=>
+                Rules.Identity(x.Contract,x.Project,x.Company)==identity).ToList();
+            var sourceGroup=sameIdentity.Where(x=>
                 Rules.Code(x.Material)==Rules.Code(first.Material)).ToList();
             if(sourceGroup.Count==0)
             {
-                warnings.Add("HĐ "+first.Contract+": không tìm thấy dòng model máy kéo trùng khớp để ghi serial.");
-                continue;
+                // The incoming material name and the production-list model
+                // name can differ for the SAME actual machine. AutoFill uses
+                // the same safe rule: only one motor slip line in this exact
+                // contract/project/company, a single source model, and one
+                // physical source row for every machine in the line.
+                var motorLines=slip.Lines.Where(MotorSerials.IsMotor &&
+                    Rules.Identity(x.Contract,x.Project,x.Company)==identity).ToList();
+                var models=sameIdentity.Select(x=>Rules.Code(x.Material))
+                    .Distinct(StringComparer.Ordinal).ToList();
+                if(motorLines.Count==1 && models.Count==1 &&
+                   sameIdentity.Count==wanted.Count &&
+                   sameIdentity.All(x=>x.Quantity==1))
+                {
+                    sourceGroup=sameIdentity;
+                }
+                else if(byContract.Count==0)
+                {
+                    warnings.Add("HĐ "+first.Contract+
+                        ": không tìm thấy mã HĐ trong cột D file MÁY KÉO.xlsx. "+
+                        "Kiểm tra đúng file nguồn và tải lại danh sách máy.");
+                    continue;
+                }
+                else if(sameIdentity.Count==0)
+                {
+                    var available=string.Join("; ",byContract
+                        .Select(x=>x.Project+" / "+x.Company)
+                        .Distinct(StringComparer.Ordinal).Take(3));
+                    warnings.Add("HĐ "+first.Contract+
+                        ": công trình/đơn vị trong MÁY KÉO.xlsx không khớp phiếu. "+
+                        "Phiếu: "+first.Project+" / "+first.Company+
+                        "; file: "+available+
+                        ". Không tự ghép chỉ theo số HĐ để tránh nhầm T1/T2.");
+                    continue;
+                }
+                else
+                {
+                    var available=string.Join("; ",sameIdentity
+                        .Select(x=>x.Material).Distinct(StringComparer.Ordinal).Take(3));
+                    warnings.Add("HĐ "+first.Contract+" · "+first.Project+
+                        ": model trên phiếu '"+first.Material+
+                        "' khác file MÁY KÉO.xlsx ('"+available+
+                        "'). Có "+sameIdentity.Count+" dòng máy trong file cho "+
+                        wanted.Count+" máy trên phiếu. "+
+                        "Chỉ tự ghi khi duy nhất một model và mỗi máy có một dòng (SL=1); "+
+                        "nếu có nhiều model, cần đối chiếu lại để tránh ghi sai cột I.");
+                    continue;
+                }
             }
-            var wanted=group.OrderBy(x=>x.LineId,StringComparer.Ordinal)
-                .ThenBy(x=>x.UnitIndex).ToList();
             var absent=new List<MotorSerialEntry>();
             var conflict=false;
             foreach(var unit in wanted)
