@@ -22,6 +22,58 @@ public partial class MainWindow
     private CancellationTokenSource? _geminiHandsFreeCancellation;
     private Button? _geminiHandsFreeToggle;
     private FrameworkElement? _geminiChatSurface;
+    private Window? _mayFloatingWindow;
+    private TextBox? _mayFloatingQuestion;
+    private bool MayChatVisible => _page=="gemini-chat" ||
+        _mayFloatingWindow?.IsVisible==true;
+
+    // A modeless Mây window leaves the active contract/warehouse editor intact.
+    // No Gemini request or microphone access occurs merely by opening it.
+    private void OpenFloatingMay(string? draftQuestion=null)
+    {
+        if(_mayFloatingWindow is {IsVisible:true} existing)
+        {
+            existing.Activate();
+            if(!string.IsNullOrWhiteSpace(draftQuestion) &&
+               _mayFloatingQuestion!=null)
+            {
+                _mayFloatingQuestion.Text=draftQuestion;
+                _mayFloatingQuestion.CaretIndex=draftQuestion.Length;
+                _mayFloatingQuestion.Focus();
+            }
+            return;
+        }
+        ShowGeminiChat(floating:true,draftQuestion:draftQuestion);
+    }
+
+    private void MountMayPopup(FrameworkElement content)
+    {
+        // Existing voice sessions can be moved into a separate companion
+        // window without losing their microphone callbacks.
+        if(content.Parent is Panel oldPanel)oldPanel.Children.Remove(content);
+        var window=new Window
+        {
+            Owner=this,Title="Mây Mây · Trợ lý HISA",
+            Width=890,Height=730,MinWidth=650,MinHeight=520,
+            WindowStartupLocation=WindowStartupLocation.CenterOwner,
+            Background=Brush("#F3F6FA"),Content=content,
+            ShowInTaskbar=false
+        };
+        _mayFloatingWindow=window;
+        window.Closed+=(_,_) =>
+        {
+            if(ReferenceEquals(_mayFloatingWindow,window))
+            {
+                StopHandsFreeSession();
+                _geminiMicrophone.Stop(false);
+                _mayFloatingWindow=null;
+                _mayFloatingQuestion=null;
+                _geminiChatSurface=null;
+                _geminiHandsFreeToggle=null;
+            }
+        };
+        window.Show();
+    }
 
     /// <summary>Close the microphone immediately on explicit stop, navigation or exit.</summary>
     private void StopHandsFreeSession()
@@ -44,15 +96,16 @@ public partial class MainWindow
     private bool HandsFreeCurrent(int session) =>
         _geminiHandsFreeActive && session==_geminiHandsFreeSession;
 
-    private void ShowGeminiChat()
+    private void ShowGeminiChat(bool floating=false,string? draftQuestion=null)
     {
-        _page="gemini-chat";
+        if(!floating)_page="gemini-chat";
         // Reattach the live chat UI when returning from another HISA tab.
         // Keeping the same surface preserves the active voice session and
         // its Dispatcher callbacks, while the chat history remains visible.
         if(_geminiHandsFreeActive && _geminiChatSurface is FrameworkElement live)
         {
-            SetPage("Mây Mây · Trợ lý HISA",
+            if(floating)MountMayPopup(live);
+            else SetPage("Mây Mây · Trợ lý HISA",
                 "Mây đang nghe trong nền · bấm ⏹ Dừng Mây để tắt micro",live);
             return;
         }
@@ -104,6 +157,15 @@ public partial class MainWindow
             ToolTip="Nhập câu hỏi. Enter để gửi; Shift+Enter để xuống dòng."
         };
 
+        if(floating)
+        {
+            _mayFloatingQuestion=question;
+            if(!string.IsNullOrWhiteSpace(draftQuestion))
+            {
+                question.Text=draftQuestion;
+                question.CaretIndex=draftQuestion.Length;
+            }
+        }
         var contextToggle=new CheckBox
         {
             Content="Cho phép Mây gửi tóm tắt đối chiếu HISA lên Gemini khi hỏi (gồm serial máy kéo của HĐ cụ thể, lịch cont, phiếu và tình trạng Excel; không gửi nguyên tệp)",
@@ -356,7 +418,7 @@ public partial class MainWindow
             Dispatcher.BeginInvoke(new Action(async () =>
             {
                 // Recording has stopped before this cloud-upload decision.
-                if(_page!="gemini-chat"){Array.Clear(wav);return;}
+                if(!MayChatVisible){Array.Clear(wav);return;}
                 if(!GeminiVoiceConsentStore.Read())
                 {
                     Array.Clear(wav);
@@ -377,7 +439,7 @@ public partial class MainWindow
                 try
                 {
                     var transcript=await GeminiAudioTranscriptionService.TranscribeAsync(key,wav);
-                    if(_page=="gemini-chat")
+                    if(MayChatVisible)
                     {
                         if(question.Text.Length>0)question.Text+=" ";
                         question.Text+=transcript;
@@ -838,7 +900,9 @@ public partial class MainWindow
         Grid.SetRow(viewer,1);layout.Children.Add(viewer);
         Grid.SetRow(bottom,2);layout.Children.Add(bottom);
         _geminiChatSurface=layout;
-        SetPage("Mây Mây · Trợ lý HISA","Một nút trò chuyện · giọng nữ miền Nam · đề xuất phiếu chờ anh duyệt",layout);
+        if(floating)MountMayPopup(layout);
+        else SetPage("Mây Mây · Trợ lý HISA",
+            "Một nút trò chuyện · giọng nữ miền Nam · đề xuất phiếu chờ anh duyệt",layout);
         ScrollToEnd();
     }
 }
