@@ -342,8 +342,15 @@ public static class PrintService
             canvas=new Canvas{Width=width,Height=height};page.Children.Add(canvas);
             var content=new PageContent();((IAddChild)content).AddChild(page);document.Pages.Add(content);
             y=top;
-            var header=SingleLine(title,font*.84,true,"left");Place(header,left,y);y+=header.DesiredSize.Height+3;
-            var meta=SingleLine(context,font*.78,false,"left");Place(meta,left,y);y+=meta.DesiredSize.Height+7;
+            // The old single-line heading used CharacterEllipsis, silently
+            // dropping long slip titles and contract/context text on paper.
+            // Measure and wrap both headings so each printed page shows them.
+            var header=Text(title,ContentWidth,font*.84,true,"left");
+            var meta=Text(context,ContentWidth,font*.78,false,"left");
+            if(y+header.DesiredSize.Height+meta.DesiredSize.Height+10>Limit)
+                throw LayoutError();
+            Place(header,left,y);y+=header.DesiredSize.Height+3;
+            Place(meta,left,y);y+=meta.DesiredSize.Height+7;
             var footer=SingleLine("",font*.72,false,"right");Place(footer,left,height-bottom-FooterHeight);footers.Add(footer);
             if(y+font*1.24>Limit)throw LayoutError();
             if(tableHeaders is not null)
