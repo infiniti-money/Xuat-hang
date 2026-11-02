@@ -19,6 +19,82 @@ public static class AuditPrintDiagnostics
         Check(text.Contains(slip.Note),"Contract delivery prints the saved slip note");
         Check(!text.Contains("2. 2.")&&!text.Contains("1. Hôm nay"),"Legacy opening and numbered section labels print once");
         Check(slip.MotorSerials.All(x=>text.Contains(x.SerialNumber)),"Contract print keeps all physical motor serials");
+        var mixed=new Slip
+        {
+            SlipCode="BB-HY-20261102-TEST",
+            HandoverDate="2026-11-02",Status="delivered",
+            Contracts=["10392026","25132026","46242026"],
+            Name="Tên phiếu bàn giao cần giữ nguyên",
+            Note="GHI CHÚ BÀN GIAO ĐẦY ĐỦ",
+            ContractOnly=[new ContractRow
+            {
+                Contract="46242026",Project="Công trình chưa có vật tư",
+                Company="Bên nhận độc lập",Warning="Chờ đối chiếu nguồn vật tư"
+            }],
+            Lines=[
+                new MaterialLine{Id="vt1",Contract="10392026",Project="Công trình A T1",
+                    Company="Đơn vị A",Material="TỦ ĐIỆN TEST 001",Unit="Bộ",
+                    Quantity=3,Category="Tủ điện",Note="GHI CHÚ VẬT TƯ TEST"},
+                new MaterialLine{Id="vt2",Contract="25132026",Project="Công trình B T2",
+                    Company="Đơn vị B",Material="RAY DẪN HƯỚNG TEST 002",Unit="mét",
+                    Quantity=12.125m,Category="Ray dẫn hướng"},
+                new MaterialLine{Id="vtExclude",Contract="25132026",
+                    Project="Công trình B T2",Company="Đơn vị B",
+                    Material="VẬT TƯ ĐÃ BỎ CHỌN KHÔNG IN",Unit="Bộ",
+                    Quantity=9,Include=false}
+            ]
+        };
+        var fullTemplate=new PrintTemplate
+        {
+            OpeningText="NỘI DUNG MỞ ĐẦU KHÔNG ĐƯỢC THIẾU",
+            SupplementaryLabel="DANH SÁCH VẬT TƯ BÀN GIAO ĐẦY ĐỦ",
+            FooterText="CHÂN PHIẾU XÁC NHẬN ĐẦY ĐỦ",
+            Note="ĐIỀU KHOẢN XÁC NHẬN CỦA HAI BÊN",
+            PaperSize="A4",Orientation="landscape",
+            FontSize=9,TableFontSize=8,MinRows=0
+        };
+        foreach(var layout in new[]{"internal_summary","contract_delivery","standard"})
+        {
+            fullTemplate.Layout=layout;
+            var fullDocument=PrintService.BuildSlipDocument(mixed,fullTemplate);
+            var fullText=AllText(fullDocument);
+            foreach(var value in new[]
+            {
+                mixed.SlipCode,"10392026","25132026","46242026",
+                "TỦ ĐIỆN TEST 001","RAY DẪN HƯỚNG TEST 002",
+                "12,125","Bên nhận độc lập","Công trình chưa có vật tư",
+                "Chờ đối chiếu nguồn vật tư",
+                fullTemplate.OpeningText,fullTemplate.SupplementaryLabel,
+                fullTemplate.FooterText,fullTemplate.Note,mixed.Note
+            })
+                Check(fullText.Contains(value),"Full "+layout+" handover retains: "+value);
+            Check(!fullText.Contains("VẬT TƯ ĐÃ BỎ CHỌN KHÔNG IN"),
+                layout+" respects intentionally unchecked material rows");
+            Check(fullText.Contains(fullTemplate.Signatures[0]),
+                layout+" retains signature block with contract-only handovers");
+        }
+        fullTemplate.Layout="contract_delivery";
+        mixed.Status="planned";
+        var pendingText=AllText(PrintService.BuildSlipDocument(mixed,fullTemplate));
+        Check(pendingText.Contains("12,125") &&
+              !pendingText.Contains("VẬT TƯ ĐÃ BỎ CHỌN KHÔNG IN"),
+              "Pending slip keeps planned quantity while excluding unchecked materials");
+        // A slip containing ONLY contract identities still requires a complete
+        // printable document rather than an empty table and lost contracts.
+        var noMaterials=new Slip
+        {
+            SlipCode="NO-MATERIAL",HandoverDate="2026-11-02",
+            ContractOnly=[new ContractRow{Contract="77882026",
+                Project="Công trình chưa nhận vật tư",Company="Đơn vị thiếu nguồn"}]
+        };
+        foreach(var layout in new[]{"contract_delivery","internal_summary","standard"})
+        {
+            var printed=AllText(PrintService.BuildSlipDocument(noMaterials,
+                new PrintTemplate{Layout=layout,MinRows=0}));
+            Check(printed.Contains("77882026") &&
+                  printed.Contains("Công trình chưa nhận vật tư"),
+                layout+" prints contract-only slips even without any material lines");
+        }
         foreach(var layout in new[]{"internal_summary","contract_delivery","standard"})
         {
             var hidden=new PrintTemplate{Layout=layout,ShowUnit=false,ShowQuantity=false,UnitLabel="UNIT_COLUMN_TO_HIDE",QuantityLabel="QUANTITY_COLUMN_TO_HIDE"};

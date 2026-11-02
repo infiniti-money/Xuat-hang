@@ -19,13 +19,19 @@ public static class PrintService
     {
         var p = new PageWriter(template, template.Title, $"{template.CodeLabel}: {slip.SlipCode}  ·  {template.DateLabel}: {Rules.Day(slip.HandoverDate)}");
         var lines = slip.Lines.Where(x => x.Include).ToList();
+        var contractOnly = (slip.ContractOnly??[])
+            .Where(x=>!string.IsNullOrWhiteSpace(x.Contract))
+            .DistinctBy(x=>x.Identity).ToList();
         if (template.Layout == "contract_delivery")
         {
             var groups = lines.GroupBy(x => Rules.Identity(x.Contract, x.Project, x.Company)).ToList();
             if (groups.Count == 0)
             {
                 Header(p, template, slip);
-                p.Paragraph("Phiếu chưa có dòng vật tư. Hãy tải dữ liệu hoặc bổ sung danh mục trước khi giao hàng.");
+                if(contractOnly.Count==0)
+                    p.Paragraph("Phiếu chưa có dòng vật tư. Hãy tải dữ liệu hoặc bổ sung danh mục trước khi giao hàng.");
+                else
+                    ContractOnlySection(p,template,contractOnly);
                 Signatures(p, template, slip);
             }
             for (var index = 0; index < groups.Count; index++)
@@ -49,12 +55,25 @@ public static class PrintService
                 var number = 0;
                 foreach (var item in group)
                 {
-                    string[] cells=[(++number).ToString(),item.Material,item.Unit,Qty(item.Quantity),"",MaterialNote(item,template,slip)];
+                    // Accounting quantity is the planned/list quantity.
+                    // Actual quantity may only be asserted after the slip has
+                    // been explicitly confirmed as delivered.
+                    string[] cells=[(++number).ToString(),item.Material,item.Unit,
+                        Qty(item.Quantity),slip.Status=="delivered"?Qty(item.Quantity):"",
+                        MaterialNote(item,template,slip)];
                     p.Row(visible.Select(i=>cells[i]).ToArray());
                 }
                 while (number < Math.Clamp(template.MinRows, 0, 100)) {var cells=visible.Select(_=>"").ToArray();cells[0]=(++number).ToString();p.Row(cells);}
                 p.EndTable();
                 Signatures(p, template, slip);
+            }
+            if(groups.Count>0 && contractOnly.Count>0)
+            {
+                p.BreakPage();
+                Header(p,template,slip);
+                p.Paragraph($"{template.DateLabel}: {Rules.Day(slip.HandoverDate)}      {template.CodeLabel}: {slip.SlipCode}",align:template.MetaAlign);
+                ContractOnlySection(p,template,contractOnly);
+                Signatures(p,template,slip);
             }
         }
         else
@@ -62,7 +81,13 @@ public static class PrintService
             Header(p, template, slip);
             p.Paragraph($"{template.DateLabel}: {Rules.Day(slip.HandoverDate)}      {template.CodeLabel}: {slip.SlipCode}", align: template.MetaAlign);
             if (!string.IsNullOrWhiteSpace(slip.Name)) p.Paragraph(slip.Name, bold: true);
+            // The template editor exposes these fields for every print layout,
+            // so no layout may silently suppress the configured opening text.
+            if (!string.IsNullOrWhiteSpace(template.OpeningText))
+                p.Paragraph(template.OpeningText,align:template.MetaAlign);
             if (!string.IsNullOrWhiteSpace(slip.Note)) p.Paragraph("Ghi chú phiếu: " + slip.Note);
+            if(!string.IsNullOrWhiteSpace(template.SupplementaryLabel))
+                p.Paragraph(template.SupplementaryLabel,bold:true);
             string[] headers=["STT",template.ProjectLabel,template.CompanyLabel,template.ContractLabel,template.MaterialLabel,template.UnitLabel,template.QuantityLabel];
             double[] weights=[0.045,0.27,0.12,0.11,0.325,0.055,0.075];string[] alignment=["center",template.TableAlign,template.TableAlign,"center",template.TableAlign,"center","right"];
             var visible=Enumerable.Range(0,7).Where(index=>(index!=5||template.ShowUnit)&&(index!=6||template.ShowQuantity)).ToArray();
@@ -86,6 +111,7 @@ public static class PrintService
             }
             if (lines.Count == 0) p.GroupRow("Chưa có danh sách vật tư bàn giao.");
             p.EndTable();
+            if(contractOnly.Count>0) ContractOnlySection(p,template,contractOnly);
             Signatures(p, template, slip);
         }
         return p.Finish();
@@ -158,6 +184,19 @@ public static class PrintService
         p.Title(t.Title,t.TitleAlign);
         if(t.Subtitle.Length>0) p.Paragraph(t.Subtitle,italic:true,align:t.TitleAlign);
         if(t.Layout=="contract_delivery") p.Paragraph($"{t.CodeLabel}: {slip.SlipCode}",align:"right");
+    }
+    private static void ContractOnlySection(PageWriter p,PrintTemplate template,
+        IReadOnlyList<ContractRow> contracts)
+    {
+        p.Paragraph("HỢP ĐỒNG ĐƯỢC BÀN GIAO / CHỜ ĐỐI CHIẾU VẬT TƯ",bold:true);
+        p.Paragraph("Các hợp đồng sau không có dòng vật tư chi tiết trên phiếu. "+
+            "Thông tin hợp đồng được ghi nhận, không tự suy diễn vật tư hoặc số lượng.",italic:true);
+        p.BeginTable([template.ContractLabel,template.ProjectLabel,template.CompanyLabel,
+            template.NotesLabel],[0.16,0.34,0.22,0.28]);
+        foreach(var row in contracts)
+            p.Row([row.Contract,row.Project,row.Company,
+                string.IsNullOrWhiteSpace(row.Warning)?"Chưa có danh mục vật tư":row.Warning]);
+        p.EndTable();
     }
     private static void Signatures(PageWriter p, PrintTemplate t, Slip slip)
     {
@@ -303,8 +342,15 @@ public static class PrintService
             canvas=new Canvas{Width=width,Height=height};page.Children.Add(canvas);
             var content=new PageContent();((IAddChild)content).AddChild(page);document.Pages.Add(content);
             y=top;
-            var header=SingleLine(title,font*.84,true,"left");Place(header,left,y);y+=header.DesiredSize.Height+3;
-            var meta=SingleLine(context,font*.78,false,"left");Place(meta,left,y);y+=meta.DesiredSize.Height+7;
+            // The old single-line heading used CharacterEllipsis, silently
+            // dropping long slip titles and contract/context text on paper.
+            // Measure and wrap both headings so each printed page shows them.
+            var header=Text(title,ContentWidth,font*.84,true,"left");
+            var meta=Text(context,ContentWidth,font*.78,false,"left");
+            if(y+header.DesiredSize.Height+meta.DesiredSize.Height+10>Limit)
+                throw LayoutError();
+            Place(header,left,y);y+=header.DesiredSize.Height+3;
+            Place(meta,left,y);y+=meta.DesiredSize.Height+7;
             var footer=SingleLine("",font*.72,false,"right");Place(footer,left,height-bottom-FooterHeight);footers.Add(footer);
             if(y+font*1.24>Limit)throw LayoutError();
             if(tableHeaders is not null)
