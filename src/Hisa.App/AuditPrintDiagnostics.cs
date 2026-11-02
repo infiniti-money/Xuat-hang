@@ -118,6 +118,61 @@ public static class AuditPrintDiagnostics
                   Math.Abs(page.Height-expectedHeight)<.02,
                 option.Key+" "+orientation+" uses the correct physical page size");
         }
+        // The operator changes paper/orientation in preview. The document
+        // must be fully reflowed to that physical sheet before it is printed.
+        // Verify every included material survives A4 portrait and landscape.
+        var multiple=new Slip
+        {
+            SlipCode="A4-LONG-CONTENT-10392026",HandoverDate="2026-11-02",
+            Contracts=["10392026","25132026"],Status="delivered",
+            Lines=Enumerable.Range(1,32).Select(i=>new MaterialLine
+            {
+                Id="a4-"+i,Contract=i%2==0?"10392026":"25132026",
+                Project="Công trình Hưng Yên tháp T"+(i%2+1),
+                Company="Đơn vị nhận bàn giao",
+                Material="Vật tư A4 kiểm thử tự xuống dòng số "+i+
+                    " · tủ điện, đầu cửa tầng, ray dẫn hướng và phụ kiện rất dài",
+                Unit="Bộ",Quantity=i+.125m,Include=true,Note="Ghi chú đủ nội dung "+i
+            }).ToList()
+        };
+        foreach(var orientation in new[]{"portrait","landscape"})
+        foreach(var layout in new[]{"internal_summary","contract_delivery","standard"})
+        {
+            var a4Template=new PrintTemplate
+            {
+                PaperSize="A4",Orientation=orientation,Layout=layout,
+                MarginTop=10,MarginBottom=10,MarginLeft=10,MarginRight=10,
+                FontSize=10,TableFontSize=9,MinRows=0
+            };
+            var a4Doc=PrintService.BuildSlipDocument(multiple,a4Template);
+            var a4Text=AllText(a4Doc);
+            var dims=PrintPaperSizes.GetMillimeters("A4");
+            Check(a4Doc.Pages.Count>0 &&
+                  Math.Abs(a4Doc.DocumentPaginator.PageSize.Width-
+                      (orientation=="portrait"?dims.WidthMm:dims.HeightMm)*96/25.4)<.02 &&
+                  Math.Abs(a4Doc.DocumentPaginator.PageSize.Height-
+                      (orientation=="portrait"?dims.HeightMm:dims.WidthMm)*96/25.4)<.02,
+                "A4 "+orientation+" "+layout+" preview uses requested paper dimensions");
+            Check(Enumerable.Range(1,32).All(i=>
+                  a4Text.Contains("Vật tư A4 kiểm thử tự xuống dòng số "+i)),
+                "A4 "+orientation+" "+layout+" retains all 32 materials without cutting text");
+            Check(BordersInsidePrintableArea(a4Doc,a4Template) &&
+                  PrintService.ContentFitsPrintArea(a4Doc,
+                      new Rect(0,0,a4Doc.DocumentPaginator.PageSize.Width,
+                          a4Doc.DocumentPaginator.PageSize.Height)),
+                "A4 "+orientation+" "+layout+" elements fit page in exact print paginator");
+            Check(FootersSingleLineAndInside(a4Doc),
+                "A4 "+orientation+" "+layout+" has complete page-number footers");
+        }
+        var a4Safety=new PrintTemplate
+        {
+            PaperSize="A4",Orientation="portrait",Layout="standard",
+            MarginLeft=10,MarginRight=10,MarginTop=10,MarginBottom=10,MinRows=0
+        };
+        var safetyDoc=PrintService.BuildSlipDocument(multiple,a4Safety);
+        Check(!PrintService.ContentFitsPrintArea(safetyDoc,
+                new Rect(70,70,450,620)),
+            "Printer with tiny imageable area is rejected rather than silently cropping A4");
         try
         {
             PrintService.BuildSlipDocument(slip,new PrintTemplate{PaperSize="unsupported"});
