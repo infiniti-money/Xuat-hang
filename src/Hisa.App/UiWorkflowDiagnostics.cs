@@ -41,7 +41,19 @@ public static class UiWorkflowDiagnostics
             var empty=typeof(MainWindow).GetField("_draft",flags)!;empty.SetValue(window,null);
             typeof(MainWindow).GetField("_draftReport",flags)!.SetValue(window,null);
             Call("ShowCreate",false);
-            Check(Children(window).OfType<TextBlock>().Any(x=>x.Text.Contains("Nhập số hợp đồng để tự kiểm tra")),"Create screen contains immediate contract-warning area");
+            Check(Children(window).OfType<TextBlock>().Any(x=>x.Text.Contains("Nhập số hợp đồng để tự kiểm tra")),
+                "Create screen contains immediate contract-warning area");
+            var createButtons=Children(window).OfType<Button>().ToList();
+            Check(createButtons.Any(b=>b.Content?.ToString()?.Contains("Lấy HĐ dự kiến xuất từ AI Zalo")==true) &&
+                  createButtons.Any(b=>b.Content?.ToString()?.Contains("Nhập cont về kho bằng AI Zalo")==true) &&
+                  createButtons.Any(b=>b.Content?.ToString()?.Contains("Quản lý kiện hàng Container")==true) &&
+                  createButtons.Any(b=>b.Content?.ToString()?.Contains("Kiện đã nhập trong Tổng hợp")==true),
+                "Slip screen offers direct AI Zalo dispatch, cont receipt and Container management shortcuts");
+            createButtons.Single(b=>b.Content?.ToString()?.Contains("Quản lý kiện hàng Container")==true)
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Check(((TextBlock)window.FindName("PageTitle")!).Text=="Cont & kiện Hưng Yên" &&
+                  Children(window).OfType<TextBlock>().Any(x=>x.Text.Contains("QUẢN LÝ KIỆN")),
+                "Container manager shortcut opens existing arrival/source and historical-package management without writing");
             Call("ShowLookup");
             Check(Children(window).OfType<Button>().Any(b=>b.Content?.ToString()=="☑ Chọn tất cả HĐ có vật tư") &&
                   Children(window).OfType<Button>().Any(b=>b.Content?.ToString()=="Tạo phiếu từ HĐ đã chọn"),
