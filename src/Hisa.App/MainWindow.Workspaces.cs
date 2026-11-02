@@ -118,6 +118,17 @@ public partial class MainWindow
         var page=Stack();
         page.Children.Add(HubHeader("CONT & KIỆN HƯNG YÊN",
             "Dự kiến về kho không phải đã nhận hàng · chỉ ghi Tổng hợp.xlsx sau khi xác nhận thực tế"));
+        // Show the contract-selection instruction automatically on entry;
+        // choosing a route never imports stock or marks an arrival complete.
+        page.Children.Add(Card(Stack(
+            T("CHỌN SỐ HỢP ĐỒNG CONT ĐÃ VỀ ĐỂ GHI TỔNG HỢP.XLSX",16,true,Brush("#177E89")),
+            T("① Chọn ảnh Zalo hoặc nhập số HĐ  →  ② Tích các hợp đồng đã về thực tế "+
+              "→  ③ Tìm và tích đúng kiện Hưng Yên  →  ④ Xác nhận ngày về để ghi trang chi tiết.",12,false,Muted),
+            Row(B("✦ Chọn HĐ từ AI Zalo",()=>Navigate("ai-schedule"),true),
+                B("⌕ Nhập số HĐ thủ công",()=>Navigate("arrival"))),
+            T("Không tự ghi Excel khi mở màn hình. Kiện đã nhập được ẩn và "+
+              "ngày đã nhập hiển thị riêng khi đối chiếu nguồn.",11,false,Muted)
+        )));
         page.Children.Add(StyledDashboardPanel(Stack(
             T("LỊCH CONT & XÁC NHẬN THỰC TẾ TRÊN MỘT MÀN HÌNH",14,true),
             T(_service.Snapshot.ContPackages.Count+" kiện trong nguồn cont đi · "+
