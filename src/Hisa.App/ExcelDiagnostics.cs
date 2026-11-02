@@ -93,8 +93,28 @@ public static class ExcelDiagnostics
             ws.Cell(3,2).Value="Công trình cũ";ws.Cell(3,3).Value="Công ty cũ";ws.Cell(3,4).Value="11112026";ws.Cell(3,5).Value=new DateTime(2026,10,1);ws.Cell(3,5).Style.NumberFormat.Format="dd/MM/yyyy";
             wb.SaveAs(settings.ProductExportPath);
         }
-        var slip=new Slip {Id="fixture-slip",SlipCode="BB-HY-001",Contracts=["29102026"],HandoverDate="2026-10-27",Status="delivered",ContractPackages=scan.Packages,Lines=scan.Packages.SelectMany(x=>x.Items).ToList()};
+        var onlyMotor=scan.Packages.SelectMany(p=>p.Items.Select(i=>
+        {
+            var line=i.Copy();
+            line.PackageId=p.Id;
+            line.Include=Rules.Classify(i.Material)=="Máy kéo";
+            return line;
+        })).ToList();
+        var slip=new Slip {Id="fixture-slip",SlipCode="BB-HY-001",Contracts=["29102026"],
+            HandoverDate="2026-10-27",Status="delivered",
+            ContractPackages=scan.Packages,Lines=onlyMotor};
         store.SyncExportLedgers(settings,[slip]);
+        using(var ledger=new XLWorkbook(Path.Combine(root,"XUẤT HÀNG","Sổ theo dõi xuất hàng.xlsx")))
+        {
+            var deliveredMaterials=ledger.Worksheet("Vật tư bàn giao");
+            var deliveredPackages=ledger.Worksheet("Kiện Hưng Yên");
+            Check(Enumerable.Range(2,Math.Max(0,(deliveredMaterials.LastRowUsed()?.RowNumber()??1)-1))
+                  .All(n=>!Rules.Code(deliveredMaterials.Cell(n,7).GetString()).Contains("RAYDANHUONG")) &&
+                  Enumerable.Range(2,Math.Max(0,(deliveredPackages.LastRowUsed()?.RowNumber()??1)-1))
+                  .All(n=>!Rules.Code(deliveredPackages.Cell(n,9).GetString()).Contains("RAYDANHUONG")) &&
+                  deliveredMaterials.LastRowUsed()?.RowNumber()>1,
+                "Excluded ray group is absent from both handover material and physical-package export sheets",evidence);
+        }
         var shipped=store.ReadShipments(settings);
         Check(shipped.Count==2&&shipped.Any(x=>x.SlipId==slip.Id)&&shipped.Any(x=>x.Contract=="11112026"),"Sổ thành phẩm thêm phiếu, giữ nguyên lịch sử cũ",evidence);
         store.SyncExportLedgers(settings,[slip]);
