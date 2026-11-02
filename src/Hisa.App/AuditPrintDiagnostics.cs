@@ -28,6 +28,29 @@ public static class AuditPrintDiagnostics
             var fractionText=AllText(PrintService.BuildSlipDocument(fraction,new PrintTemplate{Layout=layout}));
             Check(fractionText.Contains("0,125")&&fractionText.Contains("0,001"),"Fractional quantities retain source precision in "+layout);
         }
+        foreach(var option in PrintPaperSizes.Options)
+        foreach(var orientation in new[]{"portrait","landscape"})
+        {
+            var paper=new PrintTemplate{Layout="standard",PaperSize=option.Key,
+                Orientation=orientation,MinRows=0,MarginTop=8,MarginBottom=8,
+                MarginLeft=8,MarginRight=8,FontSize=9,TableFontSize=8};
+            var dimensions=PrintPaperSizes.GetMillimeters(option.Key);
+            var expectedWidth=(orientation=="landscape"?dimensions.HeightMm:dimensions.WidthMm)*96/25.4;
+            var expectedHeight=(orientation=="landscape"?dimensions.WidthMm:dimensions.HeightMm)*96/25.4;
+            var page=PrintService.BuildSlipDocument(slip,paper).Pages[0].Child;
+            Check(Math.Abs(page.Width-expectedWidth)<.02 &&
+                  Math.Abs(page.Height-expectedHeight)<.02,
+                option.Key+" "+orientation+" uses the correct physical page size");
+        }
+        try
+        {
+            PrintService.BuildSlipDocument(slip,new PrintTemplate{PaperSize="unsupported"});
+            throw new InvalidOperationException("FAIL: unsupported paper silently printed on A4");
+        }
+        catch(ArgumentException ex)
+        {
+            Check(ex.Message.Contains("Khổ giấy"),"Unsupported paper never silently falls back to A4");
+        }
         var longSlip=new Slip{SlipCode="LONG-"+new string('X',500),HandoverDate="2026-10-27",Contracts=["123(1)"],Lines=[new MaterialLine{Id="long-motor",Contract="123(1)",Project=string.Join(" ",Enumerable.Repeat("Công trình rất dài cần xuống dòng",100)),Company="Đơn vị",Material="Máy kéo kiểm tra dài",Unit="Bộ",Quantity=150}]};
         longSlip.MotorSerials=MotorSerials.BuildRows(longSlip);for(int i=0;i<longSlip.MotorSerials.Count;i++)longSlip.MotorSerials[i].SerialNumber="SER-"+(i+1).ToString("D4");
         var a5=new PrintTemplate{Layout="contract_delivery",PaperSize="A5",Orientation="portrait",MarginTop=8,MarginBottom=8,MarginLeft=8,MarginRight=8,FontSize=10,TableFontSize=10};

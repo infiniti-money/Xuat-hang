@@ -31,6 +31,31 @@ public sealed class PlannedArrivalRow
 
 public static class PlannedArrivalWorkflow
 {
+    /// <summary>
+    /// Check all uniquely identifiable, source-verified packages in a PREVIEW.
+    /// This only changes local checkboxes. A physical arrival still requires
+    /// the operator's explicit confirmation and a fresh SelectVerified check.
+    /// </summary>
+    public static int SelectAllEligibleForReview(IList<PlannedArrivalRow> rows)
+    {
+        if (rows is null) throw new ArgumentNullException(nameof(rows));
+        const string ready = "Đủ nguồn · chờ xác nhận đã về";
+        var uniqueIds = rows.Where(x => x.Status == ready &&
+                !string.IsNullOrWhiteSpace(x.SourcePackageId))
+            .GroupBy(x => x.SourcePackageId, StringComparer.Ordinal)
+            .Where(group => group.Count() == 1)
+            .Select(group => group.Key)
+            .ToHashSet(StringComparer.Ordinal);
+        var count = 0;
+        foreach (var row in rows)
+        {
+            row.Selected = row.Status == ready &&
+                uniqueIds.Contains(row.SourcePackageId);
+            if (row.Selected) count++;
+        }
+        return count;
+    }
+
     // Identity: contract + project markers (T1/T2/parentheses) + company.
     // Physical package: source ID, container and complete material/quantity signature.
     public static string MaterialFingerprint(Package package) =>

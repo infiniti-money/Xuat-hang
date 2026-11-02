@@ -65,7 +65,7 @@ public sealed class TemplateEditorWindow : Window
         AddCheck(columns,"Thêm nguồn / số kiện vào ghi chú",nameof(PrintTemplate.ShowSource));
         AddCheck(columns,"Mặc định lấy thêm vật tư khác",nameof(PrintTemplate.IncludeOther));
         var page=Tab(tabs,"Trang giấy & căn chỉnh");
-        AddCombo(page,"Khổ giấy",nameof(PrintTemplate.PaperSize),[("A4","A4 · 210 × 297 mm"),("A5","A5 · 148 × 210 mm")]);
+        AddCombo(page,"Khổ giấy",nameof(PrintTemplate.PaperSize),PrintPaperSizes.Options);
         AddCombo(page,"Chiều giấy",nameof(PrintTemplate.Orientation),[("landscape","Ngang"),("portrait","Dọc")]);
         AddCombo(page,"Phông chữ",nameof(PrintTemplate.FontFamily),[("Times New Roman","Times New Roman"),("Arial","Arial"),("Calibri","Calibri"),("Tahoma","Tahoma"),("Segoe UI","Segoe UI")]);
         Add(page,"Cỡ chữ nội dung (pt)",nameof(PrintTemplate.FontSize));
