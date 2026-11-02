@@ -13,7 +13,8 @@ public partial class MainWindow
     private AiScheduleDocument? _aiDocument;
     private string _aiImagePath = "";
     private string? _aiDispatchDay;
-    private bool _aiApproved;
+    // Step 1: incoming containers; step 2: outgoing slips.
+    private bool _aiShowDispatch;
 
     // DataGridCheckBoxColumn makes operators click once to edit and again to
     // check. This display template contains a real, immediately interactive
@@ -122,7 +123,7 @@ public partial class MainWindow
             {
                 _aiImagePath = file.FileName;
                 _aiDocument = null;
-                _aiApproved = false;
+                _aiShowDispatch = false;
                 upload.Text = Path.GetFileName(file.FileName);
             }
         }, true);
@@ -137,7 +138,7 @@ public partial class MainWindow
             try
             {
                 _aiDocument = await AiScheduleReader.AnalyzeAsync(_aiImagePath, geminiKey);
-                _aiApproved = false;
+                _aiShowDispatch = false;
                 ShowAiSchedules();
             }
             catch (Exception ex)
@@ -151,13 +152,13 @@ public partial class MainWindow
         var createManual=B("＋ Tạo lịch bằng tay",()=>{
             if(_aiDocument!=null && !Ask("Bắt đầu lịch mới? Những chỉnh sửa chưa lưu sẽ mất."))return;
             _aiDocument=AiScheduleWorkspace.NewDraft(DateTime.Today.AddDays(1));
-            _aiApproved=false;
+            _aiShowDispatch=false;
             _aiImagePath="";
             ShowAiSchedules();
         });
         var top = Card(Stack(
             T("ẢNH ZALO → NHẬN CONT / LÀM PHIẾU", 18, true),
-            T("① Chọn ảnh  →  ② Gemini đọc danh sách  →  ③ Kiểm tra và lưu duyệt  →  ④ Tích chọn công việc cần làm.",13,true,Brush("#177E89")),
+            T("① Chọn ảnh Zalo  →  ② Tích hợp đồng cont về  →  ③ Tiếp theo: Lập phiếu xuất.",13,true,Brush("#177E89")),
             T("Ngày cont dự kiến về chỉ là dự báo, KHÔNG phải hàng đã nhập. Nhận cont và làm phiếu là hai thao tác độc lập.",12,false,Muted),
             status,
             Row(choose,upload,analyze),
@@ -167,8 +168,8 @@ public partial class MainWindow
         var panel = Stack();
         if (_aiDocument == null)
         {
-            panel.Children.Add(Alert("Chưa có lịch: chọn ảnh Zalo để Gemini đọc, hoặc bấm 'Tạo lịch bằng tay' để nhập số hợp đồng không xuất hiện trong ảnh. Cả hai luồng đều phải duyệt và xác nhận nghiệp vụ."));
-            SetPage("AI lịch nhập – xuất kho", "Đọc ảnh từ Zalo · Gemini AI · duyệt thủ công trước khi lưu", Layout(top,
+            panel.Children.Add(Alert("Chưa có lịch: chọn ảnh Zalo để Gemini đọc, hoặc bấm 'Tạo lịch bằng tay' để nhập số hợp đồng không xuất hiện trong ảnh. Không cần duyệt lịch; nhập kho và xuất thực tế vẫn cần xác nhận riêng."));
+            SetPage("AI lịch nhập – xuất kho", "Đọc ảnh Zalo · chọn cont trước, sau đó lập phiếu", Layout(top,
                 new ScrollViewer { Content = panel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }));
             return;
         }
@@ -181,27 +182,21 @@ public partial class MainWindow
         Action? invalidateEditedCheck = null;
         var incoming = ScheduleEditor(doc.Arrivals, true,()=>invalidateEditedCheck?.Invoke());
         var outgoing = ScheduleEditor(doc.Dispatches, false,()=>invalidateEditedCheck?.Invoke());
-        var saved = T(_aiApproved ? "✓ Lịch đã duyệt. Có thể chọn nhập cont hoặc làm phiếu." :
-            "Chưa duyệt. Mọi dòng có thể chỉnh sửa trước khi lưu.", 12, true);
-        // An approved snapshot is immutable. Changing even just the header date
-        // invalidates approval, otherwise a new unsaved arrival/dispatch date could
-        // be used to create handover slips from the previously approved schedule.
-        void InvalidateApproval()
+        var saved=T("Chọn hợp đồng trực tiếp, không cần lưu/duyệt lịch Zalo.",12,true);
+        // Changing a working list never implies approval of a physical movement.
+        void MarkWorkingSchedule()
         {
-            _aiApproved = false;
-            doc.ApprovedAt = "";
-            saved.Text = "Lịch đã thay đổi sau lần duyệt. Kiểm tra và lưu duyệt lại trước khi lập phiếu hoặc nhập kho.";
+            doc.ApprovedAt="";
+            saved.Text="Lịch đang xử lý · không cần phê duyệt trước khi lập phiếu.";
         }
-        invalidateEditedCheck=InvalidateApproval;
-        dayArrival.TextChanged += (_, _) => InvalidateApproval();
-        dayDispatch.TextChanged += (_, _) => InvalidateApproval();
-        incoming.CellEditEnding += (_, e) =>
-        {
-            if(e.Column.Header?.ToString() != "Cont đã về?")InvalidateApproval();
+        invalidateEditedCheck=MarkWorkingSchedule;
+        dayArrival.TextChanged+=(_,_)=>MarkWorkingSchedule();
+        dayDispatch.TextChanged+=(_,_)=>MarkWorkingSchedule();
+        incoming.CellEditEnding+=(_,e)=>{
+            if(e.Column.Header?.ToString()!="Cont đã về?")MarkWorkingSchedule();
         };
-        outgoing.CellEditEnding += (_, e) =>
-        {
-            if (e.Column.Header?.ToString() != "Làm phiếu") InvalidateApproval();
+        outgoing.CellEditEnding+=(_,e)=>{
+            if(e.Column.Header?.ToString()!="Làm phiếu")MarkWorkingSchedule();
         };
 
         var incomingCount = T(doc.Arrivals.Count + " cont/hợp đồng dự kiến về · chưa nhập kho", 14, true);
@@ -222,16 +217,11 @@ public partial class MainWindow
                 true => false,
                 false => null
             };
-            InvalidateApproval();
+            MarkWorkingSchedule();
             grid.Items.Refresh();
         }
         incomingBody.Children.Add(T("Nếu cont THỰC TẾ đã về, tích đúng hợp đồng ở cột 'Cont đã về?', rồi đối chiếu và chọn từng kiện. Ngày dự kiến không phải ngày thực tế.",12,false,Muted));
         incomingBody.Children.Add(Row(
-            B("⌕  Tìm kiện HĐ trong Container", ()=>
-            {
-                Commit(incoming);
-                ShowAiSchedules();
-            }, true),
             B("☑ Chọn tất cả cont Hưng Yên",()=>
             {
                 Commit(incoming);
@@ -240,7 +230,6 @@ public partial class MainWindow
                 saved.Text="Đã chọn "+doc.Arrivals.Count+" HĐ để đối chiếu kiện. CHƯA xác nhận hàng đã về hoặc ghi Excel.";
             },true),
             B("Bỏ tích cont",()=>{AiScheduleBulkSelection.SetAll(doc,true,false);incoming.Items.Refresh();}),
-            B("Xem bảng kiện nguồn",()=>ShowAiSchedules()),
             B("Trạng thái lịch xuất",()=>CycleSchedule(incoming))
         ));
         incomingBody.Children.Add(T("Nhấp MỘT LẦN vào ô vuông để tích. Chọn một dòng bất kỳ để xem từng vật tư, số lượng và tình trạng thực nhận ngay bên dưới.",12,false,Muted));
@@ -252,7 +241,8 @@ public partial class MainWindow
         {
             incomingBody.Children.Add(T("TÌM KIỆN HƯNG YÊN TỪ CONTAINER · XÁC NHẬN VỀ KHO",16,true));
             incomingBody.Children.Add(BuildContDiSourcePanel(
-                ()=>doc.Arrivals.ToList(),()=>Commit(incoming),searchWhenLoaded:true));
+                ()=>doc.Arrivals.Where(x=>x.SelectedForArrival).ToList(),
+                ()=>Commit(incoming),searchWhenLoaded:false));
         }
 
         EquipmentListReader.Catalog? productionCache=null;
@@ -451,9 +441,9 @@ public partial class MainWindow
                     manualCont.Text,manualDeparture.Text,manualNote.Text,
                     manualUrgent.IsChecked==true);
                 if(added==0){Notify("Các số hợp đồng này đã có trong lịch cùng công trình, cont và ngày; không tạo dòng trùng.");return;}
-                InvalidateApproval();
+                MarkWorkingSchedule();
                 Notify("Đã bổ sung "+added+" dòng "+(isArrival?"cont dự kiến về":"dự kiến bàn giao")+
-                    ". Kiểm tra công trình, đơn vị và ngày trước khi bấm Lưu kế hoạch đã duyệt.");
+                    ". Kiểm tra công trình, đơn vị và ngày trước khi thao tác. Không cần lưu duyệt lịch.");
                 ShowAiSchedules();
             },true),
             T("HĐ nhập tay không tự nhập kho và không tự tạo phiếu. Nếu trùng số HĐ nhưng khác T1/T2, cont hoặc ngày cont đi, thêm thành dòng riêng và đối chiếu vật tư trước khi xác nhận.",11,false,Muted)));
@@ -472,47 +462,14 @@ public partial class MainWindow
                 : string.Join("\n", warnings.Take(60)) + (warnings.Count > 60 ? "\n... còn " + (warnings.Count - 60) + " cảnh báo." : "");
         }
         RefreshWarnings();
-        var save = B("Lưu kế hoạch đã duyệt", () =>
-        {
-            RefreshWarnings();
-            if (doc.Arrivals.Count + doc.Dispatches.Count == 0)
-                throw new InvalidOperationException("Danh sách trống, không thể duyệt.");
-            if (!DateTime.TryParseExact(doc.ArrivalDate, "yyyy-MM-dd",
-                System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out _) ||
-                !DateTime.TryParseExact(doc.DispatchDate, "yyyy-MM-dd",
-                System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out _))
-                throw new InvalidOperationException("Sửa cả hai ngày dự kiến theo yyyy-MM-dd trước khi lưu.");
-            var review = doc.Arrivals.Concat(doc.Dispatches).Count(r => r.NeedsReview);
-            if (!Ask("Duyệt và lưu " + doc.Arrivals.Count + " dòng nhập, " + doc.Dispatches.Count +
-                     " dòng xuất?\n" + review + " dòng đang đánh dấu cần kiểm tra.\n\n" +
-                     "Đây chỉ là LỊCH DỰ KIẾN; không cập nhật tồn kho, không tự lập phiếu đã xuất.")) return;
-            var folder = Path.Combine(_service.DataDirectory, "ai_schedules");
-            Directory.CreateDirectory(folder);
-            var path = Path.Combine(folder, "lich-kho-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") +
-                             "-" + Guid.NewGuid().ToString("N")[..8] + ".json");
-            doc.ApprovedAt = DateTimeOffset.Now.ToString("O");
-            var temp = path + ".tmp";
-            try
-            {
-                File.WriteAllText(temp, JsonSerializer.Serialize(doc,
-                    new JsonSerializerOptions(WarehouseService.Json) { WriteIndented = true }));
-                File.Move(temp, path);
-            }
-            finally { if (File.Exists(temp)) File.Delete(temp); }
-            _aiApproved = true;
-            saved.Text = "Đã lưu kế hoạch: " + Path.GetFileName(path);
-            Notify("Đã lưu kế hoạch dự kiến vào:\n" + path +
-                "\n\nKhông có phiếu Đã xuất hoặc ngày cont về nào được ghi tự động.");
-            ShowAiSchedules();
-        }, true);
         var toPlan = A("✓  Lập phiếu từ hợp đồng đã tích", async () =>
         {
             Commit(outgoing);
-            if (!_aiApproved || string.IsNullOrWhiteSpace(doc.ApprovedAt))
-            {
-                Notify("Hãy kiểm tra, duyệt và lưu lịch Gemini trước khi tạo phiếu bàn giao.");
-                return;
-            }
+            RefreshWarnings();
+            if(!DateTime.TryParseExact(doc.DispatchDate,"yyyy-MM-dd",
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None,out _))
+                throw new InvalidOperationException("Ngày dự kiến xuất không hợp lệ. Sửa ngày yyyy-MM-dd rồi lập phiếu.");
             var chosen = doc.Dispatches.Where(x => x.SelectedForHandover).ToList();
             if (chosen.Count == 0)
             {
@@ -522,14 +479,18 @@ public partial class MainWindow
             var codes = chosen.Select(x => x.Contract).DistinctBy(Rules.Contract).ToArray();
             var report = _service.Search(new SearchFilter { ContractsText = string.Join("\n", codes) });
             report = AiHandoverSelection.Build(report, doc, chosen);
-            if (!Ask("Tạo kế hoạch phiếu CHỜ XUẤT cho " + chosen.Count +
-                     " dòng đã tích?\nNgày dự kiến: " + Rules.Day(doc.DispatchDate) +
-                     "\n\nĐây là bước chuẩn bị phiếu. Anh kiểm tra vật tư và lưu phiếu chờ trước khi bàn giao.")) return;
-            _draft = null;
-            _draftReport = report;
-            _aiDispatchDay = doc.DispatchDate;
-            _createPlanMode = true;
-            Navigate("plan");
+            if(report.Missing.Any(x=>x.Selected))
+                throw new InvalidOperationException("Hợp đồng chưa có dữ liệu Tổng hợp.xlsx: "+
+                    string.Join(", ",report.Missing.Where(x=>x.Selected).Select(x=>x.Contract))+
+                    ". Hãy đối chiếu Excel trước khi lập phiếu.");
+            _draftReport=report;
+            _aiDispatchDay=doc.DispatchDate;
+            _draft=_service.CreateDraft(report,
+                _service.Templates.FirstOrDefault()?.Id??"internal_summary",doc.DispatchDate);
+            _draft.Status="planned";
+            foreach(var line in _draft.Lines)line.Include=true;
+            _createPlanMode=false;
+            Navigate("create");
             await Task.CompletedTask;
         }, true);
         outgoingBody.Children.Insert(1, Row(toPlan));
@@ -540,36 +501,44 @@ public partial class MainWindow
             B("🔢 Xem serial nguồn sẽ điền vào phiếu",()=>OpenMotorStatuses(doc.Dispatches,"Serial máy kéo của các HĐ dự kiến xuất"))));
         outgoingBody.Children.Add(dispatchMaterials);
         UpdateMaterialDetail(outgoing,dispatchMaterials);
-        var tools = Card(Stack(
-            T("KIỂM TRA NGÀY · DUYỆT DANH SÁCH TRƯỚC KHI THAO TÁC", 16, true),
-            Row(Field("Dự kiến nhập kho · yyyy-MM-dd", dayArrival),
-                Field("Dự kiến xuất kho · yyyy-MM-dd", dayDispatch),
-                B("Kiểm tra cảnh báo", RefreshWarnings)),
-            T("Lưu duyệt chỉ lưu kế hoạch từ ảnh. Nhập cont và lập phiếu đều cần tích chọn, đối chiếu và xác nhận riêng.",12,false,Muted),
-            Row(save, B("Kiểm tra sẵn sàng xuất", () =>
-            {
-                if (!_aiApproved) { Notify("Hãy lưu lịch AI đã duyệt trước."); return; }
-                ShowDispatchReadiness(doc.DispatchDate);
-            })),
-            saved
-        ));
-        var kpis = Row(
-            Card(Stack(T("CONT DỰ KIẾN VỀ", 11, true, Muted),
-                T(doc.Arrivals.Count.ToString("N0") + " hợp đồng", 22, true),
-                T("Chưa tính là đã nhập kho", 11, false, Muted)), new Thickness(14)),
-            Card(Stack(T("KẾ HOẠCH XUẤT", 11, true, Muted),
-                T(doc.Dispatches.Count.ToString("N0") + " hợp đồng", 22, true),
-                T("Chờ phê duyệt trước khi lưu", 11, false, Muted)), new Thickness(14)),
-            Card(Stack(T("CẦN XÁC MINH", 11, true, Muted),
-                T(doc.Arrivals.Concat(doc.Dispatches).Count(x => x.NeedsReview).ToString("N0") + " dòng", 22, true),
-                T("Đối chiếu ảnh Zalo gốc", 11, false, Muted)), new Thickness(14))
-        );
-        panel.Children.Add(kpis);
-        panel.Children.Add(tools);
-        panel.Children.Add(T("1 · CONT DỰ KIẾN VỀ → CHỈ TÍCH KHI HÀNG ĐÃ VỀ THỰC TẾ",16,true));
-        panel.Children.Add(Card(incomingBody));
-        panel.Children.Add(T("2 · HỢP ĐỒNG DỰ KIẾN BÀN GIAO → TÍCH ĐỂ LÀM PHIẾU",16,true));
-        panel.Children.Add(Card(outgoingBody));
+        // Exactly one primary list is shown at a time.
+        // This only changes UI state; nothing is saved to Excel here.
+        var dispatchStep=_aiShowDispatch || doc.Arrivals.Count==0;
+        if(!dispatchStep)
+        {
+            panel.Children.Add(T("1 · CHỌN HỢP ĐỒNG CONT VỀ HƯNG YÊN",16,true));
+            panel.Children.Add(Card(incomingBody));
+            panel.Children.Add(Card(Stack(
+                Row(B("Tiếp theo: Lập phiếu xuất →",()=>{
+                    Commit(incoming);
+                    RefreshWarnings();
+                    _aiShowDispatch=true;
+                    ShowAiSchedules();
+                },true)),
+                T("Chọn HĐ cont về và đối chiếu kiện nguồn ở trên. Chuyển bước "+
+                  "không tự nhập kho; bảng lập phiếu xuất hiện ở bước 2.",12,false,Muted))));
+        }
+        else
+        {
+            panel.Children.Add(T("2 · CHỌN HỢP ĐỒNG LẬP PHIẾU XUẤT",16,true));
+            panel.Children.Add(Card(Stack(
+                Row(B("← Quay lại chọn cont về",()=>{
+                    _aiShowDispatch=false;ShowAiSchedules();
+                })),
+                outgoingBody)));
+        }
+        panel.Children.Add(new Expander
+        {
+            Header="Ngày dự kiến và kiểm tra cảnh báo (tùy chọn)",
+            IsExpanded=false,
+            Content=Card(Stack(
+                Row(Field("Dự kiến nhập kho · yyyy-MM-dd",dayArrival),
+                    Field("Dự kiến xuất kho · yyyy-MM-dd",dayDispatch),
+                    B("Kiểm tra cảnh báo",RefreshWarnings)),
+                T("Lịch dự kiến không phải xác nhận nhập/xuất. "+
+                  "Chỉ xác nhận cont đã nhận hoặc phiếu Đã xuất mới ghi dữ liệu thực tế.",12,false,Muted),
+                saved))
+        });
         panel.Children.Add(new Expander
         {
             Header="＋ Bổ sung hợp đồng phát sinh bằng tay (tùy chọn)",

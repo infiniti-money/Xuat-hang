@@ -212,21 +212,21 @@ public static class UiWorkflowDiagnostics
             var aiScroll=aiLayout.Children.OfType<ScrollViewer>().Single();
             var aiPanel=(StackPanel)aiScroll.Content;
             var headings=Children(aiPanel).OfType<TextBlock>().Select(x=>x.Text).ToArray();
-            Check(headings.Any(x=>x.Contains("1 · CONT DỰ KIẾN VỀ")) &&
-                  headings.Any(x=>x.Contains("2 · HỢP ĐỒNG DỰ KIẾN BÀN GIAO")),
-                "Gemini result separates potential container arrival and waiting handover slips");
+            Check(headings.Any(x=>x.Contains("1 · CHỌN HỢP ĐỒNG CONT")) &&
+                  !headings.Any(x=>x.Contains("2 · CHỌN HỢP ĐỒNG LẬP PHIẾU")),
+                "Zalo screen shows incoming contracts first, not both lists at once");
             Check(Children(aiPanel).OfType<Button>().Any(b=>b.Content?.ToString()?.Contains("Tìm kiện Hưng Yên trong Container")==true) &&
-                  Children(aiPanel).OfType<Button>().Any(b=>b.Content?.ToString()?.Contains("Lập phiếu từ hợp đồng")==true),
-                "Arrival verification and draft handover have direct buttons next to their lists");
+                  Children(aiPanel).OfType<Button>().Any(b=>b.Content?.ToString()?.Contains("Tiếp theo: Lập phiếu xuất")==true) &&
+                  !Children(aiPanel).OfType<Button>().Any(b=>b.Content?.ToString()?.Contains("Lưu kế hoạch đã duyệt")==true),
+                "Cont screen has source verification and next-step button without schedule-approval step");
             var aiGrids=Children(aiPanel).OfType<DataGrid>().ToList();
             var incomingGrid=aiGrids.Single(g=>
                 g.Columns.OfType<DataGridTemplateColumn>().Any(c=>c.Header?.ToString()=="Cont đã về?"));
-            var outgoingGrid=aiGrids.Single(g=>
-                g.Columns.OfType<DataGridTemplateColumn>().Any(c=>c.Header?.ToString()=="Làm phiếu"));
-            Check(aiGrids.Count>=3 &&
+            Check(aiGrids.Count>=2 && !aiGrids.Any(g=>g.Columns.OfType<DataGridTemplateColumn>()
+                      .Any(c=>c.Header?.ToString()=="Làm phiếu")) &&
                   aiGrids.Any(g=>g.Columns.OfType<DataGridTemplateColumn>()
-                     .Any(c=>c.Header?.ToString()=="Đã về")),
-                "Zalo lists and physical source package selection stay visible on one screen");
+                      .Any(c=>c.Header?.ToString()=="Đã về")),
+                "Incoming stage has source-package selection, while outgoing table remains hidden");
             void AssertCheckbox(DataGrid source,string header,AiScheduleLine data,string flag)
             {
                 var column=source.Columns.OfType<DataGridTemplateColumn>()
@@ -260,15 +260,30 @@ public static class UiWorkflowDiagnostics
                     header+" can be unchecked without editing another cell");
             }
             AssertCheckbox(incomingGrid,"Cont đã về?",simulated.Arrivals[0],"SelectedForArrival");
-            AssertCheckbox(outgoingGrid,"Làm phiếu",simulated.Dispatches[0],"SelectedForHandover");
-            Check(Children(aiPanel).OfType<Button>().Any(b=>b.Content?.ToString()?.Contains("Xem toàn bộ vật tư cont")==true) &&
-                  Children(aiPanel).OfType<Button>().Any(b=>b.Content?.ToString()?.Contains("Xem toàn bộ vật tư HĐ bàn giao")==true),
-                "Both lists allow browsing material details for every Zalo contract");
+            Check(Children(aiPanel).OfType<Button>().Any(b=>b.Content?.ToString()?.Contains("Xem toàn bộ vật tư cont")==true),
+                "Incoming stage allows original source-material inspection");
             incomingGrid.SelectedIndex=0;
-            var materialGrids=Children(aiPanel).OfType<DataGrid>().Where(g=>g!=incomingGrid&&g!=outgoingGrid).ToList();
+            var materialGrids=Children(aiPanel).OfType<DataGrid>().Where(g=>g!=incomingGrid).ToList();
             Check(materialGrids.Any(g=>g.ItemsSource is List<AiMaterialLookup.Row> items &&
                   items.Any(i=>i.Material=="Máy kéo M1"&&i.Quantity==2)),
-                "Clicking a schedule row shows original workbook goods and quantities");
+                "Clicking an incoming contract displays source material and quantities");
+            var next=Children(aiPanel).OfType<Button>()
+                .Single(b=>b.Content?.ToString()=="Tiếp theo: Lập phiếu xuất →");
+            next.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            aiLayout=(Grid)aiHost.Children[0];
+            aiScroll=aiLayout.Children.OfType<ScrollViewer>().Single();
+            aiPanel=(StackPanel)aiScroll.Content;
+            Check(Children(aiPanel).OfType<TextBlock>().Any(x=>x.Text.Contains("2 · CHỌN HỢP ĐỒNG LẬP PHIẾU")) &&
+                  !Children(aiPanel).OfType<DataGrid>().Any(g=>g.Columns.OfType<DataGridTemplateColumn>()
+                      .Any(x=>x.Header?.ToString()=="Cont đã về?")),
+                "Next-step button replaces cont table with outgoing slip table");
+            var outgoingGrid=Children(aiPanel).OfType<DataGrid>().Single(g=>
+                g.Columns.OfType<DataGridTemplateColumn>().Any(x=>x.Header?.ToString()=="Làm phiếu"));
+            AssertCheckbox(outgoingGrid,"Làm phiếu",simulated.Dispatches[0],"SelectedForHandover");
+            Check(Children(aiPanel).OfType<Button>().Any(b=>b.Content?.ToString()?.Contains("Lập phiếu từ hợp đồng")==true) &&
+                  Children(aiPanel).OfType<Button>().Any(b=>b.Content?.ToString()?.Contains("Xem toàn bộ vật tư HĐ bàn giao")==true) &&
+                  Children(aiPanel).OfType<Button>().Any(b=>b.Content?.ToString()?.Contains("Quay lại chọn cont")==true),
+                "Outgoing stage can create a slip without schedule approval and return to incoming");
             Check(!simulated.Arrivals[0].SelectedForArrival && !simulated.Dispatches[0].SelectedForHandover &&
                   string.IsNullOrWhiteSpace(simulated.ApprovedAt),
                 "Opening Gemini results does not mark arrival, issue a slip or approve schedule");

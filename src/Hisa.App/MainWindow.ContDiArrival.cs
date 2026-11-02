@@ -21,6 +21,11 @@ public partial class MainWindow
         var feedback=T("Bấm Tìm kiện để đọc mới "+SourceLabel()+".",12,false,Muted);
         var rows=new List<PlannedArrivalRow>();
         var scanned=false;
+        var searchedSelection="";
+        string SelectionSignature()=>string.Join("|",requests()
+            .Select(x=>Rules.Identity(x.Contract,x.Project,x.Company)+"#"+
+                Rules.Code(x.Container)+"#"+x.ContainerExportDate)
+            .OrderBy(x=>x,StringComparer.Ordinal));
         var grid=Table(rows,
             ("Số hợp đồng","Contract",120),
             ("Công trình/T1/T2","Project",195),
@@ -36,7 +41,7 @@ public partial class MainWindow
         void InvalidateSearch()
         {
             scanned=false;
-            rows=[];grid.ItemsSource=rows;
+            rows=[];grid.ItemsSource=rows;searchedSelection="";
             feedback.Text="Ngày thực tế hoặc danh sách hợp đồng đã thay đổi. Bấm Tìm kiện để đối chiếu mới.";
         }
         actualDate.SelectedDateChanged+=(_,_)=>InvalidateSearch();
@@ -52,7 +57,7 @@ public partial class MainWindow
             feedback.Text="Đang đọc nguồn: "+SourceLabel()+"…";
             await _service.RefreshContDiForArrivalAsync();
             rows=ContDiArrivalLookup.Preview(input,_service.ContDiLookupSnapshot,Day(actualDate));
-            grid.ItemsSource=rows;scanned=true;
+            grid.ItemsSource=rows;searchedSelection=SelectionSignature();scanned=true;
             var ready=rows.Count(x=>x.Status==ContDiArrivalLookup.Ready);
             var already=rows.Count(x=>x.Status=="Kiện đã nhập kho");
             feedback.Text=$"Đã tìm trong {SourceLabel()}: {rows.Count} dòng/kiện · "+
@@ -62,12 +67,20 @@ public partial class MainWindow
         }
         var buttons=Row(
             A("⌕ Tìm kiện Hưng Yên trong Container",SearchAsync,true),
+            B("☑ Chọn tất cả kiện đủ nguồn",()=>{
+                Commit(grid);
+                var count=PlannedArrivalWorkflow.SelectAllEligibleForReview(rows);
+                grid.Items.Refresh();
+                feedback.Text=$"Đã chọn {count} kiện có nguồn hợp lệ và mã kiện duy nhất. "+
+                    "Bỏ tích kiện chưa về thực tế; chỉ bấm Sao chép sau khi đã nhận hàng.";
+            },true),
             B("Bỏ chọn",()=>{foreach(var x in rows)x.Selected=false;grid.Items.Refresh();}),
             A("✓ Sao chép kiện đã về → Tổng hợp.xlsx",async()=>
             {
                 commitInput?.Invoke();Commit(grid);
-                if(!scanned)
-                    throw new InvalidOperationException("Cần tìm lại dữ liệu nguồn mới nhất trước khi nhập.");
+                if(!scanned || searchedSelection!=SelectionSignature())
+                    throw new InvalidOperationException("Danh sách hợp đồng cont đã thay đổi. "+
+                        "Bấm Tìm kiện lại trước khi nhập, tránh ghi nhầm kiện.");
                 if(Day(actualDate).Length==0 || actualDate.SelectedDate is null)
                     throw new InvalidOperationException("Chọn ngày thực tế cont về.");
                 var marked=rows.Where(x=>x.Selected).ToList();

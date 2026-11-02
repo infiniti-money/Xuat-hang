@@ -1,3 +1,14 @@
+## HISA v1.9.34 — Bảng cont về trước, rồi lập phiếu; bỏ nút duyệt lịch Zalo
+
+- Ảnh Zalo hoặc lịch nhập tay nay mở trực tiếp **Bước 1 — chọn hợp đồng cont về**. Chỉ sau khi bấm **Tiếp theo: Lập phiếu xuất** thì **Bước 2 — chọn hợp đồng lập phiếu** mới xuất hiện. Có nút quay lại bước cont mà vẫn giữ danh sách đã tích.
+- Bỏ bước trung gian **Lưu kế hoạch đã duyệt** và hộp thoại phê duyệt lịch trước khi lập phiếu. Các hợp đồng đã tích có thể tạo ngay **phiếu CHỜ XUẤT chưa lưu**, tự chọn toàn bộ vật tư/kiện nguồn khớp và tra serial máy kéo. Chỉ khi người dùng bấm Lưu phiếu mới có bản ghi; trạng thái Đã xuất vẫn bắt buộc xác nhận và đối chiếu serial.
+- Từ bảng cont, chỉ những HĐ đã tích ở cột **Cont đã về?** mới được tìm kiện trong thư mục Container. Thêm **Chọn tất cả kiện đủ nguồn** trong bảng kiện, bỏ qua kiện đã nhập, thiếu nguồn hoặc ID trùng; bắt buộc xác nhận cont đã nhận trước khi ghi **Tổng hợp.xlsx**.
+- Nếu thay đổi HĐ sau khi đối chiếu kiện, danh sách nguồn cũ bị từ chối và yêu cầu tìm lại trước khi sao chép; nguồn được làm mới ngay trước khi ghi. Chuyển bước không tự xác nhận hàng đã về hoặc xuất kho.
+- Ngày dự kiến và cảnh báo đặt trong mục tùy chọn thu gọn, để bảng cont hiển thị trước, giảm thao tác.
+- Bổ sung kiểm thử UI hai bước, không có nút duyệt lịch, kiểm tra HĐ/công trình theo nguồn và không cho lập phiếu từ dòng chưa xác minh. Phát hành chỉ sau CI Windows, bộ cài và smoke test xanh; thử file Excel và máy in trên thiết bị thật sau cài.
+
+---
+
 ## HISA v1.9.33 — Chọn nhanh hợp đồng/kiện và mẫu giấy in (đang kiểm thử PR)
 
 - Ở **Cont đã về kho**, có nút **Chọn tất cả kiện đủ nguồn**. Chỉ đánh dấu tạm những kiện khớp đúng nguồn và có mã kiện duy nhất; không tự đánh dấu kiện thiếu nguồn, cần duyệt lại, đã nhập hoặc bị trùng mã. Nhân viên bỏ chọn kiện chưa về, nhập ngày thực tế và vẫn phải xác nhận riêng trước khi ghi **Tổng hợp.xlsx**.

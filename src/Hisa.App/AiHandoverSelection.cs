@@ -6,14 +6,18 @@ public static class AiHandoverSelection
     public static ContractReport Build(ContractReport report, AiScheduleDocument schedule,
         IReadOnlyList<AiScheduleLine> selected)
     {
-        if (string.IsNullOrWhiteSpace(schedule.ApprovedAt))
-            throw new InvalidOperationException("Hãy kiểm tra và lưu lịch Gemini đã duyệt trước khi lập phiếu.");
+        // No separate schedule-approval step: an explicit checkbox is enough
+        // to prepare an unsaved draft, but source identity must still be exact.
+        // A physical delivery is authorized only by the regular slip editor.
         if (!report.DataAvailable)
             throw new InvalidOperationException("Tổng hợp.xlsx chưa sẵn sàng. Cập nhật nguồn Excel trước khi lập phiếu.");
         if (selected.Count == 0)
             throw new InvalidOperationException("Tích chọn ít nhất một hợp đồng ở phần Hàng dự kiến xuất kho.");
         if (selected.Any(x => !schedule.Dispatches.Contains(x)))
             throw new InvalidOperationException("Chỉ các dòng HÀNG DỰ KIẾN XUẤT KHO mới được lập phiếu.");
+        if(selected.Any(x=>x.NeedsReview))
+            throw new InvalidOperationException("Có hợp đồng đang cần kiểm tra dữ liệu ảnh Zalo. "+
+                "Sửa dòng thiếu/sai số HĐ, công trình, đơn vị hoặc ngày trước khi lập phiếu.");
 
         var candidates = report.Rows.Concat(report.NoMaterialMatch).ToList();
         foreach (var row in candidates.Concat(report.Missing)) row.Selected = false;
