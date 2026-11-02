@@ -68,7 +68,7 @@ public partial class MainWindow
             ("Ngày dự kiến xuất","PlannedDate",130),
             ("Trạng thái lịch","ScheduleLabel",165),
             ("Cần kiểm tra","ReviewNote",245));
-        grid.IsReadOnly=false;
+        grid.IsReadOnly=true;
         grid.CanUserAddRows=false;
         grid.Height=345;
         grid.Columns.Insert(0,OneClickCheckColumn("Chọn HĐ","SelectedForHandover",84));
@@ -78,7 +78,6 @@ public partial class MainWindow
             info.Text="Đã tích "+rows.Count(x=>x.SelectedForHandover)+"/"+rows.Count+
                 " công trình dự kiến xuất. HĐ chưa rõ số/công trình/đơn vị phải sửa ở AI trước khi lập phiếu.";
         }
-        foreach(var row in rows)row.SelectedForHandover=false;
         var dialog=new Window
         {
             Owner=this,Title="Lấy HĐ dự kiến xuất từ ảnh Zalo",
