@@ -43,7 +43,7 @@ public partial class MainWindow
             }
             return;
         }
-        ShowGeminiChat(floating:true,draftQuestion:draftQuestion);
+        ShowGeminiChatCore(floating:true,draftQuestion:draftQuestion);
     }
 
     private void MountMayPopup(FrameworkElement content)
@@ -96,7 +96,9 @@ public partial class MainWindow
     private bool HandsFreeCurrent(int session) =>
         _geminiHandsFreeActive && session==_geminiHandsFreeSession;
 
-    private void ShowGeminiChat(bool floating=false,string? draftQuestion=null)
+    private void ShowGeminiChat() => ShowGeminiChatCore(false,null);
+
+    private void ShowGeminiChatCore(bool floating,string? draftQuestion)
     {
         if(!floating)_page="gemini-chat";
         // Reattach the live chat UI when returning from another HISA tab.
