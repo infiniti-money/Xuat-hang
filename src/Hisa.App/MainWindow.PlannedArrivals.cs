@@ -56,6 +56,15 @@ public partial class MainWindow
         var actions = Row(
             B("↻  Đối chiếu lại", preview),
             B("Xem tất cả kiện trong lịch",()=>ShowAiSchedules()),
+            B("☑ Chọn tất cả kiện đủ nguồn", () =>
+            {
+                Commit(grid);
+                var marked = PlannedArrivalWorkflow.SelectAllEligibleForReview(rows);
+                grid.Items.Refresh();
+                feedback.Text = $"Đã tích {marked}/{rows.Count} kiện đủ nguồn, mã kiện không trùng. " +
+                    "Chỉ chọn để rà soát: chưa ghi Excel. " +
+                    "Nếu thực tế chưa nhận đủ, bỏ tích các kiện chưa về trước khi xác nhận.";
+            }, true),
             B("Bỏ chọn", () =>
             {
                 foreach (var r in rows) r.Selected = false;
