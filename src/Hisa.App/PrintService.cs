@@ -496,7 +496,9 @@ public static class PrintService
     {
         private readonly FixedDocument document=new();
         private readonly PrintTemplate template;
-        private readonly double width,height,left,right,top,bottom,font,tableFont;
+        private readonly double width,height,left,right,top,bottom,font;
+        private double tableFont;
+        private double pad=5;
         private readonly string title,context;
         private readonly List<TextBlock> footers=[];
         private Canvas canvas=null!;
@@ -505,7 +507,7 @@ public static class PrintService
         private double[] columnWidths=[];
         private string[] aligns=[];
         private readonly FontFamily family;
-        private const double Pad=5;
+        
         private double ContentWidth=>width-left-right;
         private double FooterHeight=>font*.72*1.24+2;
         private double Limit=>height-bottom-FooterHeight-8;
@@ -542,7 +544,7 @@ public static class PrintService
             if(y+font*1.24>Limit)throw LayoutError();
             if(tableHeaders is not null)
             {
-                if(y+HeaderHeight()+tableFont*1.24+Pad*2>Limit)throw LayoutError();
+                if(y+HeaderHeight()+tableFont*1.24+pad*2>Limit)throw LayoutError();
                 DrawHeader();
             }
         }
@@ -566,49 +568,73 @@ public static class PrintService
         }
         public void BeginTable(string[] headers,double[] proportions,string[]? alignment=null)
         {
-            EndTable();tableHeaders=headers;var total=proportions.Sum();columnWidths=proportions.Select(x=>ContentWidth*x/total).ToArray();aligns=alignment??Enumerable.Repeat("left",headers.Length).ToArray();
+            EndTable();
+            tableHeaders=headers;
+            // Reflow the table according to the chosen physical sheet. On
+            // portrait A4 and smaller formats, use tighter cell padding and
+            // a modest reduction of the configured table font rather than
+            // squeezing cells outside the printable width.
+            var compact=width<820 && headers.Length>=6;
+            pad=compact?3:5;
+            tableFont=Math.Clamp(template.TableFontSize,6,20)*96/72;
+            if(compact)
+            {
+                var factor=Math.Clamp(ContentWidth/(headers.Length*105.0),.72,1);
+                tableFont=Math.Max(6*96/72,tableFont*factor);
+            }
+            var total=proportions.Sum();
+            var raw=proportions.Select(x=>ContentWidth*x/total).ToArray();
+            // Numeric/contract columns must have enough width to avoid clipped
+            // headers and data. Borrow width proportionally from wider columns.
+            var floor=Math.Max(24,tableFont*2+pad*2);
+            var shortage=raw.Where(x=>x<floor).Sum(x=>floor-x);
+            var excess=raw.Where(x=>x>floor).Sum(x=>x-floor);
+            if(shortage>excess+.01)throw LayoutError();
+            columnWidths=raw.Select(x=>x<floor?floor:
+                x-shortage*(x-floor)/Math.Max(1,excess)).ToArray();
+            aligns=alignment??Enumerable.Repeat("left",headers.Length).ToArray();
             var needed=HeaderHeight();
-            if(y+needed+tableFont*1.24+Pad*2>Limit)NewPage();else DrawHeader();
+            if(y+needed+tableFont*1.24+pad*2>Limit)NewPage();else DrawHeader();
         }
-        private double HeaderHeight()=>tableHeaders!.Select((x,i)=>Text(x,columnWidths[i]-Pad*2,tableFont,true,"center").DesiredSize.Height).Max()+Pad*2;
+        private double HeaderHeight()=>tableHeaders!.Select((x,i)=>Text(x,columnWidths[i]-pad*2,tableFont,true,"center").DesiredSize.Height).Max()+pad*2;
         private void DrawHeader()=>DrawCells(tableHeaders!,true,new SolidColorBrush(Color.FromRgb(231,237,241)),Enumerable.Repeat("center",tableHeaders!.Length).ToArray());
-        public void EndTable(){if(tableHeaders is not null){tableHeaders=null;y+=9;}}
+        public void EndTable(){if(tableHeaders is not null){tableHeaders=null;y+=9;pad=5;}}
         public void Row(string[] cells)
         {
-            var all=cells.Select((x,i)=>Wrap(x,columnWidths[i]-Pad*2,tableFont,false)).ToList();
+            var all=cells.Select((x,i)=>Wrap(x,columnWidths[i]-pad*2,tableFont,false)).ToList();
             var lineHeight=tableFont*1.24;
             var count=all.Max(x=>x.Count);
             for(var offset=0;offset<count;)
             {
-                var maxLines=(int)((Limit-y-Pad*2)/lineHeight);
-                if(maxLines<1){NewPage();maxLines=(int)((Limit-y-Pad*2)/lineHeight);}
+                var maxLines=(int)((Limit-y-pad*2)/lineHeight);
+                if(maxLines<1){NewPage();maxLines=(int)((Limit-y-pad*2)/lineHeight);}
                 if(maxLines<1)throw LayoutError();
                 var take=Math.Min(maxLines,count-offset);
                 var parts=all.Select(lines=>string.Join("\n",lines.Skip(offset).Take(take))).ToArray();
-                var needed=parts.Select((x,i)=>Text(x,columnWidths[i]-Pad*2,tableFont,false,aligns[i]).DesiredSize.Height).Max()+Pad*2;
+                var needed=parts.Select((x,i)=>Text(x,columnWidths[i]-pad*2,tableFont,false,aligns[i]).DesiredSize.Height).Max()+pad*2;
                 Ensure(needed);DrawCells(parts,false,Brushes.White,aligns);
                 offset+=take;
             }
         }
         public void GroupRow(string text)
         {
-            var lines=Wrap(text,ContentWidth-Pad*2,tableFont,true);var lineHeight=tableFont*1.24;
+            var lines=Wrap(text,ContentWidth-pad*2,tableFont,true);var lineHeight=tableFont*1.24;
             for(int offset=0;offset<lines.Count;)
             {
-                var count=(int)((Limit-y-Pad*2)/lineHeight);
-                if(count<1){NewPage();count=(int)((Limit-y-Pad*2)/lineHeight);}
+                var count=(int)((Limit-y-pad*2)/lineHeight);
+                if(count<1){NewPage();count=(int)((Limit-y-pad*2)/lineHeight);}
                 if(count<1)throw LayoutError();
-                var take=Math.Min(count,lines.Count-offset);var element=Text(string.Join("\n",lines.Skip(offset).Take(take)),ContentWidth-Pad*2,tableFont,true,"left");Ensure(element.DesiredSize.Height+Pad*2);
-                var box=new Border{Width=ContentWidth,Height=element.DesiredSize.Height+Pad*2,BorderBrush=Brushes.Gray,BorderThickness=new Thickness(.5),Background=new SolidColorBrush(Color.FromRgb(243,246,248)),Padding=new Thickness(Pad),Child=element};Place(box,left,y);y+=box.Height;offset+=take;
+                var take=Math.Min(count,lines.Count-offset);var element=Text(string.Join("\n",lines.Skip(offset).Take(take)),ContentWidth-pad*2,tableFont,true,"left");Ensure(element.DesiredSize.Height+pad*2);
+                var box=new Border{Width=ContentWidth,Height=element.DesiredSize.Height+pad*2,BorderBrush=Brushes.Gray,BorderThickness=new Thickness(.5),Background=new SolidColorBrush(Color.FromRgb(243,246,248)),Padding=new Thickness(pad),Child=element};Place(box,left,y);y+=box.Height;offset+=take;
             }
         }
         private void DrawCells(string[] cells,bool bold,Brush background,string[] alignment)
         {
-            var elements=cells.Select((x,i)=>Text(x,columnWidths[i]-Pad*2,tableFont,bold,alignment[i])).ToArray();
-            var h=Math.Max(tableFont*1.24+Pad*2,elements.Max(x=>x.DesiredSize.Height)+Pad*2);var x=left;
+            var elements=cells.Select((x,i)=>Text(x,columnWidths[i]-pad*2,tableFont,bold,alignment[i])).ToArray();
+            var h=Math.Max(tableFont*1.24+pad*2,elements.Max(x=>x.DesiredSize.Height)+pad*2);var x=left;
             for(var i=0;i<elements.Length;i++)
             {
-                var border=new Border{Width=columnWidths[i],Height=h,BorderBrush=new SolidColorBrush(Color.FromRgb(80,86,92)),BorderThickness=new Thickness(.5),Background=background,Padding=new Thickness(Pad),Child=elements[i]};
+                var border=new Border{Width=columnWidths[i],Height=h,BorderBrush=new SolidColorBrush(Color.FromRgb(80,86,92)),BorderThickness=new Thickness(.5),Background=background,Padding=new Thickness(pad),Child=elements[i]};
                 Place(border,x,y);x+=columnWidths[i];
             }
             y+=h;
@@ -654,7 +680,9 @@ public static class PrintService
         }
         public FixedDocument Finish()
         {
-            for(var i=0;i<footers.Count;i++)footers[i].Text=$"{context}     ·     Trang {i+1} / {footers.Count}";
+            // Long codes and dates are already wrapped in the page header.
+            // Keep the footer short so it can never be ellipsized on A4/A5.
+            for(var i=0;i<footers.Count;i++)footers[i].Text=$"Trang {i+1} / {footers.Count}";
             foreach(var content in document.Pages){content.Child.Measure(new Size(width,height));content.Child.Arrange(new Rect(0,0,width,height));content.Child.UpdateLayout();}
             return document;
         }
