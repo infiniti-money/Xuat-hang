@@ -180,8 +180,11 @@ public sealed class ExcelStore
         var cont = sheets.FirstOrDefault(x=>Rules.Code(x.Name)==Rules.Code(ContSheet));
         var detail = sheets.FirstOrDefault(x=>Rules.Code(x.Name)=="CHITIET");
         var snapshot = new WorkbookSnapshot();
+        // The historical "Cont đi Hưng Yên" sheet is optional and no longer
+        // part of the incoming Container workflow. Read it only for backward
+        // compatibility if an old workbook already contains it; absence is normal.
+        // Physical incoming goods are scanned from Container on explicit request.
         if (cont != null) snapshot.ContPackages = ReadPackages(cont,path,false);
-        else snapshot.Warnings.Add("Tổng hợp.xlsx chưa có trang Cont đi Hưng Yên.");
         if (detail != null) snapshot.DetailPackages = ReadPackages(detail,path,true);
         else snapshot.Warnings.Add("Tổng hợp.xlsx chưa có trang chi tiết để theo dõi ngày cont về.");
         var packageMs=timer.ElapsedMilliseconds-xmlMs;

@@ -26,8 +26,26 @@ public static class ContDiArrivalIntegrationDiagnostics
         };
         File.WriteAllText(Path.Combine(workspace,"native_data","settings.json"),
             System.Text.Json.JsonSerializer.Serialize(settings,WarehouseService.Json));
+        // Real installations no longer have the former optional Cont đi sheet.
+        // Remove it only from this temporary fixture, leaving the receipt
+        // history in chi tiết and all other workbook sheets untouched.
+        using(var book=new XLWorkbook(settings.MasterPath))
+        {
+            var old=book.Worksheets.FirstOrDefault(x=>Rules.Code(x.Name)=="CONTDIHUNGYEN");
+            if(old!=null)old.Delete();
+            book.Save();
+        }
+        var masterReader=new ExcelStore();
+        var detailOnly=masterReader.ReadMaster(settings.MasterPath);
+        Check(detailOnly.ContPackages.Count==0 &&
+              detailOnly.DetailPackages.Count>0 &&
+              detailOnly.Packages.Count==detailOnly.DetailPackages.Count &&
+              !detailOnly.Warnings.Any(x=>x.Contains("Cont đi Hưng Yên")),
+            "Master only needs chi tiết: no obsolete missing Cont đi warning, history remains searchable");
         using var service=new WarehouseService(workspace);
         await service.InitializeAsync();
+        Check(!service.Warnings.Any(x=>x.Contains("Cont đi Hưng Yên")),
+            "Contract/slip warning source excludes retired Cont đi sheet requirement");
         Check(service.ContDiLookupSnapshot.ContPackages.Count==0,
             "Startup never scans Container or uses historical master Cont rows");
         await service.RefreshContDiForArrivalAsync();
@@ -67,6 +85,20 @@ public static class ContDiArrivalIntegrationDiagnostics
               fresh.ContPackages[0].SourceFile=="29102026.xlsx" &&
               fresh.ContPackages[0].Items.Count==2,
             "Fresh Container workbook supplies exact Hưng Yên goods and source filename");
+        using(var book=new XLWorkbook(settings.MasterPath))
+            Check(!book.Worksheets.Any(x=>Rules.Code(x.Name)=="CONTDIHUNGYEN"),
+                "Explicit Container scan never recreates retired Cont đi master sheet");
+        // Exercise legacy full source-sync method as well to prevent a future
+        // automatic refresh from recreating an obsolete sheet.
+        var method=typeof(WarehouseService).GetMethod("RefreshCoreAsync",
+            System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)!;
+        await (Task)method.Invoke(service,[true,false])!;
+        using(var book=new XLWorkbook(settings.MasterPath))
+            Check(!book.Worksheets.Any(x=>Rules.Code(x.Name)=="CONTDIHUNGYEN"),
+                "Full source scan is read-only for legacy sheet; does not recreate it");
+        Check(service.Snapshot.DetailPackages.All(x=>x.Contract!="29102026"),
+            "Scanning planned Container goods cannot mark that contract physically received");
+        await service.RefreshContDiForArrivalAsync();
         const string actualDay="2026-11-03";
         var requests=ContDiArrivalLookup.FromContracts("29102026\n88882026");
         var found=ContDiArrivalLookup.Preview(requests,fresh,actualDay);
