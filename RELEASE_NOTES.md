@@ -1,3 +1,12 @@
+## HISA v1.9.33 — Chọn nhanh hợp đồng/kiện và mẫu giấy in (đang kiểm thử PR)
+
+- Ở **Cont đã về kho**, có nút **Chọn tất cả kiện đủ nguồn**. Chỉ đánh dấu tạm những kiện khớp đúng nguồn và có mã kiện duy nhất; không tự đánh dấu kiện thiếu nguồn, cần duyệt lại, đã nhập hoặc bị trùng mã. Nhân viên bỏ chọn kiện chưa về, nhập ngày thực tế và vẫn phải xác nhận riêng trước khi ghi **Tổng hợp.xlsx**.
+- Ở **Tra cứu hợp đồng**, có nút **Chọn tất cả HĐ có vật tư** và **Bỏ chọn tất cả**, rồi **Tạo phiếu từ HĐ đã chọn**. Các HĐ thiếu dữ liệu hoặc không có vật tư không bị tự tích chọn. Phiếu tiếp tục ở chế độ chờ cho tới khi nhân viên xác nhận bàn giao.
+- **Thiết kế mẫu in** hỗ trợ A3, A4, A5, B5 ISO, Letter và Legal, đều có chiều **Ngang / Dọc**. Kích thước in, bản xem trước và thiết lập máy in lấy theo mẫu đã chọn; khổ giấy không hợp lệ bị từ chối thay vì tự coi là A4.
+- Bổ sung kiểm thử offline cho chọn kiện hợp lệ, kiện trùng/đã nhập, 12 tổ hợp khổ/hướng giấy và nút chọn nhanh hợp đồng. Phát hành chính thức chỉ sau CI Windows, bộ cài và kiểm thử cài mới/cài đè đạt; máy in/file Excel thực tế cần xác nhận sau cài.
+
+---
+
 ## HISA v1.9.32 — Serial máy kéo nhập tay ghi ngược MÁY KÉO.xlsx
 
 - Khi lập hoặc in phiếu xuất/bàn giao, HISA **tự tra serial từ MÁY KÉO.xlsx theo HĐ, công trình, đơn vị, model và số máy**. Nếu không tìm thấy đủ serial, ứng dụng **thông báo số máy thiếu** và mở bảng cho người vận hành **nhập serial tay**.
