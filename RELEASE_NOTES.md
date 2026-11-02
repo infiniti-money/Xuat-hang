@@ -1,10 +1,11 @@
-## HISA v1.9.37 — Sửa ghi serial máy kéo khi tên model giữa phiếu và Excel khác nhau (đang kiểm thử PR)
+## HISA v1.9.37 — Chỉ tra số hợp đồng để ghi serial máy kéo (đang kiểm thử PR)
 
-- MÁY KÉO.xlsx cột **D** chứa số hợp đồng, cột **E** là model, cột **I** lưu serial. Lỗi từng hiển thị: `HĐ 25132026 / 46242026: không tìm thấy dòng model máy kéo trùng khớp để ghi serial`.
-- Trước đây HISA có thể tự lấy serial từ một model có tên khác, nhưng bước ghi ngược đòi hỏi tên model chính xác tuyệt đối. Nay cho phép ghi ngược khi **đúng cùng HĐ + công trình + đơn vị**, chỉ có **một model nguồn**, và số dòng nguồn tương ứng chính xác với số máy trên phiếu, mỗi dòng nguồn thể hiện một máy (SL = 1). Đây là quy tắc đối chiếu tương ứng với thao tác tự lấy serial, không phải ghép theo HĐ đơn thuần.
-- Nếu HĐ không tồn tại trong file Máy kéo, báo rõ cột D; nếu công trình/đơn vị không trùng, liệt kê các công trình nguồn để đối chiếu; nếu model nguồn có nhiều lựa chọn hoặc số dòng không bằng số máy trên phiếu, báo chi tiết và **không tự ghi**.
-- Chỉ ghi ô serial trống tại **cột I**, có xác nhận trước khi ghi, tạo bản sao lưu và kiểm tra xung đột file. Không đổi cột K, công thức, serial của T1/T2 hoặc các hợp đồng khác. Serial người dùng đã nhập vẫn giữ trong phiếu nếu không thể ghi an toàn.
-- Kiểm thử với hai HĐ 25132026, 46242026 trên file Excel giả lập; xác nhận ghi đúng cột I, không ghi nhầm T1/T2, chặn trường hợp nhiều model và cảnh báo khi chưa khớp nguồn.
+- Ghi serial vào **cột I** của `MÁY KÉO.xlsx` chỉ bằng **số hợp đồng cột D**. Không cần model (cột E), công trình, đơn vị trên phiếu trùng với tên tương ứng trong Excel; dòng có model trống vẫn được tìm theo HĐ.
+- Chỉ điền vào ô serial đang trống, tuyệt đối không ghi đè công thức hoặc số seri đã có. Nếu một HĐ có nhiều dòng, hệ thống chỉ tự đề xuất gán khi **số serial mới bằng đúng số dòng nguồn còn trống** và mỗi dòng có số lượng 1 (hoặc chưa khai báo); không chọn bừa một dòng khi chưa đủ thông tin.
+- Hiện rõ danh sách **HĐ · dòng Excel · công trình · model · serial** để người dùng xác nhận trước khi ghi. Nếu file hoặc các dòng nguồn thay đổi sau khi xem trước, không ghi và yêu cầu duyệt lại.
+- Giữ cột K, các công thức và file Excel nguồn; tạo bản sao lưu trước khi ghi và khóa kiểm tra file bị thay đổi. Không tự ghi sổ xuất hoặc xác nhận bàn giao.
+- Kiểm thử với HĐ 25132026, 46242026 trên file Excel giả lập; trường hợp model/công trình khác nhau, serial đã có, nhiều dòng cột I trống, và bản xem trước hết hiệu lực.
+
 
 ---
 
