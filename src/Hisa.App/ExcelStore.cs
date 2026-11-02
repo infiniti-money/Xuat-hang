@@ -817,8 +817,16 @@ public sealed class ExcelStore
                     throw new InvalidOperationException("Thiếu hoặc sai ngày cont đi cho kiện " +
                         incoming.Contract + ". Phải đối chiếu ngày cont đi trước khi ghi Tổng hợp.xlsx.");
                 if (already.Contains(incoming.Id))
-                    throw new InvalidOperationException("Kiện " + incoming.Contract + " (" + incoming.Id +
-                        ") đã được nhập vào Tổng hợp.xlsx; không nhập lại.");
+                {
+                    var history=current.DetailPackages
+                        .Where(x=>x.OriginPackageId==incoming.Id)
+                        .Select(x=>x.ArrivalDate).Distinct().OrderBy(x=>x)
+                        .Select(x=>x.Length==0?"chưa rõ (xem cột B)":Rules.Day(x));
+                    throw new InvalidOperationException("KHÔNG NHẬP TRÙNG: HĐ "+incoming.Contract+
+                        " · "+incoming.Project+" · kiện "+incoming.PackageNo+
+                        " đã nhập ngày "+string.Join(", ",history)+
+                        " trong Tổng hợp.xlsx / chi tiết. Không ghi thêm; bấm Tìm kiện để cập nhật.");
+                }
                 // For legacy records without provenance, exact same goods on the same day
                 // could already exist: stop and request review rather than overwrite or silently duplicate.
                 var suspicious=current.DetailPackages.Any(old=>
