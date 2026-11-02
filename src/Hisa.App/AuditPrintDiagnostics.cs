@@ -130,7 +130,7 @@ public static class AuditPrintDiagnostics
                 Id="a4-"+i,Contract=i%2==0?"10392026":"25132026",
                 Project="Công trình Hưng Yên tháp T"+(i%2+1),
                 Company="Đơn vị nhận bàn giao",
-                Material="Vật tư A4 kiểm thử tự xuống dòng số "+i+
+                Material="A4_ITEM_"+i.ToString("D3")+
                     " · tủ điện, đầu cửa tầng, ray dẫn hướng và phụ kiện rất dài",
                 Unit="Bộ",Quantity=i+.125m,Include=true,Note="Ghi chú đủ nội dung "+i
             }).ToList()
@@ -154,7 +154,7 @@ public static class AuditPrintDiagnostics
                       (orientation=="portrait"?dims.HeightMm:dims.WidthMm)*96/25.4)<.02,
                 "A4 "+orientation+" "+layout+" preview uses requested paper dimensions");
             Check(Enumerable.Range(1,32).All(i=>
-                  a4Text.Contains("Vật tư A4 kiểm thử tự xuống dòng số "+i)),
+                  a4Text.Contains("A4_ITEM_"+i.ToString("D3"))),
                 "A4 "+orientation+" "+layout+" retains all 32 materials without cutting text");
             Check(BordersInsidePrintableArea(a4Doc,a4Template) &&
                   PrintService.ContentFitsPrintArea(a4Doc,
