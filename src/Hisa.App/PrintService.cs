@@ -287,7 +287,10 @@ public static class PrintService
         public PageWriter(PrintTemplate template,string title,string context)
         {
             this.template=template;this.title=title;this.context=context;
-            var a5=template.PaperSize=="A5";var pw=(a5?148:210)*96/25.4;var ph=(a5?210:297)*96/25.4;
+            var (paperWidthMm,paperHeightMm)=PrintPaperSizes.GetMillimeters(template.PaperSize);
+            var pw=paperWidthMm*96/25.4;var ph=paperHeightMm*96/25.4;
+            if(template.Orientation is not ("landscape" or "portrait"))
+                throw new ArgumentException("Hướng giấy không hợp lệ. Chọn Ngang hoặc Dọc.");
             (width,height)=template.Orientation=="landscape"?(ph,pw):(pw,ph);
             left=Math.Clamp(template.MarginLeft,3,40)*96/25.4;right=Math.Clamp(template.MarginRight,3,40)*96/25.4;top=Math.Clamp(template.MarginTop,3,40)*96/25.4;bottom=Math.Clamp(template.MarginBottom,3,40)*96/25.4;
             font=Math.Clamp(template.FontSize,6,24)*96/72;tableFont=Math.Clamp(template.TableFontSize,6,20)*96/72;
