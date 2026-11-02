@@ -434,7 +434,6 @@ public sealed partial class WarehouseService : IDisposable
                 var warnings=new List<string>();
                 SourceScanResult? sourceScan=null;
                 var sourceFilesStable=false;
-                var importSaved=false;
                 string sourceStamp="";
                 if(scanCont && Settings.DataSources.Count>0)
                 {
@@ -453,14 +452,13 @@ public sealed partial class WarehouseService : IDisposable
                             .Where(x=>x.Items.Any(i=>i.IsHungYen)).ToList();
                     _sourceSyncPending=scan.Warnings.Count>0||!stable;
                     if(!stable)warnings.Add("Nguồn cont đang thay đổi; ứng dụng sẽ quét lại sau khi sao chép/cập nhật file hoàn tất.");
-                    if(stable && scan.Warnings.Count==0 && scan.FileCount>0 && scan.Packages.Count>0 && File.Exists(Settings.MasterPath))
-                    {
-                        Say($"Cập nhật {scan.Packages.Count:N0} kiện từ {scan.FileCount:N0} tệp nguồn…");
-                        _excel.WriteContSummary(Settings.MasterPath,scan.Packages);
-                        importSaved=true;
-                    }
-                    else if(scan.Warnings.Count>0)warnings.Add("Nguồn có cảnh báo; giữ nguyên trang cont để tránh ghi thiếu dữ liệu.");
-                    else if(scan.Packages.Count==0)warnings.Add("Không tìm thấy kiện Hưng Yên trong nguồn; giữ nguyên Tổng hợp.xlsx.");
+                    // Never recreate "Cont đi Hưng Yên" in Tổng hợp.xlsx.
+                    // Scanning is read-only: pending physical goods stay in
+                    // _freshContDiSources; only an approved receipt writes chi tiết.
+                    if(scan.Warnings.Count>0)
+                        warnings.Add("Nguồn Container có cảnh báo; chưa sử dụng để xác nhận nhập kho.");
+                    else if(scan.Packages.Count==0)
+                        warnings.Add("Không tìm thấy kiện Hưng Yên chưa nhập trong nguồn Container.");
                 }
                 // Tắt đối chiếu KT và ghi tự động từ KT tổng hợp theo yêu cầu.
                 Say("Đọc dữ liệu chính Tổng hợp.xlsx…");
@@ -469,20 +467,16 @@ public sealed partial class WarehouseService : IDisposable
                 var loaded=_excel.ReadMaster(Settings.MasterPath);
                 if(masterBefore!=FileStamp(Settings.MasterPath))throw new IOException("Tổng hợp.xlsx vừa thay đổi trong lúc đọc. Ứng dụng sẽ tự tải lại.");
                 SetSnapshot(loaded);
-                // Master Excel must first be written and read successfully. A file
-                // merely recognized in CONT ĐI is NOT already physically received.
-                // Only archive workbooks whose EVERY package has an actual receipt
-                // OriginPackageId. Keep partially received workbooks in CONT ĐI.
+                // Only actual physical receipt IDs in the re-read master detail
+                // can authorize archiving. Merely scanning a Container file must
+                // never create a master sheet, record a receipt, or move pending goods.
                 if(sourceScan!=null && sourceFilesStable && sourceStamp==SourceFingerprint())
                 {
                     warnings.AddRange(ContFileOrganizer.RelocateLegacyFolders(
                         Settings.DataSources,sourceScan.Packages,loaded));
-                    if(importSaved)
-                    {
-                        var confirmed=ContFileOrganizer.ConfirmedCandidates(
-                            sourceScan.ImportedHungYenFiles,sourceScan.Packages,loaded);
-                        warnings.AddRange(ContFileOrganizer.MoveFiles(confirmed,"Đã nhập kho"));
-                    }
+                    var confirmed=ContFileOrganizer.ConfirmedCandidates(
+                        sourceScan.ImportedHungYenFiles,sourceScan.Packages,loaded);
+                    warnings.AddRange(ContFileOrganizer.MoveFiles(confirmed,"Đã nhập kho"));
                     warnings.AddRange(ContFileOrganizer.MoveFiles(sourceScan.HangGuiFiles,"Hàng gửi"));
                 }
                 lock(_stateLock)_warnings=[..warnings,"Đang kiểm tra lịch sử xuất hàng và các cảnh báo trước khi lập phiếu."];
