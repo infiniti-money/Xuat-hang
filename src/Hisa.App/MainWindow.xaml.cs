@@ -451,6 +451,13 @@ public partial class MainWindow : Window
         var codes=Input(report?.Filter.ContractsText??_draft?.ContractLabel??"",true);codes.Width=360;
         var keys=Input(report?.Filter.KeywordsText??"");keys.Width=280;
         var arrival=DateInput(report?.Filter.ArrivalDate);
+        // Import Zalo dispatch contract IDs into this editor while retaining
+        // manually entered codes. Restrict each imported code to its exact
+        // project/company, so T1/T2 or another customer is never added silently.
+        var zaloTargets=(report?.Filter.ProjectTargets??[]).ToList();
+        var zaloImportNotice=T("Có thể lấy HĐ dự kiến xuất từ ảnh Zalo hoặc nhập tay. "+
+            "Nhập cont về kho là quy trình riêng, không tự ghi Tổng hợp.xlsx.",
+            12,false,Muted);
         var categories=new Dictionary<string,CheckBox>();var chips=new WrapPanel();
         foreach(var group in HandoverMaterialGroups.Options)
         {
@@ -489,17 +496,58 @@ public partial class MainWindow : Window
                 categories.Where(x=>x.Value.IsChecked==true).Select(x=>x.Key));
             if(_draft!=null&&_draft.Lines.Count>0&&!planMode&&!Ask("Tải lại sẽ thay danh sách vật tư đang sửa bằng dữ liệu từ Tổng hợp.xlsx. Tiếp tục?"))return;
             if(!planMode)_captureDraftHeader?.Invoke();
-            var sameCodes=Rules.Tokens(codes.Text).Select(Rules.Contract).ToHashSet().SetEquals(Rules.Tokens(_draftReport?.Filter.ContractsText).Select(Rules.Contract));
-            var targets=sameCodes?_draftReport?.Filter.ProjectTargets??[]:[];
-            _draftReport=_service.Search(new SearchFilter{ContractsText=codes.Text,Categories=materialGroups,KeywordsText=keys.Text,ArrivalDate=Day(arrival),ProjectTargets=targets});
+            var activeCodes=Rules.Tokens(codes.Text).Select(Rules.Contract).ToHashSet(StringComparer.Ordinal);
+            var sameCodes=activeCodes.SetEquals(
+                Rules.Tokens(_draftReport?.Filter.ContractsText).Select(Rules.Contract));
+            var targets=(sameCodes
+                    ? zaloTargets.Concat(_draftReport?.Filter.ProjectTargets??[])
+                    : zaloTargets)
+                .Where(x=>activeCodes.Contains(Rules.Contract(x.Contract)))
+                .DistinctBy(x=>x.Identity).ToList();
+            _draftReport=_service.Search(new SearchFilter
+            {
+                ContractsText=codes.Text,Categories=materialGroups,
+                KeywordsText=keys.Text,ArrivalDate=Day(arrival),
+                ProjectTargets=targets
+            });
             foreach(var row in _draftReport.Missing)row.Selected=false;
             if(_draftReport.DataAvailable)_draft=ReloadDraftMaterials(planMode?null:_draft,_service.CreateDraft(_draftReport,template.SelectedValue?.ToString()??"internal_summary",Day(day)));
             loadedSignature=signature();render();
             if(sourceControls!=null&&_draftReport.DataAvailable){sourceControls.Header="Hợp đồng / bộ lọc / ngày / mẫu in · "+_draftReport.Summary;sourceControls.IsExpanded=false;}
         };
+        var zaloActions=Row(
+            A("✦ Lấy HĐ dự kiến xuất từ AI Zalo",async()=>
+            {
+                if(!await EnsureZaloScheduleForSlipAsync())return;
+                var picked=PickZaloDispatchContracts(_aiDocument!,codes.Text);
+                if(picked==null)return;
+                codes.Text=picked.ContractsText;
+                var newKeys=Rules.Tokens(codes.Text).Select(Rules.Contract)
+                    .ToHashSet(StringComparer.Ordinal);
+                zaloTargets=zaloTargets.Concat(picked.ProjectTargets)
+                    .Where(x=>newKeys.Contains(Rules.Contract(x.Contract)))
+                    .DistinctBy(x=>x.Identity).ToList();
+                zaloImportNotice.Text="Đã thêm "+picked.AddedContractCodes+
+                    " mã HĐ mới từ ảnh Zalo ("+picked.SelectedProjects+
+                    " công trình được tích). Giữ nguyên mã nhập tay; "+
+                    "chọn nhóm vật tư rồi bấm Tải vật tư & kiểm tra.";
+            },true),
+            A("↓ Nhập cont về kho bằng AI Zalo",async()=>
+            {
+                if(await EnsureZaloScheduleForSlipAsync())
+                {
+                    // Navigation happens in the helper and retains the
+                    // schedule already analyzed for this working session.
+                    await OpenZaloContainerArrivalFromSlipAsync();
+                }
+            }),
+            B("▣ Quản lý kiện hàng Container",()=>Navigate("arrival-hub")),
+            B("Kiện đã nhập trong Tổng hợp",()=>Navigate("arrival-packages"))
+        );
         var controls=Card(Stack(
             Row(Field("CÁCH LẬP",mode),Field("SỐ HỢP ĐỒNG · MỖI DÒNG / DẤU PHẨY MỘT MÃ",codes),
                 Field("Từ khóa vật tư bổ sung",keys),Field("Giới hạn ngày cont về",arrival)),
+            zaloActions,zaloImportNotice,
             T("CHỌN NHÓM VẬT TƯ LÊN PHIẾU (6 NHÓM)",13,true),chips,
             Row(B("☑ Chọn tất cả 6 nhóm",()=>{foreach(var x in categories.Values)x.IsChecked=true;}),
                 B("Bỏ chọn nhóm",()=>{foreach(var x in categories.Values)x.IsChecked=false;}),
