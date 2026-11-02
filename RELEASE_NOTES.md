@@ -1,3 +1,13 @@
+## HISA v1.9.36 — Bỏ cảnh báo và tự tạo trang Cont đi Hưng Yên cũ (đang kiểm thử PR)
+
+- **Tổng hợp.xlsx chỉ cần trang `chi tiết`** để theo dõi kiện và ngày đã nhập thực tế. Không báo "Tổng hợp.xlsx chưa có trang Cont đi Hưng Yên" khi trang này đã được loại bỏ theo nghiệp vụ mới.
+- Quét thư mục Container chỉ nhằm tìm kiện chưa nhập và đối chiếu nguồn; **không tự tạo, xóa hoặc viết lại sheet `Cont đi Hưng Yên`** trong Tổng hợp.xlsx. Nếu workbook cũ vẫn còn sheet đó, chương trình chỉ đọc tương thích, không thay đổi nó.
+- Chỉ ghi dữ liệu nhập vào trang `chi tiết` khi người dùng chọn đúng kiện, xác nhận thực tế và vượt qua kiểm tra mã kiện nguồn; lưu ngày nhập và lịch sử.
+- Vẫn cảnh báo những trường hợp thật sự cần đối chiếu: mã HĐ không có vật tư, dữ liệu công trình sai, phiếu đã xuất hoặc source Excel chưa sẵn sàng.
+- Kiểm thử hồi quy trên workbook không có sheet cũ: tra cứu hợp đồng vẫn được, lịch sử đã nhập vẫn giữ nguyên, quét nguồn đầy đủ không tự khôi phục sheet và không biến cont dự kiến thành nhập thực tế.
+
+---
+
 ## HISA v1.9.35 — Chỉ hiện kiện chưa nhập, ngày nhập cũ và chọn 6 nhóm vật tư (đang kiểm thử PR)
 
 - **Kế hoạch & phiếu bàn giao**: thêm **Lấy HĐ dự kiến xuất từ AI Zalo** ngay cạnh ô nhập hợp đồng. Gemini đọc ảnh nếu chưa có lịch; hiển thị danh sách xuất để tích một hoặc nhiều công trình. Có Chọn tất cả hợp đồng đủ dữ liệu và Bỏ chọn. Chỉ chuyển HĐ xuất đã tích sang ô nhập, giữ các HĐ nhập tay, không đưa HĐ cont về vào phiếu, không ghi Excel. Khi cùng mã HĐ thuộc T1/T2, vẫn giới hạn đúng công trình và đơn vị đã chọn khi tải vật tư.
