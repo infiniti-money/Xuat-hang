@@ -515,7 +515,9 @@ public partial class MainWindow : Window
             loadedSignature=signature();render();
             if(sourceControls!=null&&_draftReport.DataAvailable){sourceControls.Header="Hợp đồng / bộ lọc / ngày / mẫu in · "+_draftReport.Summary;sourceControls.IsExpanded=false;}
         };
-        var zaloActions=Row(
+        var zaloActions=Stack(
+            T("NHẬP TỪ AI ZALO & QUẢN LÝ KIỆN CONTAINER",14,true),
+            Row(
             A("✦ Lấy HĐ dự kiến xuất từ AI Zalo",async()=>
             {
                 if(!await EnsureZaloScheduleForSlipAsync())return;
@@ -540,9 +542,11 @@ public partial class MainWindow : Window
                     // schedule already analyzed for this working session.
                     await OpenZaloContainerArrivalFromSlipAsync();
                 }
-            }),
-            B("▣ Quản lý kiện hàng Container",()=>Navigate("arrival-hub")),
-            B("Kiện đã nhập trong Tổng hợp",()=>Navigate("arrival-packages"))
+            })),
+            Row(
+                B("▣ Quản lý kiện hàng Container",()=>Navigate("arrival-hub")),
+                B("Kiện đã nhập trong Tổng hợp",()=>Navigate("arrival-packages"))
+            )
         );
         var controls=Card(Stack(
             Row(Field("CÁCH LẬP",mode),Field("SỐ HỢP ĐỒNG · MỖI DÒNG / DẤU PHẨY MỘT MÃ",codes),
