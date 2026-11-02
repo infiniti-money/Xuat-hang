@@ -103,6 +103,14 @@ public static class ContDiArrivalIntegrationDiagnostics
         Check(service.ContDiLookupSnapshot.ContPackages.Count==0 &&
               service.Snapshot.DetailPackages.Any(x=>x.OriginPackageId==selected[0].Id),
             "Archived workbook is excluded from active Container scan; saved receipt remains");
+        var archivedPreview=ContDiArrivalLookup.Preview(requests,
+            service.ContDiLookupSnapshot,actualDay);
+        var archivedHistory=ContDiArrivalLookup.PreviouslyReceived(requests,
+            service.ContDiLookupSnapshot);
+        Check(!archivedPreview.Any(x=>x.Contract=="29102026") &&
+              archivedHistory.Any(x=>x.Contract=="29102026" &&
+                x.ArrivalDays.Contains("03/11/2026")),
+            "Archived receipt is absent from active list; exact date from master detail remains in notice");
 
         // A contract workbook may have multiple separate Hưng Yên packages:
         // a numeric marker is NOT a Hưng Yên destination. Moving the file
@@ -141,6 +149,16 @@ public static class ContDiArrivalIntegrationDiagnostics
         Check(File.Exists(partialFile) &&
               service.Snapshot.DetailPackages.Count(x=>x.Contract=="32452026"&&x.OriginPackageId.Length>0)==1,
             "Receiving only first Hưng Yên package never moves or imports pending second package");
+        var pendingAndReceived=ContDiArrivalLookup.Preview(partialRequest,
+            service.ContDiLookupSnapshot,actualDay);
+        var firstHistory=ContDiArrivalLookup.PreviouslyReceived(partialRequest,
+            service.ContDiLookupSnapshot);
+        Check(pendingAndReceived.Count(x=>x.Status==ContDiArrivalLookup.Ready)==1 &&
+              !pendingAndReceived.Any(x=>x.SourcePackageId==firstPackage[0].Id) &&
+              firstHistory.Count==1 &&
+              firstHistory[0].SourcePackageId==firstPackage[0].Id &&
+              firstHistory[0].ArrivalDays.Contains("03/11/2026"),
+            "Partially received Container only displays remaining physical package and previous actual receipt date");
         await service.RefreshContDiForArrivalAsync();
         partialRows=ContDiArrivalLookup.Preview(partialRequest,service.ContDiLookupSnapshot,actualDay);
         var second=partialRows.Single(x=>x.Status==ContDiArrivalLookup.Ready);
@@ -151,6 +169,11 @@ public static class ContDiArrivalIntegrationDiagnostics
               File.Exists(Path.Combine(workspace,"Đã nhập kho","29.10","32452026.xlsx")) &&
               service.Snapshot.DetailPackages.Count(x=>x.Contract=="32452026"&&x.OriginPackageId.Length>0)==2,
             "Source workbook archives only after all its Hưng Yên package IDs are received");
+        await service.RefreshContDiForArrivalAsync();
+        Check(ContDiArrivalLookup.Preview(partialRequest,service.ContDiLookupSnapshot,actualDay).Count==0 &&
+              ContDiArrivalLookup.PreviouslyReceived(partialRequest,
+                  service.ContDiLookupSnapshot).Count==2,
+            "After all packages arrive, active list is empty and each package remains visible only in received-history notice");
         return checks;
     }
 }
