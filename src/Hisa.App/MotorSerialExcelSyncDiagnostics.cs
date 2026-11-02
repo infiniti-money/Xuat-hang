@@ -81,8 +81,9 @@ public static class MotorSerialExcelSyncDiagnostics
             wrong.MotorSerials=MotorSerials.BuildRows(wrong);
             wrong.MotorSerials[0].SerialNumber="SERIAL-T2";
             var conflict=MotorSerialExcelSync.Preview(settings,wrong);
-            Check(conflict.Proposed.Count==0&&conflict.Warnings.Count>0,
-                "Serial already present in another project is rejected");
+            Check(conflict.Proposed.Count==0 && conflict.AlreadyPresent==1 &&
+                  conflict.Warnings.Count==0,
+                "Same contract serial already in column I is recognized regardless of tower/model");
             using(var workbook=new XLWorkbook(source))
             {
                 var sheet=workbook.Worksheets.First();
@@ -135,8 +136,8 @@ public static class MotorSerialExcelSyncDiagnostics
             var safe=MotorSerialExcelSync.Preview(alternateSettings,anotherSlip);
             Check(safe.Proposed.Count==2&&safe.Warnings.Count==0&&
                   safe.Proposed.Select(x=>x.SourceRow).SequenceEqual([3,4]),
-                "Different model wording can match exact HĐ/project/company when one model and 1:1 machines");
-            var saved=MotorSerialExcelSync.Apply(alternateSettings,anotherSlip,backups);
+                "Serials are placed by contract in source column D, not by project, company or model");
+            var saved=MotorSerialExcelSync.Apply(alternateSettings,anotherSlip,backups,safe.Proposed);
             using(var book=new XLWorkbook(alternate))
             {
                 var sheet=book.Worksheets.First();
@@ -162,10 +163,10 @@ public static class MotorSerialExcelSyncDiagnostics
             ambiguousSlip.MotorSerials=MotorSerials.BuildRows(ambiguousSlip);
             ambiguousSlip.MotorSerials[0].SerialNumber="NEW-SERIAL-NOT-WRITTEN";
             var ambiguous=MotorSerialExcelSync.Preview(alternateSettings,ambiguousSlip);
-            Check(ambiguous.Proposed.Count==0 &&
-                  ambiguous.Warnings.Any(x=>x.Contains("model trên phiếu") &&
-                    x.Contains("Có 2 dòng máy")),
-                "Two distinct production models for one project block model-alias fallback");
+            Check(ambiguous.Proposed.Count==1 &&
+                  ambiguous.Proposed[0].SourceRow==6 &&
+                  ambiguous.Warnings.Count==0,
+                "Model mismatch and multiple source models do not block exact contract-only serial entry when one blank source row remains");
             var wrongProject=new Slip{Contracts=["25132026"],
                 Lines=[new MaterialLine{Id="wrong-project",Contract="25132026",
                     Project="Đồi thông T3",Company="Công ty A",
@@ -173,10 +174,31 @@ public static class MotorSerialExcelSyncDiagnostics
             wrongProject.MotorSerials=MotorSerials.BuildRows(wrongProject);
             wrongProject.MotorSerials[0].SerialNumber="WRONG-PROJECT";
             var mismatch=MotorSerialExcelSync.Preview(alternateSettings,wrongProject);
-            Check(mismatch.Proposed.Count==0 &&
-                  mismatch.Warnings.Any(x=>x.Contains("không khớp phiếu")&&
-                    x.Contains("Đồi thông T1")&&x.Contains("Đồi thông T2")),
-                "Wrong T3 project never matches T1 or T2 and reports actual source project names");
+            Check(mismatch.Proposed.Count==1 &&
+                  mismatch.Proposed[0].SourceRow==6,
+                "Source lookup uses contract only, even when project and company text on slip differ");
+            using(var book=new XLWorkbook(alternate))
+            {
+                var sheet=book.Worksheets.First();
+                sheet.Cell(7,2).Value="Đồi thông T2";
+                sheet.Cell(7,3).Value="Công ty Z";
+                sheet.Cell(7,4).Value="25132026";
+                sheet.Cell(7,5).Value="Khác model";
+                sheet.Cell(7,7).Value=1;
+                book.Save();
+            }
+            var tooMany=MotorSerialExcelSync.Preview(alternateSettings,ambiguousSlip);
+            Check(tooMany.Proposed.Count==0 &&
+                  tooMany.Warnings.Any(x=>x.Contains("2 dòng serial trống") &&
+                    x.Contains("1 serial mới")),
+                "Multiple blank rows with fewer serial values must not be guessed into a source row");
+            bool changedPreviewBlocked=false;
+            try { MotorSerialExcelSync.Apply(alternateSettings,ambiguousSlip,backups,
+                ambiguous.Proposed); }
+            catch(IOException ex)
+            { changedPreviewBlocked=ex.Message.Contains("đã khác bản xem trước"); }
+            Check(changedPreviewBlocked,
+                "Operator's approved Excel row cannot be replaced by another row without new confirmation");
             var absentSlip=new Slip{Contracts=["00009999"],
                 Lines=[new MaterialLine{Id="missing",Contract="00009999",
                     Project="Dự án khác",Company="Công ty A",
