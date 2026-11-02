@@ -262,6 +262,8 @@ public partial class MainWindow
                 StopHandsFreeSession();
                 activity.Text="Không thể bật rảnh tay: "+ex.Message+
                     ". Kiểm tra Windows Settings → Privacy & security → Microphone.";
+                UpdateMayVoiceIndicator("○ Không mở được micro · kiểm tra quyền Windows");
+                StatusText.Text=activity.Text;
             }
         }
 
@@ -334,6 +336,8 @@ public partial class MainWindow
             if(string.IsNullOrWhiteSpace(key))
             {
                 activity.Text="Cần cấu hình Gemini API Key trước khi bật rảnh tay.";
+                UpdateMayVoiceIndicator("○ Chưa có Gemini API Key · mở Cài đặt");
+                StatusText.Text=activity.Text;
                 return;
             }
             if(voicePermission.IsChecked!=true || !GeminiVoiceConsentStore.Read())
@@ -358,6 +362,7 @@ public partial class MainWindow
                     MessageBoxButton.YesNo,MessageBoxImage.Question)!=MessageBoxResult.Yes)
                 {
                     activity.Text="Chưa bật HISA. Micro không được mở và dữ liệu kho không được gửi.";
+                    UpdateMayVoiceIndicator("○ Chưa đồng ý micro · không thu âm");
                     return;
                 }
                 try
