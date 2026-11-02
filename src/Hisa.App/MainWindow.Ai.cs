@@ -15,6 +15,8 @@ public partial class MainWindow
     private string? _aiDispatchDay;
     // Step 1: incoming containers; step 2: outgoing slips.
     private bool _aiShowDispatch;
+    // Checked material groups survive switching between Cont and dispatch steps.
+    private List<string> _aiHandoverGroups=HandoverMaterialGroups.All;
 
     // DataGridCheckBoxColumn makes operators click once to edit and again to
     // check. This display template contains a real, immediately interactive
@@ -124,6 +126,7 @@ public partial class MainWindow
                 _aiImagePath = file.FileName;
                 _aiDocument = null;
                 _aiShowDispatch = false;
+                _aiHandoverGroups=HandoverMaterialGroups.All;
                 upload.Text = Path.GetFileName(file.FileName);
             }
         }, true);
@@ -139,6 +142,7 @@ public partial class MainWindow
             {
                 _aiDocument = await AiScheduleReader.AnalyzeAsync(_aiImagePath, geminiKey);
                 _aiShowDispatch = false;
+                _aiHandoverGroups=HandoverMaterialGroups.All;
                 ShowAiSchedules();
             }
             catch (Exception ex)
@@ -153,6 +157,7 @@ public partial class MainWindow
             if(_aiDocument!=null && !Ask("Bắt đầu lịch mới? Những chỉnh sửa chưa lưu sẽ mất."))return;
             _aiDocument=AiScheduleWorkspace.NewDraft(DateTime.Today.AddDays(1));
             _aiShowDispatch=false;
+            _aiHandoverGroups=HandoverMaterialGroups.All;
             _aiImagePath="";
             ShowAiSchedules();
         });
@@ -413,6 +418,50 @@ public partial class MainWindow
             B("Trạng thái lịch xuất",()=>CycleSchedule(outgoing))
         ));
 
+        var materialGroupChecks=new List<CheckBox>();
+        var materialGroupChips=new WrapPanel();
+        var groupSummary=T("",12,true,Brush("#177E89"));
+        void SaveMaterialGroups()
+        {
+            _aiHandoverGroups=materialGroupChecks
+                .Where(x=>x.IsChecked==true).Select(x=>x.Tag?.ToString()??"")
+                .Where(x=>x.Length>0).ToList();
+            groupSummary.Text=_aiHandoverGroups.Count==0
+                ? "Chưa chọn nhóm vật tư · không thể lập phiếu."
+                : "Đã chọn "+_aiHandoverGroups.Count+"/6 nhóm: "+
+                    string.Join(", ",HandoverMaterialGroups.Options
+                        .Where(x=>_aiHandoverGroups.Contains(x.Key)).Select(x=>x.Label));
+        }
+        foreach(var group in HandoverMaterialGroups.Options)
+        {
+            var checkbox=new CheckBox
+            {
+                Content=group.Label,Tag=group.Key,
+                IsChecked=_aiHandoverGroups.Contains(group.Key),
+                Margin=new Thickness(0,5,22,8),MinWidth=130,
+                FontSize=13
+            };
+            checkbox.Checked+=(_,_)=>SaveMaterialGroups();
+            checkbox.Unchecked+=(_,_)=>SaveMaterialGroups();
+            materialGroupChecks.Add(checkbox);
+            materialGroupChips.Children.Add(checkbox);
+        }
+        SaveMaterialGroups();
+        var materialGroupCard=Card(Stack(
+            T("CHỌN NHÓM VẬT TƯ LÊN PHIẾU",15,true),
+            T("Chỉ các nhóm đã tích được đưa vào phiếu bàn giao/xuất hàng. "+
+              "Không tự lấy nhóm Khác. Chọn một hoặc nhiều nhóm.",12,false,Muted),
+            materialGroupChips,
+            Row(B("☑ Chọn tất cả 6 nhóm",()=>{
+                    foreach(var x in materialGroupChecks)x.IsChecked=true;
+                    SaveMaterialGroups();
+                }),
+                B("Bỏ chọn 6 nhóm",()=>{
+                    foreach(var x in materialGroupChecks)x.IsChecked=false;
+                    SaveMaterialGroups();
+                })),
+            groupSummary)); 
+
         var manualCodes=Input("",true);manualCodes.Width=310;manualCodes.Height=98;
         var manualProject=Input();manualProject.Width=225;
         var manualCompany=Input();manualCompany.Width=225;
@@ -477,8 +526,11 @@ public partial class MainWindow
                 return;
             }
             var codes = chosen.Select(x => x.Contract).DistinctBy(Rules.Contract).ToArray();
-            var report = _service.Search(new SearchFilter { ContractsText = string.Join("\n", codes) });
-            report = AiHandoverSelection.Build(report, doc, chosen);
+            SaveMaterialGroups();
+            var filter=HandoverMaterialGroups.BuildFilter(string.Join("\n",codes),_aiHandoverGroups);
+            var report=_service.Search(filter);
+            report=AiHandoverSelection.Build(report,doc,chosen);
+            HandoverMaterialGroups.EnsureSelectedContractsHaveMaterials(report);
             if(report.Missing.Any(x=>x.Selected))
                 throw new InvalidOperationException("Hợp đồng chưa có dữ liệu Tổng hợp.xlsx: "+
                     string.Join(", ",report.Missing.Where(x=>x.Selected).Select(x=>x.Contract))+
@@ -488,13 +540,16 @@ public partial class MainWindow
             _draft=_service.CreateDraft(report,
                 _service.Templates.FirstOrDefault()?.Id??"internal_summary",doc.DispatchDate);
             _draft.Status="planned";
+            // The filtered report yields only the selected categories. Never
+            // restore unchecked groups through a full-contract material reload.
             foreach(var line in _draft.Lines)line.Include=true;
             _createPlanMode=false;
             Navigate("create");
             await Task.CompletedTask;
         }, true);
-        outgoingBody.Children.Insert(1, Row(toPlan));
         outgoingBody.Children.Add(outgoing);
+        outgoingBody.Children.Add(materialGroupCard);
+        outgoingBody.Children.Add(Row(toPlan));
         outgoingBody.Children.Add(Row(
             B("▤ Xem 3 danh sách thiết bị",()=>OpenEquipmentLists(doc.Dispatches,"Thiết bị của các HĐ làm phiếu")),
             B("▤ Xem toàn bộ vật tư HĐ bàn giao",()=>OpenAllMaterials(doc.Dispatches,"Vật tư các hợp đồng làm phiếu")),
