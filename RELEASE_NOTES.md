@@ -1,3 +1,14 @@
+## HISA v1.9.38 — Sửa biên bản bàn giao in thiếu nội dung
+
+- Cả ba bố cục in **Biên bản nội bộ**, **Phiếu bàn giao tiêu chuẩn**, **Biên bản theo từng công trình** đều in các dòng nội dung mở đầu và tiêu đề danh sách vật tư từ mẫu đã cấu hình; không còn bỏ các nội dung mẫu ở hai bố cục đầu.
+- Các hợp đồng người dùng chọn **không có vật tư chi tiết** (`ContractOnly`) được in thành một mục riêng có số HĐ, công trình, công ty và cảnh báo nguồn. Không suy diễn vật tư, số lượng; hợp đồng khác có vật tư vẫn được in bình thường.
+- Cột **Số lượng thực tế** trong biên bản theo từng công trình chỉ in số lượng sau khi phiếu ở trạng thái **Đã xuất**; đối với phiếu Chờ xuất vẫn để trống để tránh nhận nhầm là số đã giao.
+- Tiêu đề và dòng mã phiếu/ngày dài được tự xuống dòng trong trang in, không bị cắt bằng dấu ba chấm như trước.
+- Giữ các dòng vật tư được tích, số lượng thập phân, serial từng máy, ghi chú, chữ ký, chân trang, dữ liệu mẫu in do người dùng sửa và toàn bộ khổ giấy/hướng in.
+- Bổ sung kiểm thử nội dung đầy đủ của ba mẫu, nhiều hợp đồng, trường hợp không có vật tư, mục loại trừ, serial và phân trang A5. Việc in trên máy in thật/driver cụ thể cần kiểm tra sau cài.
+
+---
+
 ## HISA v1.9.37 — Tra serial bằng HĐ, Gemini giữ cấu hình và Mây hỗ trợ ngay trên trang (đang kiểm thử PR)
 
 - **Gemini giữ cấu hình khi cập nhật:** API Key có định danh cố định trong Windows Credential Manager; cấu hình micro, loa và quyền chia sẻ nằm dưới LocalAppData của cùng tài khoản Windows. Bộ cài không xóa các vị trí này. Luồng cập nhật được điều chỉnh để trình cài đặt tự nâng quyền nếu cần, còn HISA được mở lại với tài khoản Windows gốc thay vì chạy dưới phiên admin khác.
