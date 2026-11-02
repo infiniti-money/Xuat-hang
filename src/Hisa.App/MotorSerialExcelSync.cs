@@ -72,7 +72,7 @@ public static class MotorSerialExcelSync
             {
                 var key=Rules.Code(unit.SerialNumber);
                 if(key.Length==0||key.Length>200||
-                    unit.SerialNumber.Contains('\\r')||unit.SerialNumber.Contains('\\n'))
+                    unit.SerialNumber.Contains('\r')||unit.SerialNumber.Contains('\n'))
                 {
                     warnings.Add("HĐ "+first.Contract+": serial nhập tay không hợp lệ.");
                     conflict=true;break;
