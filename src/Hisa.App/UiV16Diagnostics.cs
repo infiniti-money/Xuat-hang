@@ -244,10 +244,17 @@ public static class UiV16Diagnostics
         {
             DispatchDate = day, Dispatches = [doc.Dispatches[0]]
         };
-        var blocked = false;
-        try { AiHandoverSelection.Build(report, unapproved, unapproved.Dispatches); }
-        catch (InvalidOperationException) { blocked = true; }
-        Check(blocked, "Handover requires approved Gemini schedule");
+        var uncheckedApproval=AiHandoverSelection.Build(report, unapproved, unapproved.Dispatches);
+        Check(uncheckedApproval.Rows.Count(x=>x.Selected)==1 &&
+              uncheckedApproval.Rows.Single(x=>x.Selected).Contract==pkgA.Contract &&
+              string.IsNullOrWhiteSpace(unapproved.ApprovedAt),
+            "Explicit dispatch selection creates review-only report without schedule approval");
+        unapproved.Dispatches[0].NeedsReview=true;
+        var blockedUnclear=false;
+        try { AiHandoverSelection.Build(report,unapproved,unapproved.Dispatches); }
+        catch(InvalidOperationException){blockedUnclear=true;}
+        Check(blockedUnclear,"Unresolved Zalo ambiguity is still blocked before preparing a slip");
+        unapproved.Dispatches[0].NeedsReview=false;
         var noSelection = false;
         try { AiHandoverSelection.Build(report, doc, []); }
         catch (InvalidOperationException) { noSelection = true; }
