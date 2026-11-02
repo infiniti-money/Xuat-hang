@@ -26,7 +26,9 @@ public static class ZaloDispatchContractImportDiagnostics
         };
         var merged=ZaloDispatchContractImport.Merge(schedule,[outT1,outT2,outB],
             "22222026\n05492026");
-        var actual=Rules.Tokens(merged.ContractsText).Select(Rules.Contract).ToArray();
+        // Compare the displayed contract codes, not the normalized lookup keys:
+        // "05492026" must keep its leading zero in the input field.
+        var actual=Rules.Tokens(merged.ContractsText).ToArray();
         Check(actual.SequenceEqual(["22222026","05492026","10392026"]) &&
               merged.AddedContractCodes==1,
             "Keep manual contract and existing outbound contract; dedupe repeated T1/T2 code");
