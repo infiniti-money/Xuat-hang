@@ -131,8 +131,9 @@ public static class UiWorkflowDiagnostics
                     b.Content?.ToString()=="🎙 Nói với Mây"),
                 "Gemini Chat has a single prominent voice start/stop control");
             Check(typeof(MainWindow).GetMethod("OpenFloatingMay",flags)!=null &&
-                  typeof(MainWindow).GetField("_mayFloatingWindow",flags)!=null,
-                "Modeless Mây companion is available without replacing the contract or receipt editor");
+                  typeof(MainWindow).GetField("_mayFloatingWindow",flags)==null &&
+                  window.FindName("TopVoiceStatusText") is TextBlock,
+                "Mây uses a persistent toolbar without a separate companion Window");
             Check(Children(window).OfType<Expander>().Any(e=>
                     e.Header?.ToString()?.Contains("Tùy chọn nâng cao")==true &&
                     !e.IsExpanded),
