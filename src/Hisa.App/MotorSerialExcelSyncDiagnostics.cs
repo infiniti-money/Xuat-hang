@@ -92,6 +92,101 @@ public static class MotorSerialExcelSyncDiagnostics
             var formula=MotorSerialExcelSync.Preview(settings,slip);
             Check(formula.Proposed.Count==0&&formula.Warnings.Count>0,
                 "Formula in target serial cell is protected from overwrite");
+            // Real-world files often call the motor model differently from
+            // the incoming HISA material. Two different contracts must still
+            // write ONLY their own verified single-machine row.
+            var alternate=Path.Combine(root,"MÁY KÉO-đổi tên model.xlsx");
+            using(var book=new XLWorkbook())
+            {
+                var sheet=book.AddWorksheet("Máy kéo");
+                sheet.Cell(2,4).Value="HĐ";
+                sheet.Cell(2,9).Value="Số Seri";
+                void SourceRow(int row,string contract,string project,string company,
+                    string model,string serial="")
+                {
+                    sheet.Cell(row,2).Value=project;
+                    sheet.Cell(row,3).Value=company;
+                    sheet.Cell(row,4).Value=contract;
+                    sheet.Cell(row,5).Value=model;
+                    sheet.Cell(row,6).Value="Bộ";
+                    sheet.Cell(row,7).Value=1;
+                    sheet.Cell(row,9).Value=serial;
+                    sheet.Cell(row,11).Value="Chưa làm";
+                }
+                SourceRow(3,"25132026","Đồi thông T1","Công ty A","YJ-160");
+                SourceRow(4,"46242026","Quang Hanh T1","Công ty B","YJ-200");
+                SourceRow(5,"25132026","Đồi thông T2","Công ty A",
+                    "YJ-160","SERIAL-T2-ALREADY");
+                book.SaveAs(alternate);
+            }
+            var alternateSettings=new AppSettings{TractionMachineListPath=alternate};
+            var anotherSlip=new Slip{Contracts=["25132026","46242026"],
+                Lines=[
+                    new MaterialLine{Id="s1",Contract="25132026",Project="Đồi thông T1",
+                        Company="Công ty A",Material="Máy kéo YJ-160 11kW",
+                        Quantity=1,Include=true},
+                    new MaterialLine{Id="s2",Contract="46242026",Project="Quang Hanh T1",
+                        Company="Công ty B",Material="Máy kéo YJ-200 15kW",
+                        Quantity=1,Include=true}
+                ]};
+            anotherSlip.MotorSerials=MotorSerials.BuildRows(anotherSlip);
+            anotherSlip.MotorSerials[0].SerialNumber="SERIAL-25132026";
+            anotherSlip.MotorSerials[1].SerialNumber="SERIAL-46242026";
+            var safe=MotorSerialExcelSync.Preview(alternateSettings,anotherSlip);
+            Check(safe.Proposed.Count==2&&safe.Warnings.Count==0&&
+                  safe.Proposed.Select(x=>x.SourceRow).SequenceEqual([3,4]),
+                "Different model wording can match exact HĐ/project/company when one model and 1:1 machines");
+            var saved=MotorSerialExcelSync.Apply(alternateSettings,anotherSlip,backups);
+            using(var book=new XLWorkbook(alternate))
+            {
+                var sheet=book.Worksheets.First();
+                Check(saved.Written==2 &&
+                      sheet.Cell(3,9).GetString()=="SERIAL-25132026" &&
+                      sheet.Cell(4,9).GetString()=="SERIAL-46242026" &&
+                      sheet.Cell(5,9).GetString()=="SERIAL-T2-ALREADY" &&
+                      sheet.Cell(3,11).GetString()=="Chưa làm",
+                    "Write only two actual serials into column I and never overwrite T2 or status column K");
+                // An additional model for the same project must NOT be guessed
+                // when the slip's model differs from both source descriptions.
+                sheet.Cell(6,2).Value="Đồi thông T1";
+                sheet.Cell(6,3).Value="Công ty A";
+                sheet.Cell(6,4).Value="25132026";
+                sheet.Cell(6,5).Value="YJ-250";
+                sheet.Cell(6,7).Value=1;
+                book.Save();
+            }
+            var ambiguousSlip=new Slip{Contracts=["25132026"],
+                Lines=[new MaterialLine{Id="ambiguous",Contract="25132026",
+                    Project="Đồi thông T1",Company="Công ty A",
+                    Material="Máy kéo cấu hình chưa rõ",Quantity=1,Include=true}]};
+            ambiguousSlip.MotorSerials=MotorSerials.BuildRows(ambiguousSlip);
+            ambiguousSlip.MotorSerials[0].SerialNumber="NEW-SERIAL-NOT-WRITTEN";
+            var ambiguous=MotorSerialExcelSync.Preview(alternateSettings,ambiguousSlip);
+            Check(ambiguous.Proposed.Count==0 &&
+                  ambiguous.Warnings.Any(x=>x.Contains("model trên phiếu") &&
+                    x.Contains("Có 2 dòng máy")),
+                "Two distinct production models for one project block model-alias fallback");
+            var wrongProject=new Slip{Contracts=["25132026"],
+                Lines=[new MaterialLine{Id="wrong-project",Contract="25132026",
+                    Project="Đồi thông T3",Company="Công ty A",
+                    Material="Máy kéo YJ-160 11kW",Quantity=1,Include=true}]};
+            wrongProject.MotorSerials=MotorSerials.BuildRows(wrongProject);
+            wrongProject.MotorSerials[0].SerialNumber="WRONG-PROJECT";
+            var mismatch=MotorSerialExcelSync.Preview(alternateSettings,wrongProject);
+            Check(mismatch.Proposed.Count==0 &&
+                  mismatch.Warnings.Any(x=>x.Contains("không khớp phiếu")&&
+                    x.Contains("Đồi thông T1")&&x.Contains("Đồi thông T2")),
+                "Wrong T3 project never matches T1 or T2 and reports actual source project names");
+            var absentSlip=new Slip{Contracts=["00009999"],
+                Lines=[new MaterialLine{Id="missing",Contract="00009999",
+                    Project="Dự án khác",Company="Công ty A",
+                    Material="Máy kéo YJ-160",Quantity=1,Include=true}]};
+            absentSlip.MotorSerials=MotorSerials.BuildRows(absentSlip);
+            absentSlip.MotorSerials[0].SerialNumber="NOT-EXISTS";
+            var notFound=MotorSerialExcelSync.Preview(alternateSettings,absentSlip);
+            Check(notFound.Proposed.Count==0 &&
+                  notFound.Warnings.Any(x=>x.Contains("cột D")&&x.Contains("00009999")),
+                "Missing contract is explained as source-column D mismatch, not generic model mismatch");
         }
         finally{if(Directory.Exists(root))Directory.Delete(root,true);}
         return checks;
