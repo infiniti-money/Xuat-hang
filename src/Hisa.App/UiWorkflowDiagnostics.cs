@@ -54,10 +54,16 @@ public static class UiWorkflowDiagnostics
             Check(((TextBlock)window.FindName("PageTitle")!).Text=="Cont & kiện Hưng Yên" &&
                   Children(window).OfType<TextBlock>().Any(x=>x.Text.Contains("QUẢN LÝ KIỆN")),
                 "Container manager shortcut opens existing arrival/source and historical-package management without writing");
+            Check(Children(window).OfType<TextBlock>().Any(x=>
+                    x.Text.Contains("CHỌN SỐ HỢP ĐỒNG CONT ĐÃ VỀ ĐỂ GHI TỔNG HỢP.XLSX")) &&
+                  Children(window).OfType<Button>().Any(x=>
+                    x.Content?.ToString()=="✦ Chọn HĐ từ AI Zalo"),
+                "Opening Container hub immediately prompts selecting actual contract numbers before Excel receipt");
             Call("ShowLookup");
             Check(Children(window).OfType<Button>().Any(b=>b.Content?.ToString()=="☑ Chọn tất cả HĐ có vật tư") &&
-                  Children(window).OfType<Button>().Any(b=>b.Content?.ToString()=="Tạo phiếu từ HĐ đã chọn"),
-                "Contract lookup supports explicit select-all and direct draft creation");
+                  Children(window).OfType<Button>().Any(b=>b.Content?.ToString()=="Tạo phiếu từ HĐ đã chọn") &&
+                  Children(window).OfType<Button>().Any(b=>b.Content?.ToString()=="✦ Hỏi Mây về hợp đồng"),
+                "Contract lookup offers Mây alongside direct draft creation without leaving results");
             Call("ShowSlips");
             var labels=Children(window).OfType<Button>().Select(b=>b.Content?.ToString()??"").ToList();
             Check(new[]{"Chờ xuất","✓  Đã xuất","◷  Tạm hoãn","Hủy phiếu"}.All(labels.Contains),"Slip list exposes all four transition buttons");
@@ -124,6 +130,9 @@ public static class UiWorkflowDiagnostics
             Check(Children(window).OfType<Button>().Any(b=>
                     b.Content?.ToString()=="🎙 Nói với Mây"),
                 "Gemini Chat has a single prominent voice start/stop control");
+            Check(typeof(MainWindow).GetMethod("OpenFloatingMay",flags)!=null &&
+                  typeof(MainWindow).GetField("_mayFloatingWindow",flags)!=null,
+                "Modeless Mây companion is available without replacing the contract or receipt editor");
             Check(Children(window).OfType<Expander>().Any(e=>
                     e.Header?.ToString()?.Contains("Tùy chọn nâng cao")==true &&
                     !e.IsExpanded),
@@ -227,6 +236,9 @@ public static class UiWorkflowDiagnostics
             Check(headings.Any(x=>x.Contains("1 · CHỌN HỢP ĐỒNG CONT")) &&
                   !headings.Any(x=>x.Contains("2 · CHỌN HỢP ĐỒNG LẬP PHIẾU")),
                 "Zalo screen shows incoming contracts first, not both lists at once");
+            Check(Children(aiPanel).OfType<TextBlock>().Any(t=>
+                    t.Text.Contains("CHỌN HỢP ĐỒNG ĐỂ NHẬP VÀO TỔNG HỢP.XLSX")),
+                "Zalo inbound screen automatically requests checked incoming contract numbers before source lookup");
             Check(Children(aiPanel).OfType<Button>().Any(b=>b.Content?.ToString()?.Contains("Tìm kiện Hưng Yên trong Container")==true) &&
                   Children(aiPanel).OfType<Button>().Any(b=>b.Content?.ToString()?.Contains("Tiếp theo: Lập phiếu xuất")==true) &&
                   !Children(aiPanel).OfType<Button>().Any(b=>b.Content?.ToString()?.Contains("Lưu kế hoạch đã duyệt")==true),
