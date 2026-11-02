@@ -1,3 +1,14 @@
+## HISA v1.9.39 — Tự dàn nội dung A4 và xem trước đúng bản in
+
+- Từ màn hình **Xem trước / in phiếu**, có thể chọn lại khổ giấy A4/A3/A5/B5/Letter/Legal và chiều **Ngang/Dọc**. HISA tạo lại `FixedDocument` ngay lúc chọn, tự đo và dàn lại kích thước cột, cỡ chữ bảng, đệm ô và phân trang theo bề rộng trang thực. **Không thay đổi hoặc ghi đè mẫu in đã lưu.**
+- Bản xem trước hiển thị đúng `FixedDocument` mà lệnh in sẽ gửi tới trình điều khiển. Giữ nguyên ngày, mã phiếu, vật tư, số lượng, ghi chú, serial và chữ ký; không thu nhỏ âm thầm hoặc mất dòng khi đổi A4 Ngang/Dọc.
+- Khi chọn máy in, chương trình đối chiếu kích thước khổ/chiều giấy với bản xem trước và kiểm tra vùng in khả dụng khi driver báo thông số. Nếu có thể gây cắt nội dung, **dừng in và hướng dẫn điều chỉnh**, thay vì in sai; chức năng Microsoft Print to PDF vẫn sử dụng cùng tài liệu đã xem.
+- Tối ưu vùng nội dung A4 dọc nhiều cột: thay đổi đệm ô và kích thước chữ bảng phù hợp, tự cấp chiều cao cho dòng nhiều chữ, chia trang và giữ tiêu đề bảng khi qua trang.
+- Dòng chân trang chỉ hiển thị số trang gọn, không cắt mã phiếu dài; thông tin mã phiếu/ngày đã nằm ở phần đầu trang có xuống dòng.
+- Kiểm thử tự động các khổ và chiều giấy, cả ba mẫu, 32 dòng vật tư dài, giới hạn trang, 150 serial và chặn vùng in quá nhỏ. **Vẫn cần in kiểm tra một bản A4 với máy in/driver thật để xác nhận vùng in hỗ trợ.**
+
+---
+
 ## HISA v1.9.38 — Sửa biên bản bàn giao in thiếu nội dung
 
 - Cả ba bố cục in **Biên bản nội bộ**, **Phiếu bàn giao tiêu chuẩn**, **Biên bản theo từng công trình** đều in các dòng nội dung mở đầu và tiêu đề danh sách vật tư từ mẫu đã cấu hình; không còn bỏ các nội dung mẫu ở hai bố cục đầu.
