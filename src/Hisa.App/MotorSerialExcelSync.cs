@@ -73,7 +73,7 @@ public static class MotorSerialExcelSync
                 // the same safe rule: only one motor slip line in this exact
                 // contract/project/company, a single source model, and one
                 // physical source row for every machine in the line.
-                var motorLines=slip.Lines.Where(MotorSerials.IsMotor &&
+                var motorLines=slip.Lines.Where(x=>MotorSerials.IsMotor(x) &&
                     Rules.Identity(x.Contract,x.Project,x.Company)==identity).ToList();
                 var models=sameIdentity.Select(x=>Rules.Code(x.Material))
                     .Distinct(StringComparer.Ordinal).ToList();
