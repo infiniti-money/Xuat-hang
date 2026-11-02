@@ -429,7 +429,18 @@ public partial class MainWindow : Window
         foreach(var group in duplicates)
             if(!Ask($"Số HĐ {group.First().Contract} có {group.Count()} kiện trong nguồn. Xác nhận đây là các kiện/công trình riêng cần giữ cùng phiếu?\n\n{string.Join("\n",group.Select(x=>$"Kiện {x.PackageNo}: {x.Project}"))}"))return;
         _draftReport=Copy(report);
-        if(!plan){_draft=_service.CreateDraft(_draftReport,_service.Templates.FirstOrDefault()?.Id??"internal_summary",DateTime.Today.ToString("yyyy-MM-dd"));}
+        if(!plan)
+        {
+            _draft=_service.CreateDraft(_draftReport,_service.Templates.FirstOrDefault()?.Id??"internal_summary",DateTime.Today.ToString("yyyy-MM-dd"));
+            // An unfiltered lookup may contain "Khác"; the operator's six
+            // explicit handover categories must not silently include it.
+            _draft.Lines.RemoveAll(line=>!HandoverMaterialGroups.All.Contains(line.Group));
+            if(_draft.Lines.Count==0 && _draft.ContractOnly.Count==0)
+            {
+                Notify("Hợp đồng đã chọn chưa có vật tư trong 6 nhóm bàn giao. Chọn nhóm phù hợp để tải vật tư.");
+                return;
+            }
+        }
         _createPlanMode=plan;Navigate("create");
     }
     private void ShowCreate(bool plan)
@@ -441,13 +452,21 @@ public partial class MainWindow : Window
         var keys=Input(report?.Filter.KeywordsText??"");keys.Width=280;
         var arrival=DateInput(report?.Filter.ArrivalDate);
         var categories=new Dictionary<string,CheckBox>();var chips=new WrapPanel();
-        foreach(var cat in Rules.Categories){var c=new CheckBox{Content=cat,IsChecked=report==null?cat!="Khác":report.Filter.Categories.Count==0||report.Filter.Categories.Contains(cat)};categories[cat]=c;chips.Children.Add(c);}
+        foreach(var group in HandoverMaterialGroups.Options)
+        {
+            var cat=group.Key;
+            var check=new CheckBox
+            {
+                Content=group.Label,
+                IsChecked=report==null || report.Filter.Categories.Count==0 ||
+                    report.Filter.Categories.Contains(cat),
+                Margin=new Thickness(0,4,18,6)
+            };
+            categories[cat]=check;chips.Children.Add(check);
+        }
         var content=new ContentControl();
         var mode=new ComboBox{ItemsSource=new[]{new Choice("slip","Phiếu bàn giao chung"),new Choice("plan","Kế hoạch riêng từng công trình")},DisplayMemberPath="Label",SelectedValuePath="Value",SelectedValue=planMode?"plan":"slip",Width=270};
         var template=new ComboBox{ItemsSource=_service.Templates,DisplayMemberPath="Name",SelectedValuePath="Id",Width=300};template.SelectedValue=_draft?.TemplateId??_service.Templates.FirstOrDefault()?.Id;
-        if(report==null)categories["Khác"].IsChecked=FindTemplate(template.SelectedValue?.ToString()??"internal_summary").IncludeOther;
-        var otherManuallyChanged=false;categories["Khác"].Click+=(_,_)=>otherManuallyChanged=true;
-        template.SelectionChanged+=(_,_)=>{if(!otherManuallyChanged)categories["Khác"].IsChecked=FindTemplate(template.SelectedValue?.ToString()??"internal_summary").IncludeOther;};
         var day=DateInput(_draft?.HandoverDate??_aiDispatchDay??DateTime.Today.ToString("yyyy-MM-dd"));
         var top=Stack();
         Expander? sourceControls=null;
@@ -466,17 +485,35 @@ public partial class MainWindow : Window
         Action load=()=>
         {
             if(Rules.Tokens(codes.Text).Count==0){Notify("Hãy nhập ít nhất một số hợp đồng.");return;}
+            var materialGroups=HandoverMaterialGroups.RequireSelected(
+                categories.Where(x=>x.Value.IsChecked==true).Select(x=>x.Key));
             if(_draft!=null&&_draft.Lines.Count>0&&!planMode&&!Ask("Tải lại sẽ thay danh sách vật tư đang sửa bằng dữ liệu từ Tổng hợp.xlsx. Tiếp tục?"))return;
             if(!planMode)_captureDraftHeader?.Invoke();
             var sameCodes=Rules.Tokens(codes.Text).Select(Rules.Contract).ToHashSet().SetEquals(Rules.Tokens(_draftReport?.Filter.ContractsText).Select(Rules.Contract));
             var targets=sameCodes?_draftReport?.Filter.ProjectTargets??[]:[];
-            _draftReport=_service.Search(new SearchFilter{ContractsText=codes.Text,Categories=categories.Where(x=>x.Value.IsChecked==true).Select(x=>x.Key).ToList(),KeywordsText=keys.Text,ArrivalDate=Day(arrival),ProjectTargets=targets});
+            _draftReport=_service.Search(new SearchFilter{ContractsText=codes.Text,Categories=materialGroups,KeywordsText=keys.Text,ArrivalDate=Day(arrival),ProjectTargets=targets});
             foreach(var row in _draftReport.Missing)row.Selected=false;
             if(_draftReport.DataAvailable)_draft=ReloadDraftMaterials(planMode?null:_draft,_service.CreateDraft(_draftReport,template.SelectedValue?.ToString()??"internal_summary",Day(day)));
             loadedSignature=signature();render();
             if(sourceControls!=null&&_draftReport.DataAvailable){sourceControls.Header="Hợp đồng / bộ lọc / ngày / mẫu in · "+_draftReport.Summary;sourceControls.IsExpanded=false;}
         };
-        var controls=Card(Stack(Row(Field("CÁCH LẬP",mode),Field("SỐ HỢP ĐỒNG · MỖI DÒNG / DẤU PHẨY MỘT MÃ",codes),Field("Từ khóa vật tư bổ sung",keys),Field("Giới hạn ngày cont về",arrival)),chips,Row(B("↓  Tải vật tư & kiểm tra",load,true),B("Làm mới nội dung",()=>{_draft=null;_draftReport=null;ShowCreate(planMode);})),Row(Field("Mẫu phiếu",template),Field("Ngày kế hoạch / ngày xuất",day),A("+ Tạo mẫu in",async()=>{var previous=template.SelectedValue;var count=_service.Templates.Count;await CreatePrintTemplate(returnToList:false);template.ItemsSource=_service.Templates;template.SelectedValue=_service.Templates.Count>count?_service.Templates.Last().Id:previous;})),liveWarnings,T(planMode?"Chọn từng công trình để tạo phiếu chờ xuất riêng. Hợp đồng thiếu dữ liệu chỉ được lập khi bạn chủ động chọn.":"Phiếu lưu chờ xuất chưa ghi nhận xuất kho. Khi chuyển sang Đã xuất, ứng dụng cập nhật sổ Thành phẩm và lưu đầy đủ kiện của hợp đồng.",11,false,Muted)));
+        var controls=Card(Stack(
+            Row(Field("CÁCH LẬP",mode),Field("SỐ HỢP ĐỒNG · MỖI DÒNG / DẤU PHẨY MỘT MÃ",codes),
+                Field("Từ khóa vật tư bổ sung",keys),Field("Giới hạn ngày cont về",arrival)),
+            T("CHỌN NHÓM VẬT TƯ LÊN PHIẾU (6 NHÓM)",13,true),chips,
+            Row(B("☑ Chọn tất cả 6 nhóm",()=>{foreach(var x in categories.Values)x.IsChecked=true;}),
+                B("Bỏ chọn nhóm",()=>{foreach(var x in categories.Values)x.IsChecked=false;}),
+                B("↓ Tải vật tư & kiểm tra",load,true),
+                B("Làm mới nội dung",()=>{_draft=null;_draftReport=null;ShowCreate(planMode);})),
+            Row(Field("Mẫu phiếu",template),Field("Ngày kế hoạch / ngày xuất",day),
+                A("+ Tạo mẫu in",async()=>{var previous=template.SelectedValue;
+                    var count=_service.Templates.Count;await CreatePrintTemplate(returnToList:false);
+                    template.ItemsSource=_service.Templates;
+                    template.SelectedValue=_service.Templates.Count>count?_service.Templates.Last().Id:previous;})),
+            liveWarnings,T(planMode
+                ?"Chọn từng công trình để tạo phiếu chờ xuất riêng. Hợp đồng thiếu dữ liệu chỉ được lập khi bạn chủ động chọn."
+                :"Chỉ vật tư thuộc nhóm đã chọn được đưa lên phiếu. Lưu phiếu chờ xuất chưa ghi nhận xuất kho.",
+                11,false,Muted)));
         sourceControls=new Expander{Header="Hợp đồng / bộ lọc / ngày / mẫu in · mở để nhập hoặc thay đổi",IsExpanded=_draft==null&&_draftReport==null,Content=new ScrollViewer{Content=controls,MaxHeight=Math.Max(300,Math.Min(480,ActualHeight*.55)),VerticalScrollBarVisibility=ScrollBarVisibility.Auto}};
         top.Children.Add(sourceControls);
         SetPage("Kế hoạch & phiếu bàn giao","Nhập hợp đồng một lần · chọn lập phiếu chung hoặc tạo kế hoạch riêng từng công trình",Layout(top,content));render();
