@@ -1,3 +1,18 @@
+## HISA v1.9.35 — Chỉ hiện kiện chưa nhập, ngày nhập cũ và chọn 6 nhóm vật tư (đang kiểm thử PR)
+
+- **Kế hoạch & phiếu bàn giao**: thêm **Lấy HĐ dự kiến xuất từ AI Zalo** ngay cạnh ô nhập hợp đồng. Gemini đọc ảnh nếu chưa có lịch; hiển thị danh sách xuất để tích một hoặc nhiều công trình. Có Chọn tất cả hợp đồng đủ dữ liệu và Bỏ chọn. Chỉ chuyển HĐ xuất đã tích sang ô nhập, giữ các HĐ nhập tay, không đưa HĐ cont về vào phiếu, không ghi Excel. Khi cùng mã HĐ thuộc T1/T2, vẫn giới hạn đúng công trình và đơn vị đã chọn khi tải vật tư.
+- Cũng tại màn hình này có nút **Nhập cont về kho bằng AI Zalo** để chuyển trực tiếp sang bước 1 nhận cont từ ảnh đang đọc; nút **Quản lý kiện hàng Container** vào trang nguồn/kiện, và **Kiện đã nhập trong Tổng hợp** để tra cứu lịch sử cont đã về. Không biến lịch dự kiến thành biên nhận.
+- Bổ sung kiểm thử nguồn hợp đồng từ ảnh Zalo, chọn nhóm, giữ mã nhập tay, loại bỏ dòng cont khỏi danh sách xuất và thao tác điều hướng quản lý Container. Chưa kiểm thử thực tế với tài khoản Gemini/ảnh Zalo của người dùng.
+
+- Khi tìm HĐ/ảnh Zalo ở bước **Cont về**, kiện đã có mã nguồn trong **Tổng hợp.xlsx / chi tiết** được ẩn hoàn toàn khỏi bảng Container. Hệ thống hiển thị thông báo riêng chứa hợp đồng, công trình, số kiện, ngày cont đi và **ngày đã nhập kho thực tế** theo cột B. Không kết luận trùng chỉ vì cùng số HĐ: kiện mới trong container khác hoặc T1/T2 vẫn có thể được chọn.
+- Nếu một kiện vừa được nhập bởi phiên khác sau lúc tìm, thông báo **KHÔNG NHẬP TRÙNG** kèm đúng ngày nhập lịch sử thay vì báo nguồn thay đổi chung. Nếu nguồn Excel cũ thiếu ID kiện, cảnh báo ngày đã nhận tương tự nhưng KHÔNG tự ẩn vì chưa chắc là cùng kiện.
+- **Bước 2 – Lập phiếu** và màn hình tạo phiếu hỗ trợ chọn nhiều hoặc chọn tất cả 6 nhóm: **Tủ điện, Máy kéo, Đầu cửa tầng, Đầu cửa car, Ray dẫn hướng, Bass nối**. Không tự chọn nhóm Khác; nếu không chọn nhóm nào, chương trình không tải toàn bộ vật tư. Nếu hợp đồng không có vật tư của nhóm chọn, hiển thị lý do và yêu cầu đổi chọn.
+- Chỉ dòng vật tư đã tích/thuộc nhóm chọn được đưa vào nháp, bản in và **bảng kiện trong sổ xuất**; lưu lại nguồn kiện đầy đủ để truy vết, nhưng không coi tất cả vật tư kiện là đã xuất.
+- Giữ quy trình lấy/nhập serial máy kéo khi chọn nhóm **Máy kéo**; nếu không có máy kéo trên phiếu thì không tạo yêu cầu serial.
+- Bổ sung kiểm thử hồi quy xác nhận ngày nhập cũ, kiện nguồn đã lưu trữ, các cont nhập một phần, UI nhóm vật tư, và sổ Excel không ghi nhóm bỏ chọn. Phát hành sau khi CI Windows và kiểm thử bộ cài đạt.
+
+---
+
 ## HISA v1.9.34 — Bảng cont về trước, rồi lập phiếu; bỏ nút duyệt lịch Zalo
 
 - Ảnh Zalo hoặc lịch nhập tay nay mở trực tiếp **Bước 1 — chọn hợp đồng cont về**. Chỉ sau khi bấm **Tiếp theo: Lập phiếu xuất** thì **Bước 2 — chọn hợp đồng lập phiếu** mới xuất hiện. Có nút quay lại bước cont mà vẫn giữ danh sách đã tích.

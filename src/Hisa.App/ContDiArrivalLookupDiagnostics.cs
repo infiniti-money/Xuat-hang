@@ -113,14 +113,51 @@ public static class ContDiArrivalLookupDiagnostics
             "Incorrect container departure day blocks import");
         snapshot.DetailPackages.Add(Pack("history","05492026","Dự án T2","CONT-002","2026-10-26"));
         snapshot.DetailPackages[0].OriginPackageId="b";
-        Check(ContDiArrivalLookup.Preview(manual,snapshot,day)
-            .Single(x=>x.SourcePackageId=="b").Status=="Kiện đã nhập kho",
-            "Existing package origin ID prevents duplicate receipt");
+        snapshot.DetailPackages[0].ArrivalDate="2026-10-30";
+        var hidden=ContDiArrivalLookup.Preview(manual,snapshot,day);
+        var receipts=ContDiArrivalLookup.PreviouslyReceived(manual,snapshot);
+        Check(!hidden.Any(x=>x.SourcePackageId=="b") &&
+              hidden.Any(x=>x.SourcePackageId=="a") &&
+              hidden.Any(x=>x.SourcePackageId=="c") &&
+              receipts.Count==1 &&
+              receipts[0].SourcePackageId=="b" &&
+              receipts[0].ArrivalDays.Contains("30/10/2026") &&
+              receipts[0].Description.Contains("Dự án T2"),
+            "Hide only the already-received physical source ID; show actual imported day and T2 from master");
+        var unrelated=ContDiArrivalLookup.PreviouslyReceived(
+            ContDiArrivalLookup.FromContracts("05492026(1)"),snapshot);
+        Check(unrelated.Count==0,"Same-looking contract suffix never receives another contract's history");
+        var historyOnly=new WorkbookSnapshot{DetailPackages=snapshot.DetailPackages.ToList()};
+        Check(ContDiArrivalLookup.Preview(manual,historyOnly,day)
+              .All(x=>x.SourcePackageId.Length==0) &&
+              ContDiArrivalLookup.PreviouslyReceived(manual,historyOnly).Count==1,
+            "Archived Container source stays hidden but prior receipt date remains visible");
+        // Zalo can name one tower; do not imply a receipt from another tower.
+        Check(ContDiArrivalLookup.PreviouslyReceived(
+            [new AiScheduleLine{Contract="05492026",Project="Dự án T1"}],snapshot).Count==0,
+            "Historical receipt from T2 is not mistaken for a new T1 delivery");
         bool rejected=false;
         try{ContDiArrivalLookup.SelectVerified(
             [preview.Single(x=>x.SourcePackageId=="b")],manual,snapshot,day);}
-        catch(InvalidOperationException){rejected=true;}
-        Check(rejected,"Revalidation blocks a previously selectable but now imported package");
+        catch(InvalidOperationException ex)
+        {
+            rejected=ex.Message.Contains("30/10/2026") &&
+                ex.Message.Contains("KHÔNG NHẬP TRÙNG");
+        }
+        Check(rejected,"Stale checkbox is rejected with exact prior receipt date rather than generic changed-source warning");
+        snapshot.DetailPackages.Clear();
+        // A legacy receipt with no source package ID is not proven duplicate.
+        // Warn with its date and disallow automatic import until reconciliation.
+        var legacy=Pack("legacy","05492026","Dự án T1","CONT-001","2026-10-25");
+        legacy.OriginPackageId="";
+        legacy.ArrivalDate="2026-10-29";
+        snapshot.DetailPackages.Add(legacy);
+        var legacyRows=ContDiArrivalLookup.Preview(manual,snapshot,day);
+        Check(legacyRows.Any(x=>x.SourcePackageId=="a" &&
+              x.Status=="Cần đối chiếu kiện nhập cũ" &&
+              x.Notes.Contains("29/10/2026")) &&
+              legacyRows.Any(x=>x.SourcePackageId=="b" && x.Status==ContDiArrivalLookup.Ready),
+            "Legacy same-goods receipts display saved date but do not hide unrelated T2 or assume exact source ID");
         snapshot.DetailPackages.Clear();
         snapshot.ContPackages[1].Items[0].Quantity=3;
         rejected=false;

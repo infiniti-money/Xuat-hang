@@ -41,7 +41,19 @@ public static class UiWorkflowDiagnostics
             var empty=typeof(MainWindow).GetField("_draft",flags)!;empty.SetValue(window,null);
             typeof(MainWindow).GetField("_draftReport",flags)!.SetValue(window,null);
             Call("ShowCreate",false);
-            Check(Children(window).OfType<TextBlock>().Any(x=>x.Text.Contains("Nhập số hợp đồng để tự kiểm tra")),"Create screen contains immediate contract-warning area");
+            Check(Children(window).OfType<TextBlock>().Any(x=>x.Text.Contains("Nhập số hợp đồng để tự kiểm tra")),
+                "Create screen contains immediate contract-warning area");
+            var createButtons=Children(window).OfType<Button>().ToList();
+            Check(createButtons.Any(b=>b.Content?.ToString()?.Contains("Lấy HĐ dự kiến xuất từ AI Zalo")==true) &&
+                  createButtons.Any(b=>b.Content?.ToString()?.Contains("Nhập cont về kho bằng AI Zalo")==true) &&
+                  createButtons.Any(b=>b.Content?.ToString()?.Contains("Quản lý kiện hàng Container")==true) &&
+                  createButtons.Any(b=>b.Content?.ToString()?.Contains("Kiện đã nhập trong Tổng hợp")==true),
+                "Slip screen offers direct AI Zalo dispatch, cont receipt and Container management shortcuts");
+            createButtons.Single(b=>b.Content?.ToString()?.Contains("Quản lý kiện hàng Container")==true)
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Check(((TextBlock)window.FindName("PageTitle")!).Text=="Cont & kiện Hưng Yên" &&
+                  Children(window).OfType<TextBlock>().Any(x=>x.Text.Contains("QUẢN LÝ KIỆN")),
+                "Container manager shortcut opens existing arrival/source and historical-package management without writing");
             Call("ShowLookup");
             Check(Children(window).OfType<Button>().Any(b=>b.Content?.ToString()=="☑ Chọn tất cả HĐ có vật tư") &&
                   Children(window).OfType<Button>().Any(b=>b.Content?.ToString()=="Tạo phiếu từ HĐ đã chọn"),
@@ -280,6 +292,21 @@ public static class UiWorkflowDiagnostics
             var outgoingGrid=Children(aiPanel).OfType<DataGrid>().Single(g=>
                 g.Columns.OfType<DataGridTemplateColumn>().Any(x=>x.Header?.ToString()=="Làm phiếu"));
             AssertCheckbox(outgoingGrid,"Làm phiếu",simulated.Dispatches[0],"SelectedForHandover");
+            var materialGroups=Children(aiPanel).OfType<CheckBox>()
+                .Where(x=>HandoverMaterialGroups.Options
+                    .Any(option=>option.Label==x.Content?.ToString())).ToList();
+            Check(materialGroups.Count==6 && materialGroups.All(x=>x.IsChecked==true),
+                "Zalo dispatch stage has six visible, initially selected material-group checkboxes");
+            var clearGroups=Children(aiPanel).OfType<Button>()
+                .Single(b=>b.Content?.ToString()=="Bỏ chọn 6 nhóm");
+            clearGroups.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Check(materialGroups.All(x=>x.IsChecked==false),
+                "Bỏ chọn removes every dispatch material group");
+            var selectGroups=Children(aiPanel).OfType<Button>()
+                .Single(b=>b.Content?.ToString()=="☑ Chọn tất cả 6 nhóm");
+            selectGroups.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Check(materialGroups.All(x=>x.IsChecked==true),
+                "Select all restores only the six permitted material groups");
             Check(Children(aiPanel).OfType<Button>().Any(b=>b.Content?.ToString()?.Contains("Lập phiếu từ hợp đồng")==true) &&
                   Children(aiPanel).OfType<Button>().Any(b=>b.Content?.ToString()?.Contains("Xem toàn bộ vật tư HĐ bàn giao")==true) &&
                   Children(aiPanel).OfType<Button>().Any(b=>b.Content?.ToString()?.Contains("Quay lại chọn cont")==true),

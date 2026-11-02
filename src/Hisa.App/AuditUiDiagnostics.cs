@@ -52,8 +52,12 @@ public static class AuditUiDiagnostics
         try
         {
             Call("EditSlip",saved);
-            var other=Children(window).OfType<CheckBox>().Single(x=>x.Content?.ToString()=="Khác");
-            Check(other.IsChecked==true,"Template IncludeOther now controls the visible additional-material option");
+            var groups=Children(window).OfType<CheckBox>()
+                .Where(x=>HandoverMaterialGroups.Options
+                    .Any(group=>group.Label==x.Content?.ToString())).ToList();
+            Check(groups.Count==6 && !Children(window).OfType<CheckBox>()
+                .Any(x=>x.Content?.ToString()=="Khác"),
+                "Slip filter shows exactly six requested material groups; even a legacy IncludeOther template cannot silently select Khác");
             bool States(ComboBox combo)=>combo.Items.Cast<object>().Any(x=>x.GetType().GetProperty("Value")?.GetValue(x)?.ToString()=="cancelled")&&combo.Items.Count==4;
             var state=Children(window).OfType<ComboBox>().Single(States);
             var reason=Children(window).OfType<TextBox>().Single(x=>x.Text=="Chờ xe");
