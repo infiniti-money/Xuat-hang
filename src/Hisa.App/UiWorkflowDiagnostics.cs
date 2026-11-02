@@ -42,6 +42,10 @@ public static class UiWorkflowDiagnostics
             typeof(MainWindow).GetField("_draftReport",flags)!.SetValue(window,null);
             Call("ShowCreate",false);
             Check(Children(window).OfType<TextBlock>().Any(x=>x.Text.Contains("Nhập số hợp đồng để tự kiểm tra")),"Create screen contains immediate contract-warning area");
+            Call("ShowLookup");
+            Check(Children(window).OfType<Button>().Any(b=>b.Content?.ToString()=="☑ Chọn tất cả HĐ có vật tư") &&
+                  Children(window).OfType<Button>().Any(b=>b.Content?.ToString()=="Tạo phiếu từ HĐ đã chọn"),
+                "Contract lookup supports explicit select-all and direct draft creation");
             Call("ShowSlips");
             var labels=Children(window).OfType<Button>().Select(b=>b.Content?.ToString()??"").ToList();
             Check(new[]{"Chờ xuất","✓  Đã xuất","◷  Tạm hoãn","Hủy phiếu"}.All(labels.Contains),"Slip list exposes all four transition buttons");
