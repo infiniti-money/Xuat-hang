@@ -82,16 +82,15 @@ public partial class MainWindow
 
     private void OpenQuickVoiceClick(object sender,RoutedEventArgs e)
     {
-        // Never navigate away from an active contract, slip or Container form.
-        // First click opens modeless Mây, then the existing permission-gated
-        // hands-free control starts listening. Clicking again stops microphone.
+        // No popup Window and no navigation: retained chat callbacks receive
+        // speech while the user works in any other HISA page.
         if(_geminiHandsFreeActive)
         {
             StopHandsFreeSession();
             StatusText.Text="Mây đã dừng micro. Trang hiện tại vẫn giữ nguyên.";
             return;
         }
-        if(_page!="gemini-chat")OpenFloatingMay();
+        EnsureMayChatSurface();
         _geminiHandsFreeToggle?.RaiseEvent(new RoutedEventArgs(
             System.Windows.Controls.Button.ClickEvent));
     }

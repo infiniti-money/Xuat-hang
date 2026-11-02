@@ -102,11 +102,7 @@ public partial class MainWindow : Window
     private void NavCaption(string title) => Navigation.Children.Add(new TextBlock {Text=title, FontSize=10, Foreground=Brush("#729BAF"),FontWeight=FontWeights.SemiBold,Margin=new Thickness(25,20,0,8)});
     private void Navigate(string page)
     {
-        if(page=="gemini-chat" && _mayFloatingWindow is {IsVisible:true} liveMay)
-        {
-            liveMay.Activate();
-            return; // Keep the caller's current page and any unsaved form.
-        }
+        // Switching pages never interrupts a consented Mây hands-free session.
         if(_page=="create"&&_draft!=null)_captureDraftEditor?.Invoke();
         _captureDraftEditor=null;_captureDraftHeader=null;
         if(_page=="gemini-chat" && !_geminiHandsFreeActive)

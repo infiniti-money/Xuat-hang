@@ -1,3 +1,14 @@
+# v1.9.40 — Mây Mây trò chuyện xuyên trang, không mở cửa sổ mới
+
+- Nút **Nói với Mây** ở thanh công cụ bật/dừng micro ngay tại trang hiện tại, không mở popup và không chuyển trang.
+- Phiên hội thoại được giữ khi chuyển tra cứu, xuất/bàn giao, cont và máy kéo. Mây tiếp tục xử lý Gemini và đọc câu trả lời, tránh thu lại tiếng loa.
+- Chỉ báo trạng thái trên thanh công cụ: micro tắt / đang nghe / nhận dạng / Mây đang trả lời.
+- Nút Hỏi Mây trong tra cứu hợp đồng chỉ chuẩn bị câu hỏi; mở trang trò chuyện để xem, sửa và gửi thủ công.
+- Không tự bật micro khi khởi động; giữ quyền và cấu hình Gemini, không sửa file Excel hay tự duyệt phiếu.
+- Bổ sung hồi quy UI offline về không mở cửa sổ, giữ câu hỏi và phiên rảnh tay khi điều hướng, dừng phiên.
+
+---
+
 ## HISA v1.9.39 — Tự dàn nội dung A4 và xem trước đúng bản in
 
 - Từ màn hình **Xem trước / in phiếu**, có thể chọn lại khổ giấy A4/A3/A5/B5/Letter/Legal và chiều **Ngang/Dọc**. HISA tạo lại `FixedDocument` ngay lúc chọn, tự đo và dàn lại kích thước cột, cỡ chữ bảng, đệm ô và phân trang theo bề rộng trang thực. **Không thay đổi hoặc ghi đè mẫu in đã lưu.**
