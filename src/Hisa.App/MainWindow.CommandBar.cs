@@ -82,17 +82,16 @@ public partial class MainWindow
 
     private void OpenQuickVoiceClick(object sender,RoutedEventArgs e)
     {
-        // Exactly one user click opens chat and toggles the microphone.
-        // Never auto-start microphone at application launch or page navigation.
-        if(_geminiHandsFreeActive && _page!="gemini-chat")
+        // Never navigate away from an active contract, slip or Container form.
+        // First click opens modeless Mây, then the existing permission-gated
+        // hands-free control starts listening. Clicking again stops microphone.
+        if(_geminiHandsFreeActive)
         {
-            // Clicking the global "Dừng Mây" control stops listening directly
-            // without navigating away from the user's warehouse work.
             StopHandsFreeSession();
-            StatusText.Text="Mây đã dừng micro. Anh có thể tiếp tục công việc.";
+            StatusText.Text="Mây đã dừng micro. Trang hiện tại vẫn giữ nguyên.";
             return;
         }
-        if(_page!="gemini-chat")Navigate("gemini-chat");
+        if(_page!="gemini-chat")OpenFloatingMay();
         _geminiHandsFreeToggle?.RaiseEvent(new RoutedEventArgs(
             System.Windows.Controls.Button.ClickEvent));
     }
