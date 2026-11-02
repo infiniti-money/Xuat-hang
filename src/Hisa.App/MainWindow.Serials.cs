@@ -62,16 +62,19 @@ public partial class MainWindow
             if(proposed.Proposed.Count>0)
             {
                 var mappedRows=string.Join("\n",proposed.Proposed.Take(12)
-                    .Select(x=>"• HĐ "+x.Contract+" · "+x.Project+
-                        " · dòng "+x.SourceRow+" → serial "+x.Serial));
+                    .Select(x=>"• HĐ "+x.Contract+" · dòng "+x.SourceRow+
+                        " (cột I) · "+x.Project+" · "+x.Model+
+                        " → serial "+x.Serial));
                 if(Ask("ĐÃ NHẬP "+proposed.Proposed.Count+" SERIAL CHƯA CÓ TRONG EXCEL.\n\n"+
-                       "HISA sẽ ghi ngược vào MÁY KÉO.xlsx, CỘT I, theo đúng HĐ, công trình, đơn vị và model:\n"+
+                       "HISA chỉ tra SỐ HỢP ĐỒNG tại CỘT D để điền ô trống CỘT I trong MÁY KÉO.xlsx.\n"+
+                       "Công trình/model bên dưới chỉ để kiểm tra, KHÔNG dùng làm điều kiện tra:\n"+
                        mappedRows+(proposed.Proposed.Count>12?"\n…":"")+
                        "\n\nChỉ điền ô serial đang trống, không sửa ngày xuất, trạng thái hoặc công thức. "+
                        "Đã tạo bản sao lưu trước khi ghi. Đồng ý?"))
                 {
                     var result=MotorSerialExcelSync.Apply(_service.Settings,slip,
-                        System.IO.Path.Combine(_service.BackupDirectory,"Excel"));
+                        System.IO.Path.Combine(_service.BackupDirectory,"Excel"),
+                        proposed.Proposed);
                     Notify("Đã ghi "+result.Written+" serial vào MÁY KÉO.xlsx cột I."+
                         (result.Warnings.Count>0?"\nCảnh báo: "+
                         string.Join("\n",result.Warnings.Take(6)):""));

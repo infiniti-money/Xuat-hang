@@ -265,6 +265,11 @@ public static class AutoUpdater
             }
             // /SILENT displays progress and errors instead of failing invisibly.
             // /HISAUPGRADE=1 asks Inno Setup to relaunch HISA only after installation finishes.
+            // Launch from the original interactive user. Inno Setup requests
+            // UAC itself and retains the unelevated starter token for
+            // runasoriginaluser after silent install. Direct Verb=runas would
+            // discard that token and may restart HISA under another account,
+            // hiding the current user's Windows-stored Gemini credential.
             // Windows UAC is never bypassed.
             Directory.CreateDirectory(InstallLogDirectory);
             var log=Path.Combine(InstallLogDirectory,"installer-"+(ReadyVersion??"update")+".log");
@@ -273,7 +278,7 @@ public static class AutoUpdater
                 FileName=setup,
                 Arguments="/SILENT /NORESTART /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS /HISAUPGRADE=1 /LOG=\""+log+"\"",
                 UseShellExecute=true,
-                Verb="runas",
+                Verb="open",
                 WorkingDirectory=Path.GetDirectoryName(setup)!
             });
         }

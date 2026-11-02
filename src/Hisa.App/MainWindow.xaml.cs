@@ -102,6 +102,11 @@ public partial class MainWindow : Window
     private void NavCaption(string title) => Navigation.Children.Add(new TextBlock {Text=title, FontSize=10, Foreground=Brush("#729BAF"),FontWeight=FontWeights.SemiBold,Margin=new Thickness(25,20,0,8)});
     private void Navigate(string page)
     {
+        if(page=="gemini-chat" && _mayFloatingWindow is {IsVisible:true} liveMay)
+        {
+            liveMay.Activate();
+            return; // Keep the caller's current page and any unsaved form.
+        }
         if(_page=="create"&&_draft!=null)_captureDraftEditor?.Invoke();
         _captureDraftEditor=null;_captureDraftHeader=null;
         if(_page=="gemini-chat" && !_geminiHandsFreeActive)
@@ -363,7 +368,20 @@ public partial class MainWindow : Window
             foreach(var missing in _lastReport.Missing)missing.Selected=false;
             body.Content=ReportBody(_lastReport,true);StatusText.Text=$"Tra cứu trong {watch.ElapsedMilliseconds} ms · {_lastReport.Summary}";
         };
-        var toolbar=Card(Stack(first,chips,Row(Field("Ngày cont về · tùy chọn",arrival,175),Field("Ngày đã xuất · tùy chọn",shipped,175),B("⌕  Tra cứu",search,true),B("Xóa bộ lọc",()=>{_lookupFilter=new();_lastReport=null;ShowLookup();})),T("Tra cứu đúng mã hợp đồng. Bỏ chọn các nhóm để xem toàn bộ vật tư Hưng Yên. Cùng mã nhưng khác công trình được giữ riêng.",11,false,Muted)));
+        var toolbar=Card(Stack(first,chips,Row(Field("Ngày cont về · tùy chọn",arrival,175),Field("Ngày đã xuất · tùy chọn",shipped,175),B("⌕  Tra cứu",search,true),
+            B("✦ Hỏi Mây về hợp đồng",()=>
+            {
+                var selected=Rules.Tokens(codes.Text);
+                var prompt=selected.Count>0
+                    ? "Tra cứu các hợp đồng "+string.Join(", ",selected.Take(15))+
+                      " trong nguồn HISA đã được cấp quyền. "+
+                      "Cho biết vật tư, nhóm, số lượng, kiện đã về, phiếu chờ xuất, "+
+                      "serial máy kéo và các cảnh báo cần đối chiếu; không tự sửa Excel."
+                    : "Giúp tôi tra cứu hợp đồng trong HISA. "+
+                      "Hãy hỏi tôi số hợp đồng trước khi đối chiếu dữ liệu.";
+                OpenFloatingMay(prompt);
+            }),
+            B("Xóa bộ lọc",()=>{_lookupFilter=new();_lastReport=null;ShowLookup();})),T("Tra cứu đúng mã hợp đồng. Bỏ chọn các nhóm để xem toàn bộ vật tư Hưng Yên. Cùng mã nhưng khác công trình được giữ riêng.",11,false,Muted)));
         SetPage("Tra cứu hợp đồng","Ctrl+F · tìm nhiều hợp đồng và nhiều nhóm vật tư cùng lúc",Layout(toolbar,body));
         search();
     }
