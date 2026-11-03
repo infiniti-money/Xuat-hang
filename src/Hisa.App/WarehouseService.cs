@@ -845,11 +845,22 @@ public sealed partial class WarehouseService : IDisposable
     /// additional slip as delivered or change the shipment day. A date is
     /// written only if serial and contract resolve to one physical motor.
     /// </summary>
-    public Task<MotorHandoverExcel.Outcome> RetryMotorHandoverAsync()=>
+    public Task<MotorHandoverExcel.Outcome> RetryMotorHandoverAsync(
+        string contractNumber)=>
         MutateAsync(()=>
         {
+            var contract=Rules.Contract(contractNumber);
+            if(contract.Length==0)
+                throw new ArgumentException("Nhập số hợp đồng cần đồng bộ lại.");
+            var matching=Slips.Where(x=>x.Status=="delivered" &&
+                x.Lines.Any(line=>MotorSerials.IsMotor(line) &&
+                    Rules.Contract(line.Contract)==contract)).ToList();
+            if(matching.Count==0)
+                throw new InvalidOperationException("HĐ "+contractNumber+
+                    " chưa có phiếu Đã xuất chứa máy kéo. Kiểm tra trạng thái "+
+                    "phiếu và nhóm vật tư Xuất/in trước.");
             var result=MotorHandoverExcel.Sync(Settings,Slips,_data,
-                Path.Combine(BackupDirectory,"Excel"));
+                Path.Combine(BackupDirectory,"Excel"),contractScope:contract);
             lock(_stateLock)
             {
                 _warnings.RemoveAll(x=>x.StartsWith(
@@ -862,7 +873,8 @@ public sealed partial class WarehouseService : IDisposable
             if(pending)_exportsPending=true;
             var all=Slips;
             foreach(var slip in all.Where(x=>x.Status=="delivered" &&
-                x.Lines.Any(MotorSerials.IsMotor)))
+                x.Lines.Any(line=>MotorSerials.IsMotor(line) &&
+                    Rules.Contract(line.Contract)==contract)))
                 slip.ProductExportPending=pending;
             Persist("slips.json",all);
             lock(_stateLock)_slips=all;
