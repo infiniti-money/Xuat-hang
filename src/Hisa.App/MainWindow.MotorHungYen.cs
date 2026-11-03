@@ -286,6 +286,22 @@ public partial class MainWindow
             Row(Field("Tìm hợp đồng, công trình, serial",query),
                 Field("Lọc theo tiến độ",stage),
                 B("↻ Làm mới từ Excel",()=>ShowMotorHungYen()),
+                B("Kiểm tra file Excel (chỉ đọc)",()=>
+                {
+                    var report=MotorWorkbookHealth.Inspect(
+                        _service.Settings.TractionMachineListPath);
+                    var findings=report.Findings.Take(12)
+                        .Select(x=>x.Level+": "+x.Detail).ToList();
+                    var extra=report.Findings.Count-findings.Count;
+                    Notify("KIỂM TRA MÁY KÉO.XLSX · CHỈ ĐỌC\n\n"+
+                        report.Summary+
+                        "\n\n"+(findings.Count==0?
+                            "Không phát hiện lỗi cấu trúc cơ bản.":string.Join("\n",findings))+
+                        (extra>0?"\n... và "+extra+" cảnh báo khác.":"")+
+                        "\n\nKiểm tra này không ghi, sửa hay khôi phục file. "+
+                        "Nếu Excel từng báo sửa chữa, cần đối chiếu bản sao lưu "+
+                        "và nhật ký sửa chữa của Excel trước khi ghi dữ liệu thật.");
+                }),
                 B("Bỏ lọc HĐ",()=>{selectedContractKey="";contractGrid.SelectedItem=null;FilterMachines();})),
             confirmedOnly,
             contractsSummary,
