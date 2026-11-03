@@ -240,8 +240,7 @@ public static class MotorWorkbookCellPatch
             File.Move(tmp,full,true);
         }
         catch(Exception ex) when(ex is IOException or InvalidDataException or
-            System.Xml.XmlException or InvalidOperationException or
-            System.IO.Compression.InvalidDataException)
+            System.Xml.XmlException or InvalidOperationException)
         {
             throw new IOException("Không thể cập nhật MÁY KÉO.xlsx an toàn. "+
                 "File nguồn được giữ nguyên và đã tạo bản sao trước khi thay thế. "+
