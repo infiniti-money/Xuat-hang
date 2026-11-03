@@ -76,6 +76,20 @@ public static class ZaloContainerQuickImportDiagnostics
               !preview.Single(x=>x.SourcePackageId=="t1").Selected &&
               !preview.Single(x=>x.SourcePackageId=="t2").Selected,
             "One-project HĐ is prechecked; T1/T2 under same HĐ require deliberate package selection");
+        var duplicateWarningRows=new List<PlannedArrivalRow>
+        {
+            new(){Contract="29102026",SourcePackageId="warning-unique",
+                Status=ContDiArrivalLookup.Ready,
+                Notes="CẢNH BÁO: cùng vật tư đã nhập trong ngày"},
+            new(){Contract="30002026",SourcePackageId="safe-unique",
+                Status=ContDiArrivalLookup.Ready,SourceContDay="2026-10-30",
+                Project="Công trình C",Company="Công ty C"}
+        };
+        var duplicateReview=ZaloContainerQuickImport.PrepareReview(duplicateWarningRows);
+        Check(duplicateReview.Preselected==1 &&
+              !duplicateWarningRows[0].Selected &&
+              duplicateWarningRows[1].Selected,
+            "Similar-goods duplicate warning is not auto-selected even with a unique source ID");
         var eligible=ContDiArrivalLookup.SelectVerified(
             preview.Where(x=>x.Selected).ToList(),requests,snap,"2026-11-03");
         Check(eligible.Count==1 && eligible[0].OriginPackageId=="single",
