@@ -218,6 +218,9 @@ public static class UiWorkflowDiagnostics
                     "TỔNG SỐ MÁY" or "ĐANG LÀM · CHƯA BÀN GIAO" or
                     "ĐÃ BÀN GIAO · CÓ NGÀY K"))==3,
                 "Motor schedule shows three filters reflecting the column K delivery day");
+            Check(Children(window).OfType<Button>().Any(x=>
+                x.Content?.ToString()=="Kiểm tra file Excel (chỉ đọc)"),
+                "Motor schedule includes a manual, read-only Excel health check");
             Check(Children(window).OfType<Button>().Any(x=>x.Content?.ToString()=="✓ ĐÃ LÀM XONG · LƯU TIẾN ĐỘ") &&
                   Children(window).OfType<Button>().Any(x=>x.Content?.ToString()=="○ CHƯA LÀM · LƯU TIẾN ĐỘ") &&
                   Children(window).OfType<Button>().Any(x=>x.Content?.ToString()=="Bỏ lọc HĐ"),
