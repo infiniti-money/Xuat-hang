@@ -118,7 +118,9 @@ public partial class MainWindow
                     "Bỏ tích kiện chưa về thực tế; chỉ bấm Sao chép sau khi đã nhận hàng.";
             },true),
             B("Bỏ chọn",()=>{foreach(var x in rows)x.Selected=false;grid.Items.Refresh();}),
-            A("✓ Sao chép kiện đã về → Tổng hợp.xlsx",async()=>
+            A(quickZaloReview
+                ? "✓ Xác nhận nhập kiện đã chọn → Tổng hợp.xlsx"
+                : "✓ Sao chép kiện đã về → Tổng hợp.xlsx",async()=>
             {
                 commitInput?.Invoke();Commit(grid);
                 if(!scanned || searchedSelection!=SelectionSignature())
