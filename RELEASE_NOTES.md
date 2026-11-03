@@ -1,3 +1,15 @@
+## HISA v1.9.49 — Kiểm tra an toàn file MÁY KÉO.xlsx (chỉ đọc)
+
+- Tại **Lịch làm máy kéo**, thêm nút **Kiểm tra file Excel (chỉ đọc)** để kiểm tra file được liên kết trước khi ghi dữ liệu thật. Nút chỉ đọc: không chỉnh sửa, không phục hồi, không thay serial hoặc trạng thái phiếu.
+- Kiểm tra cấu trúc ZIP/OOXML cơ bản, các thành phần cần thiết, tiêu đề hợp đồng ở D2, serial cột I, ngày bàn giao cột K, số dòng, số máy đã có ngày K và chưa có ngày K, cảnh báo trùng serial, cảnh báo chữ Đã làm/Chưa làm cũ tại K. Nếu file bị thiếu/hỏng hoặc sai mẫu, hiển thị **Không nên ghi file**.
+- Tăng cường bước ghi từng ô: trước khi thay file gốc phải **đối chiếu tất cả thành phần OOXML còn lại bằng SHA-256 theo nội dung sau giải nén** và xác nhận đúng giá trị từng serial/ngày trong file thử ghi. Bất kỳ sai lệch nào đều dừng trước khi thay file.
+- Bổ sung kiểm thử độc lập trên workbook giả lập: không ghi lại file khi kiểm tra, phát hiện tiêu đề sai, ZIP hỏng, cột K có ngày hoặc trạng thái cũ.
+- Quy trình phiếu chờ/Đã xuất, ngày bàn giao lấy từ phiếu và định danh HĐ/công trình/serial vẫn giữ nguyên.
+
+**Giới hạn:** kiểm tra kỹ thuật không thay thế việc mở file bằng Excel và không xác định được mọi nguyên nhân Excel hiển thị thông báo sửa chữa. Đối với file thật đã lỗi, cần lấy nhật ký sửa chữa và đối chiếu bản sao lưu sạch, chỉ thử ghi trên bản sao trước.
+
+---
+
 ## HISA v1.9.48 — Bảo vệ MÁY KÉO.xlsx khi ghi serial và ngày bàn giao
 
 - Thay thao tác lưu lại toàn bộ MÁY KÉO.xlsx bằng ClosedXML (có thể làm mất các phần mở rộng Excel) bằng cập nhật chọn lọc đúng ô trong XML worksheet, sao lưu nguyên bản và kiểm tra tính hợp lệ trước khi thay thế. Các thành phần khác của tệp được giữ nguyên; nếu file đang mở/khóa, ô có công thức hoặc nằm trong vùng gộp, HISA từ chối ghi.
