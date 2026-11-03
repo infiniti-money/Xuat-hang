@@ -30,7 +30,7 @@ public static class MotorWorkbookCellPatch
         var entry=archive.GetEntry(path)??throw new InvalidDataException(
             "Excel thiếu thành phần "+path+". Không ghi file.");
         using var stream=entry.Open();
-        return XDocument.Load(stream,LoadOptions.PreserveWhitespace);
+        return XDocument.Load(stream,System.Xml.Linq.LoadOptions.PreserveWhitespace);
     }
 
     private static string FirstWorksheetPath(ZipArchive archive)
@@ -207,7 +207,7 @@ public static class MotorWorkbookCellPatch
                         if(entry.FullName==sheetPath)
                         {
                             using var stream=new MemoryStream();
-                            sheet.Save(stream,SaveOptions.DisableFormatting);
+                            sheet.Save(stream,System.Xml.Linq.SaveOptions.DisableFormatting);
                             stream.Position=0;
                             stream.CopyTo(writer);
                         }
