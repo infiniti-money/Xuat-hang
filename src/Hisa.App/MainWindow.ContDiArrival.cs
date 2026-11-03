@@ -10,14 +10,21 @@ public partial class MainWindow
     /// contracts. Never treats a forecast as a warehouse arrival.
     /// </summary>
     private FrameworkElement BuildContDiSourcePanel(
-        Func<List<AiScheduleLine>> requests,Action? commitInput=null,bool searchWhenLoaded=false)
+        Func<List<AiScheduleLine>> requests,Action? commitInput=null,
+        bool searchWhenLoaded=false,bool quickZaloReview=false)
     {
         var actualDate=DateInput(DateTime.Today.ToString("yyyy-MM-dd"));
         string SourceLabel()=>"các file Excel trong thư mục Container";
-        var explanation=T("HISA CHỈ quét Container khi bạn bấm Tìm kiện, không quét lúc khởi động. "+
-            "Chọn ngày thực tế đã nhận và từng kiện ghi HƯNG YÊN/HUNG YEN; "+
-            "giữ riêng công trình, thang 1/2, T1/T2, hậu tố (1)/(2) và ngày cont đi. "+
-            "Không tra cứu hay ghi trang Cont đi Hưng Yên trong Tổng hợp.xlsx.",12,false,Muted);
+        var explanation=T(quickZaloReview
+            ? "HISA đã lấy các số hợp đồng từ ảnh Zalo và sẽ quét mới thư mục "+
+              "Container khi mở bảng này. Chỉ nhận kiện ghi HƯNG YÊN/HUNG YEN, "+
+              "không lấy kiện đã nhập. Những hợp đồng T1/T2 hoặc nhiều đợt "+
+              "cont để anh tự chọn kiện; không tự coi lịch dự kiến là đã nhận."
+            : "HISA CHỈ quét Container khi bạn bấm Tìm kiện, không quét lúc khởi động. "+
+              "Chọn ngày thực tế đã nhận và từng kiện ghi HƯNG YÊN/HUNG YEN; "+
+              "giữ riêng công trình, thang 1/2, T1/T2, hậu tố (1)/(2) và ngày cont đi. "+
+              "Không tra cứu hay ghi trang Cont đi Hưng Yên trong Tổng hợp.xlsx.",
+            12,false,Muted);
         var feedback=T("Bấm Tìm kiện để đọc mới "+SourceLabel()+".",12,false,Muted);
         var receivedText=T("",12,false,Brush("#87571E"));
         var receivedNotice=new Expander
@@ -73,6 +80,8 @@ public partial class MainWindow
             await _service.RefreshContDiForArrivalAsync();
             var snapshot=_service.ContDiLookupSnapshot;
             rows=ContDiArrivalLookup.Preview(input,snapshot,Day(actualDate));
+            var quick=quickZaloReview
+                ? ZaloContainerQuickImport.PrepareReview(rows):null;
             var received=ContDiArrivalLookup.PreviouslyReceived(input,snapshot);
             grid.ItemsSource=rows;searchedSelection=SelectionSignature();scanned=true;
             var ready=rows.Count(x=>x.Status==ContDiArrivalLookup.Ready);
@@ -80,7 +89,14 @@ public partial class MainWindow
             receivedNotice.Header="ĐÃ NHẬP TRƯỚC ĐÓ TRONG TỔNG HỢP.XLSX · "+received.Count+
                 " kiện (KHÔNG hiển thị trong bảng Container)";
             receivedText.Text=string.Join("\n",received.Select(x=>"• "+x.Description));
-            feedback.Text=$"Bảng Container chỉ hiển thị {rows.Count} dòng CHƯA XÁC NHẬN NHẬP "+
+            feedback.Text=(quick is null?""
+                : $"ĐÃ QUÉT {input.Count} SỐ HĐ TỪ ZALO · "+
+                  $"TỰ TÍCH {quick.Preselected} KIỆN ĐỦ ĐIỀU KIỆN. "+
+                  (quick.AmbiguousContracts>0
+                    ? $"{quick.AmbiguousContracts} HĐ có nhiều công trình/T1/T2 hoặc đợt cont: "+
+                      "không tự tích, anh chọn đúng kiện ở bảng dưới. ":"")+
+                  "Chọn ngày cont về THỰC TẾ và bỏ tích kiện chưa về trước khi xác nhận. ")+
+                $"Bảng Container chỉ hiển thị {rows.Count} dòng CHƯA XÁC NHẬN NHẬP "+
                 $"({ready} kiện đủ nguồn; {rows.Count-ready} dòng cần kiểm tra). "+
                 (received.Count>0
                     ? $"{received.Count} kiện đã nhập được ẨN khỏi bảng chọn; xem ngày thực nhập trong thông báo bên dưới. "
@@ -91,7 +107,9 @@ public partial class MainWindow
                 "Khi Excel hoặc số hợp đồng thay đổi, hãy bấm Tìm kiện lại.";
         }
         var buttons=Row(
-            A("⌕ Tìm kiện Hưng Yên trong Container",SearchAsync,true),
+            A(quickZaloReview
+                ? "⚡ Quét lại HĐ Zalo trong Container"
+                : "⌕ Tìm kiện Hưng Yên trong Container",SearchAsync,true),
             B("☑ Chọn tất cả kiện đủ nguồn",()=>{
                 Commit(grid);
                 var count=PlannedArrivalWorkflow.SelectAllEligibleForReview(rows);
@@ -100,7 +118,9 @@ public partial class MainWindow
                     "Bỏ tích kiện chưa về thực tế; chỉ bấm Sao chép sau khi đã nhận hàng.";
             },true),
             B("Bỏ chọn",()=>{foreach(var x in rows)x.Selected=false;grid.Items.Refresh();}),
-            A("✓ Sao chép kiện đã về → Tổng hợp.xlsx",async()=>
+            A(quickZaloReview
+                ? "✓ Xác nhận nhập kiện đã chọn → Tổng hợp.xlsx"
+                : "✓ Sao chép kiện đã về → Tổng hợp.xlsx",async()=>
             {
                 commitInput?.Invoke();Commit(grid);
                 if(!scanned || searchedSelection!=SelectionSignature())
@@ -110,7 +130,9 @@ public partial class MainWindow
                     throw new InvalidOperationException("Chọn ngày thực tế cont về.");
                 var marked=rows.Where(x=>x.Selected).ToList();
                 if(marked.Count==0)
-                    throw new InvalidOperationException("Tích từng kiện Hưng Yên đã về thực tế.");
+                    throw new InvalidOperationException(
+                        "Chưa chọn kiện nào để nhập. Hãy tích kiện Hưng Yên "+
+                        "thực tế đã về trong bảng quét Container.");
                 // No cached permission: recheck the source and package identity/content
                 // immediately before displaying the final confirmation.
                 await _service.RefreshContDiForArrivalAsync();
@@ -146,7 +168,9 @@ public partial class MainWindow
             })
         );
         var panel=Stack(Card(Stack(
-            T("CONTAINER → XÁC NHẬN KIỆN → TỔNG HỢP.XLSX / CHI TIẾT",16,true),
+            T(quickZaloReview
+                ? "ẢNH ZALO → QUÉT CONTAINER → XÁC NHẬN MỘT LẦN → TỔNG HỢP.XLSX"
+                : "CONTAINER → XÁC NHẬN KIỆN → TỔNG HỢP.XLSX / CHI TIẾT",16,true),
             explanation,
             Row(Field("Ngày cont thực tế về kho",actualDate)),
             buttons,feedback,receivedNotice)),

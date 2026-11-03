@@ -100,6 +100,29 @@ public static class ContDiArrivalIntegrationDiagnostics
             "Scanning planned Container goods cannot mark that contract physically received");
         await service.RefreshContDiForArrivalAsync();
         const string actualDay="2026-11-03";
+        var zalo=new AiScheduleDocument
+        {
+            AnalyzedBy="Gemini",ArrivalDate=actualDay,
+            Arrivals=[
+                new AiScheduleLine{Contract="29102026",Project="OCR đọc khác công trình gốc",
+                    Container="Ảnh không rõ mã container",PlannedDate=actualDay},
+                new AiScheduleLine{Contract="88882026",Project="HĐ chưa có kiện",PlannedDate=actualDay}
+            ],
+            Dispatches=[new AiScheduleLine{Contract="12345678",PlannedDate=actualDay}]
+        };
+        AiScheduleBulkSelection.SetAll(zalo,true,true);
+        var quickRequests=ZaloContainerQuickImport.ContractRequests(
+            zalo.Arrivals.Where(x=>x.SelectedForArrival));
+        var quickRows=ContDiArrivalLookup.Preview(quickRequests,
+            service.ContDiLookupSnapshot,actualDay);
+        var quickReview=ZaloContainerQuickImport.PrepareReview(quickRows);
+        Check(quickRequests.Count==2 && quickReview.Preselected==1 &&
+              quickRows.Single(x=>x.Selected).Contract=="29102026" &&
+              quickRows.All(x=>x.Contract!="12345678"),
+            "Zalo fast scan matches physical source by contract alone and prechecks safe Hưng Yên package");
+        Check(!new ExcelStore().ReadMaster(settings.MasterPath).DetailPackages
+                .Any(x=>x.Contract=="29102026"),
+            "Fast scan and prechecked receipt rows never write master Excel before confirmation");
         var requests=ContDiArrivalLookup.FromContracts("29102026\n88882026");
         var found=ContDiArrivalLookup.Preview(requests,fresh,actualDay);
         Check(found.Count(x=>x.Status==ContDiArrivalLookup.Ready)==1 &&

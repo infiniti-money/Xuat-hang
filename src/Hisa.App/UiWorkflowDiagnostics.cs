@@ -329,6 +329,22 @@ public static class UiWorkflowDiagnostics
                 "Opening Gemini results does not mark arrival, issue a slip or approve schedule");
             Check(Children(aiPanel).OfType<Expander>().Count(x=>!x.IsExpanded)>=2,
                 "Optional manual entry and warnings stay below the main flow and are collapsed");
+            // A completed Gemini analysis should open the fast inbound screen:
+            // no separate contract-ticking and no second manual scan needed.
+            simulated.AnalyzedBy="Gemini";
+            simulated.Arrivals[0].SelectedForArrival=true;
+            typeof(MainWindow).GetField("_aiImagePath",flags)!.SetValue(
+                window,"zalo-incoming-demo.png");
+            typeof(MainWindow).GetField("_aiShowDispatch",flags)!.SetValue(
+                window,false);
+            Call("ShowAiSchedules");
+            Check(Children(window).OfType<TextBlock>().Any(t=>
+                    t.Text.Contains("QUÉT NHANH TỪ ẢNH ZALO")) &&
+                  Children(window).OfType<Button>().Any(b=>
+                    b.Content?.ToString()=="⚡ Quét lại HĐ Zalo trong Container") &&
+                  Children(window).OfType<TextBlock>().Any(t=>
+                    t.Text.Contains("ẢNH ZALO → QUÉT CONTAINER")),
+                "Gemini inbound UI offers automatic all-contract Container scan, ready-package review and single receipt confirmation");
         }
         finally{window.Close();}
         return evidence;
