@@ -118,7 +118,7 @@ public partial class MainWindow
             SelectedValue=preferences.Sensitivity
         };
         var speakAutomatically=new CheckBox{
-            Content="Mây tự đọc câu trả lời qua loa (khi không dùng rảnh tay)",
+            Content="Mặc định Mây tự phát câu trả lời qua loa; khi bấm Nói với Mây, Mây sẽ chào và hỏi anh cần giúp gì",
             IsChecked=preferences.AutoSpeak
         };
         var share=new CheckBox{

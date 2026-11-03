@@ -1,3 +1,15 @@
+## HISA v1.9.45 — Mây Mây tự chào và phát tiếng Việt qua loa
+
+- Khi bấm **🎙 Nói với Mây**, kể cả ở thanh công cụ từ trang kho đang thao tác, Mây phát lời chào tiếng Việt “Dạ, Mây Mây chào anh. Hôm nay anh muốn Mây giúp gì ạ?” qua loa trước khi bắt đầu nghe.
+- Micro **tạm tắt trong lúc Mây nói** và chỉ mở sau khi phát xong lời chào, tránh nghe ngược giọng Mây từ loa. Tiếp tục hỗ trợ rảnh tay xuyên trang; không mở cửa sổ phụ hay tự chuyển trang.
+- Phiên rảnh tay mới sẽ được chào một lần; quay lại màn hình Mây hoặc chuyển trang không tự lặp lời chào. Nhấn Dừng Mây hủy phiên và ngừng micro/loa ngay.
+- Tùy chọn **tự đọc phản hồi qua loa** bật mặc định trên máy cài mới; người dùng vẫn có thể tắt và lưu lựa chọn riêng trong Cấu hình Gemini. Những lựa chọn đã lưu vẫn được giữ lại.
+- Giọng Gemini TTS ưu tiên nữ tiếng Việt miền Nam; nếu có lỗi mạng/TTS, thử giọng vi-VN đã cài trong Windows, không tự chuyển thành giọng nước ngoài. Hiển thị lỗi loa rõ ràng khi không có giọng tiếng Việt.
+- Quyền micro và chia sẻ dữ liệu vẫn tách biệt, xin phép khi cần và lưu an toàn; HISA **không tự bật mic lúc khởi động**.
+- Bổ sung self-tests offline về mặc định loa, lưu lựa chọn tắt, câu chào và chỉ chào một lần mỗi phiên; CI Windows kiểm thử đóng gói/cài đè trước phát hành.
+
+---
+
 ## HISA v1.9.44 — Chọn Thang 01/Thang 02 ngay khi lập phiếu (sửa lỗi HĐ 43822026)
 
 - Khi bấm Lập phiếu từ ảnh Zalo, nếu một số HĐ có hai hay nhiều công trình trong Tổng hợp.xlsx, mở bảng **Chọn đúng thang/công trình** ngay tại thao tác, hiển thị tên gốc, đơn vị, số kiện và số dòng vật tư theo nhóm đã chọn. Người dùng tích một hoặc nhiều thang rồi bấm **Lập phiếu chờ**, không phải sửa tên OCR hay tải lại ảnh.
