@@ -18,6 +18,13 @@ public static class MotorHandoverRecoveryDiagnostics
             if(!ok)throw new InvalidOperationException("Motor 37452026: "+title);
             checks.Add("Motor 37452026: "+title);
         }
+        static string DayAt(IXLWorksheet sheet,int row)
+        {
+            var cell=sheet.Cell(row,11);
+            return cell.TryGetValue<DateTime>(out var date)?
+                date.ToString("yyyy-MM-dd") :
+                (cell.IsEmpty()?"(trống)":"(khác kiểu) "+cell.GetString());
+        }
         var root=Path.Combine(Path.GetTempPath(),"hisa-37452026-"+
             Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
@@ -82,10 +89,10 @@ public static class MotorHandoverRecoveryDiagnostics
             {
                 var sheet=book.Worksheet(1);
                 Check(run.Written==1 && run.Unmatched==0 &&
-                    sheet.Cell(3,11).GetDateTime()==new DateTime(2026,10,31),
-                    "Old delivered slip writes actual export date using unique HĐ + serial even when OCR name differs");
+                    DayAt(sheet,3)=="2026-10-31",
+                    "Old delivered slip writes actual export date using unique HĐ + serial even when OCR name differs. Source K3="+DayAt(sheet,3)+", outcome="+run.Written+"/"+run.Unmatched+", warnings="+string.Join("; ",run.Warnings));
                 Check(sheet.Cell(4,11).IsEmpty() &&
-                    sheet.Cell(5,11).GetDateTime()==new DateTime(2026,10,15),
+                    DayAt(sheet,5)=="2026-10-15",
                     "Scope does not touch another tower or a different contract");
             }
             Check(run.Warnings.Any(x=>x.Contains("đã đối chiếu bằng số HĐ")),
@@ -119,10 +126,8 @@ public static class MotorHandoverRecoveryDiagnostics
                 "Duplicate source serial fails closed, never picks a tower");
             using(var book=new XLWorkbook(path))
             {
-                Check(book.Worksheet(1).Cell(3,11).GetDateTime()==
-                        new DateTime(2026,10,31) &&
-                    book.Worksheet(1).Cell(5,11).GetDateTime()==
-                        new DateTime(2026,10,15),
+                Check(DayAt(book.Worksheet(1),3)=="2026-10-31" &&
+                    DayAt(book.Worksheet(1),5)=="2026-10-15",
                     "Conflicting source never overwrites previously confirmed or unrelated dates");
             }
         }
