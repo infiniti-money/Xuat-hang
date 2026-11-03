@@ -20,7 +20,7 @@ public static class ZaloContainerQuickImport
         // prefixes. One source contract can contain several distinct towers
         // and packages, so dedupe only the lookup code, not the source goods.
         return selectedArrivals
-            .Where(x=>Rules.Contract(x.Contract).Length>=4)
+            .Where(x=>Rules.Contract(x.Contract).Count(char.IsDigit)>=4)
             .GroupBy(x=>Rules.Contract(x.Contract),StringComparer.Ordinal)
             .Select(g=>new AiScheduleLine
             {
