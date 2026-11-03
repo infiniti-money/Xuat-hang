@@ -236,10 +236,14 @@ public static class UiV16Diagnostics
             Contract = pkgA.Contract, Project = "Other project", Company = "HISA", PlannedDate = day
         };
         doc.Dispatches.Add(different);
-        var ambiguous = false;
-        try { AiHandoverSelection.Build(report, doc, [different]); }
-        catch (InvalidOperationException) { ambiguous = true; }
-        Check(ambiguous, "Same contract but mismatched project cannot create wrong handover");
+        // A single canonical Excel identity may be selected by contract code,
+        // even when OCR supplies a different address/project label.
+        // Multi-project / conflicting-T1-T2 cases are covered separately.
+        var normalized = AiHandoverSelection.Build(report, doc, [different]);
+        Check(normalized.Rows.Count(x => x.Selected) == 1 &&
+            normalized.Rows.Single(x => x.Selected).Identity == pkgA.Identity &&
+            normalized.Warnings.Any(x => x.Contains("số hợp đồng duy nhất")),
+            "Unique contract uses canonical Excel project despite different OCR name");
         var unapproved = new AiScheduleDocument
         {
             DispatchDate = day, Dispatches = [doc.Dispatches[0]]
