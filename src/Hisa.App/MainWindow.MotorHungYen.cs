@@ -16,36 +16,20 @@ public partial class MainWindow
         List<MotorHungYenStore.Item> ReadVisibleItems()
         {
             var result=store.List(machineRows);
-            var deliveries=MotorHandoverExcel.ConfirmedDates(_service.Slips);
-            var serialCounts=machineRows.Where(x=>!string.IsNullOrWhiteSpace(x.Serial))
-                .GroupBy(x=>MotorHandoverExcel.IdentityFor(new MotorHungYenStore.Item
-                {
-                    Contract=x.Contract,Project=x.Project,Company=x.Company,Serial=x.Serial
-                })).ToDictionary(x=>x.Key,x=>x.Count());
+            // The source K column is authoritative for HANDOVER only:
+            // a real date = delivered; no date = still working/not handed over.
+            // Do not infer a delivery from JSON progress or the serial alone.
             foreach(var item in result.Where(x=>x.PresentInSource))
             {
-                var key=MotorHandoverExcel.IdentityFor(item);
-                if(serialCounts.TryGetValue(key,out var count)&&count==1 &&
-                   deliveries.TryGetValue(key,out var confirmed))
+                if(item.ExcelDispatchDay.Length>0)
                 {
                     item.State=MotorHungYenStore.HandedOver;
-                    item.HandoverDay=confirmed;
+                    item.HandoverDay=item.ExcelDispatchDay;
                 }
                 else
                 {
-                    // Treat operator-edited column K as the visible production
-                    // status, while never treating an Excel date as a confirmed
-                    // shipment (only a delivered slip may do that).
-                    if(item.State==MotorHungYenStore.HandedOver)
-                    {
-                        item.State=MotorHungYenStore.Completed;
-                        item.HandoverDay="";
-                    }
-                    if(item.SourceWorkValue=="Đã làm")
-                        item.State=MotorHungYenStore.Completed;
-                    else if(item.SourceWorkValue=="Chưa làm")
-                        item.State=item.SentDay.Length>0?
-                            MotorHungYenStore.Sent:MotorHungYenStore.Pending;
+                    item.State=MotorHungYenStore.Sent;
+                    item.HandoverDay="";
                 }
             }
             return result;
@@ -76,7 +60,7 @@ public partial class MainWindow
         var contractsSummary=T("",12,true,Muted);
         var confirmedOnly=new CheckBox
         {
-            Content="Chỉ hiện hợp đồng đã xác nhận gửi gia công tại Hưng Yên",
+            Content="Chỉ hiện hợp đồng có máy kéo trong danh sách Excel",
             IsChecked=true,VerticalAlignment=VerticalAlignment.Center,
             Margin=new Thickness(0,0,16,0)
         };
@@ -95,7 +79,7 @@ public partial class MainWindow
             ("Đơn vị","Company",125),("Máy kéo","Material",-1),
             ("SL","Quantity",55),("Số lô","Lot",115),("Seri","Serial",100),
             ("Tiến độ xác nhận","StatusLabel",185),
-            ("Chọn làm","WorkLabel",95),("Cột K (Excel)","ExcelStatusLabel",160),
+            ("Chọn làm","WorkLabel",95),("Cột K · ngày bàn giao","ExcelStatusLabel",160),
             ("Ngày gửi","SentDay",100),("Ngày làm","CompletedDay",100),
             ("Ngày bàn giao","HandoverDay",110),
             ("Ghi chú","LastNote",170),("Nguồn","SourceStatus",130));
@@ -133,7 +117,7 @@ public partial class MainWindow
                 workChoice.SelectedIndex=picked.ExcelDispatchDay.Length>0?-1:picked.WorkLabel=="Đã làm"?1:0;
                 hints.Text="ĐÃ CHỌN · HĐ "+picked.Contract+" · Serial "+
                     (picked.Serial.Length>0?picked.Serial:"CHƯA CÓ")+
-                    " · "+picked.WorkLabel+" · "+
+                    " · "+picked.StatusLabel+" · "+
                     (picked.ExcelDispatchDay.Length>0?
                         "Có ngày xuất: "+Rules.Day(picked.ExcelDispatchDay):
                         "Chưa ghi ngày xuất thực tế");
@@ -253,12 +237,12 @@ public partial class MainWindow
                 Notify("Chọn ngày thực tế và trạng thái Chưa làm / Đã làm.");return;
             }
             var choice=chosenIndex==1?"Đã làm":"Chưa làm";
-            if(!Ask("LƯU TÌNH TRẠNG MÁY KÉO VÀO EXCEL CỘT K\n"+
+            if(!Ask("LƯU TIẾN ĐỘ MÁY KÉO TRONG HISA\n"+
                 "HĐ: "+selected.Contract+"\nCông trình: "+selected.Project+
                 "\nMáy: "+selected.Material+"\nSerial: "+selected.Serial+
                 "\nNgày ghi nhận: "+Rules.Day(Day(effectiveDay))+
                 "\nTrạng thái mới: "+choice+
-                "\n\nChỉ phiếu Đã xuất mới được ghi ngày xuất thực tế. Tiếp tục?"))return;
+                "\n\nTiến độ chỉ lưu trong HISA, không sửa cột K. Chỉ phiếu Đã xuất mới ghi ngày bàn giao. Tiếp tục?"))return;
             var result=await _service.SetMotorWorkAsync(selected,chosenIndex==1,
                 Day(effectiveDay),note.Text);
             machineRows=EquipmentListReader.Read(
@@ -299,7 +283,7 @@ public partial class MainWindow
         );
 
         var tools=Card(Stack(
-            T("MÁY KÉO GIA CÔNG TẠI HƯNG YÊN",19,true),
+            T("LỊCH LÀM MÁY KÉO",19,true),
             T("Theo dõi từng máy bằng số serial · trạng thái xuất thực tế chỉ xác nhận từ phiếu xuất/bàn giao.",12,false,Muted),
             filters,
             Row(Field("Tìm hợp đồng, công trình, serial",query),
@@ -314,15 +298,15 @@ public partial class MainWindow
                 Field("Ghi chú / chứng từ",note)),
             Row(
                 B("→ ĐÃ GỬI GIA CÔNG",()=>MoveTo(MotorHungYenStore.Sent),true),
-                A("✓ ĐÃ LÀM XONG · GHI EXCEL",async()=>await SaveWorkChoiceAsync(1),true),
-                A("○ CHƯA LÀM · GHI EXCEL",async()=>await SaveWorkChoiceAsync(0))
+                A("✓ ĐÃ LÀM XONG · LƯU TIẾN ĐỘ",async()=>await SaveWorkChoiceAsync(1),true),
+                A("○ CHƯA LÀM · LƯU TIẾN ĐỘ",async()=>await SaveWorkChoiceAsync(0))
             ),
             new Expander{
-                Header="⚙ Tùy chọn bổ sung · tình trạng cột K, lịch sử và hướng dẫn",
+                Header="⚙ Tùy chọn bổ sung · tiến độ, ngày bàn giao và lịch sử",
                 IsExpanded=false,
                 Content=Stack(
                     Row(Field("Tình trạng làm",workChoice),
-                        A("Lưu trạng thái vào Excel cột K",
+                        A("Lưu tiến độ trong HISA",
                             async()=>await SaveWorkChoiceAsync(workChoice.SelectedIndex),true),
                         B("Lịch sử dòng chọn",()=>
                         {
@@ -336,9 +320,9 @@ public partial class MainWindow
                                     ("Ghi nhận lúc","RecordedAt",210),("Người thao tác","By",150),
                                     ("Ghi chú","Note",-1)));
                         })),
-                    T("Nguồn MÁY KÉO.xlsx, cột K: Đã làm / Chưa làm hoặc ngày xuất thực tế. "+
-                        "HISA đọc lại những thay đổi bạn đã lưu trong Excel. Chỉ phiếu Đã xuất mới có quyền "+
-                        "ghi ngày theo serial và luôn tạo bản sao trước khi ghi.",12,false,Muted),
+                    T("Nguồn MÁY KÉO.xlsx: cột K có ngày = Đã bàn giao; trống = Đang làm, chưa bàn giao. "+
+                        "Tiến độ Đã làm/Chưa làm lưu trong HISA, không ghi chữ vào cột K. "+
+                        "Chỉ khi phiếu Đã xuất, HISA lấy ngày xuất trên phiếu để ghi ngày bàn giao đúng serial.",12,false,Muted),
                     T("Lưu ý: tên HĐ xuất hiện trong file không chứng minh đã gửi gia công. "+
                         "Chọn máy theo đúng serial và chỉ bấm Đã gửi khi việc gửi đã diễn ra thực tế.",11,false,Muted)
                 ),
@@ -368,7 +352,7 @@ public partial class MainWindow
         Grid.SetRow(grid,3);tables.Children.Add(grid);
         RefreshContracts();
         FilterMachines();
-        SetPage("Máy kéo gia công tại Hưng Yên",
+        SetPage("Lịch làm máy kéo",
             "Tìm HĐ/serial · bộ lọc tiến độ trực quan · một lần xác nhận trạng thái",
             Layout(header,tables));
     }
