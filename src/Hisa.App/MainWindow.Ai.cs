@@ -15,6 +15,7 @@ public partial class MainWindow
     private string? _aiDispatchDay;
     // Step 1: incoming containers; step 2: outgoing slips.
     private bool _aiShowDispatch;
+    private string _aiReceiptSummary="";
     // Checked material groups survive switching between Cont and dispatch steps.
     private List<string> _aiHandoverGroups=HandoverMaterialGroups.All;
 
@@ -77,7 +78,22 @@ public partial class MainWindow
         // Selection flags are transient and must NOT invalidate approval.
         grid.Columns.Add(incoming
             ? OneClickCheckColumn("Cont đã về?","SelectedForArrival",110)
-            : OneClickCheckColumn("Làm phiếu","SelectedForHandover",100));
+            : OneClickCheckColumn("Làm phiếu","SelectedForHandover",92,onDataEdited));
+        if(!incoming)
+        {
+            // Fast pick list: one checkbox per outgoing contract + just the
+            // fields needed to prepare a handover. Full Zalo OCR detail stays
+            // available in its optional source-screen editor.
+            TextColumn("Số HĐ","Contract",112);
+            TextColumn("Công trình / T1/T2","Project",-1);
+            TextColumn("Đơn vị","Company",140);
+            TextColumn("Ngày dự kiến xuất","PlannedDate",120);
+            TextColumn("Ghi chú","Note",190);
+            grid.Columns.Add(OneClickCheckColumn("Cần kiểm tra",
+                "NeedsReview",100,onDataEdited));
+            TextColumn("Lý do kiểm tra","ReviewNote",175);
+            return grid;
+        }
         TextColumn("Nguồn", "EntrySource", 92, false);
         TextColumn("Số HĐ", "Contract", 110);
         TextColumn("Công trình", "Project", -1);
@@ -127,6 +143,7 @@ public partial class MainWindow
                 _aiDocument = null;
                 _aiShowDispatch = false;
                 _aiHandoverGroups=HandoverMaterialGroups.All;
+                _aiReceiptSummary="";
                 upload.Text = Path.GetFileName(file.FileName);
             }
         }, true);
@@ -147,6 +164,7 @@ public partial class MainWindow
                 AiScheduleBulkSelection.SetAll(_aiDocument,true,true);
                 _aiShowDispatch = false;
                 _aiHandoverGroups=HandoverMaterialGroups.All;
+                _aiReceiptSummary="";
                 ShowAiSchedules();
             }
             catch (Exception ex)
@@ -162,12 +180,13 @@ public partial class MainWindow
             _aiDocument=AiScheduleWorkspace.NewDraft(DateTime.Today.AddDays(1));
             _aiShowDispatch=false;
             _aiHandoverGroups=HandoverMaterialGroups.All;
+            _aiReceiptSummary="";
             _aiImagePath="";
             ShowAiSchedules();
         });
         var top = Card(Stack(
             T("ẢNH ZALO → NHẬN CONT / LÀM PHIẾU", 18, true),
-            T("① Chọn ảnh Zalo → ② Tự lấy tất cả số HĐ về → ③ Quét Container / tìm kiện Hưng Yên → ④ Xác nhận một lần để nhập Tổng hợp.",13,true,Brush("#177E89")),
+            T("① Đọc ảnh Zalo → ② Nhập kiện Hưng Yên → ③ Chọn HĐ xuất và nhóm vật tư → ④ Lập phiếu bàn giao.",13,true,Brush("#177E89")),
             T("Ngày cont dự kiến về chỉ là dự báo, KHÔNG phải hàng đã nhập. Nhận cont và làm phiếu là hai thao tác độc lập.",12,false,Muted),
             status,
             Row(choose,upload,analyze),
@@ -191,8 +210,14 @@ public partial class MainWindow
         var dayDispatch = Input(doc.DispatchDate);
         dayDispatch.Width = 150;
         Action? invalidateEditedCheck = null;
-        var incoming = ScheduleEditor(doc.Arrivals, true,()=>invalidateEditedCheck?.Invoke());
-        var outgoing = ScheduleEditor(doc.Dispatches, false,()=>invalidateEditedCheck?.Invoke());
+        Action? refreshDispatchSelection = null;
+        var incoming = ScheduleEditor(doc.Arrivals, true,
+            ()=>invalidateEditedCheck?.Invoke());
+        var outgoing = ScheduleEditor(doc.Dispatches, false,()=>
+        {
+            invalidateEditedCheck?.Invoke();
+            refreshDispatchSelection?.Invoke();
+        });
         var saved=T("Chọn hợp đồng trực tiếp, không cần lưu/duyệt lịch Zalo.",12,true);
         // Changing a working list never implies approval of a physical movement.
         void MarkWorkingSchedule()
@@ -278,7 +303,15 @@ public partial class MainWindow
                     : doc.Arrivals.Where(x=>x.SelectedForArrival).ToList(),
                 ()=>Commit(incoming),
                 searchWhenLoaded:quickZaloReview,
-                quickZaloReview:quickZaloReview));
+                quickZaloReview:quickZaloReview,
+                onReceiptCommitted:quickZaloReview
+                    ? summary=>
+                    {
+                        _aiReceiptSummary=summary;
+                        _aiShowDispatch=true;
+                        ShowAiSchedules();
+                    }
+                    : null));
         }
         if(quickZaloReview)
         {
