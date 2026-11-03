@@ -1,3 +1,14 @@
+## HISA v1.9.44 — Chọn Thang 01/Thang 02 ngay khi lập phiếu (sửa lỗi HĐ 43822026)
+
+- Khi bấm Lập phiếu từ ảnh Zalo, nếu một số HĐ có hai hay nhiều công trình trong Tổng hợp.xlsx, mở bảng **Chọn đúng thang/công trình** ngay tại thao tác, hiển thị tên gốc, đơn vị, số kiện và số dòng vật tư theo nhóm đã chọn. Người dùng tích một hoặc nhiều thang rồi bấm **Lập phiếu chờ**, không phải sửa tên OCR hay tải lại ảnh.
+- Không tự tích bất kỳ công trình mơ hồ nào. Nhấn Hủy giữ nguyên màn hình, không tạo phiếu hoặc sửa Excel.
+- Nếu Zalo ghi rõ Thang 01/Thang 02 và nguồn Excel chỉ có một gia đình công trình/đơn vị với duy nhất thang tương ứng, tự đối chiếu đúng thang; không gộp cả hai.
+- Khi lập phiếu, lưu phạm vi công trình/đơn vị đã chọn vào bộ lọc dự thảo, bảo đảm **Tải vật tư** ở trang sau không lấy lại thang không chọn.
+- Giữ nguyên chọn sáu nhóm vật tư, serial từ MÁY KÉO.xlsx, xem trước/in và xác nhận phiếu theo quy trình. Không tự xác nhận đã xuất.
+- Bổ sung kiểm thử giả lập dữ liệu HĐ 43822026 với Thang 01 và Thang 02, một/both/cancel, cảnh báo lựa chọn sai, trường hợp Zalo ghi rõ thang.
+
+---
+
 ## HISA v1.9.43 — Sửa đối chiếu hợp đồng khi lập phiếu sau quét Zalo
 
 - Sửa lỗi **"không khớp chính xác công trình/công ty trong Tổng hợp.xlsx"** cho HĐ 43822026 và các HĐ có tên/địa chỉ OCR khác cách ghi trong Excel.
