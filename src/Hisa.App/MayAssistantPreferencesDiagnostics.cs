@@ -18,8 +18,8 @@ public static class MayAssistantPreferencesDiagnostics
         try
         {
             var initial=MayAssistantPreferences.Read(file);
-            Check(!initial.AutoSpeak && initial.MicrophoneNumber==-1 &&
-                  initial.Sensitivity==0.0045,"New device uses safe default without listening");
+            Check(initial.AutoSpeak && initial.MicrophoneNumber==-1 &&
+                  initial.Sensitivity==0.0045,"New device enables speaker by default without listening");
             new MayAssistantPreferences{AutoSpeak=true,MicrophoneNumber=2,
                 Sensitivity=0.002}.Save(file);
             var saved=MayAssistantPreferences.Read(file);
