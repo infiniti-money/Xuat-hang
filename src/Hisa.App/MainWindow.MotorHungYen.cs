@@ -303,6 +303,50 @@ public partial class MainWindow
                         "và nhật ký sửa chữa của Excel trước khi ghi dữ liệu thật.");
                 }),
                 B("Bỏ lọc HĐ",()=>{selectedContractKey="";contractGrid.SelectedItem=null;FilterMachines();})),
+            Row(A("↻ Đồng bộ ngày bàn giao cột K · HĐ đang chọn",async()=>
+            {
+                var contract=(grid.SelectedItem as MotorHungYenStore.Item)?.Contract ??
+                    (contractGrid.SelectedItem as MotorHungYenContractOverview.Contract)?.Contract ??
+                    query.Text?.Trim() ?? "";
+                if(Rules.Contract(contract).Length==0)
+                {
+                    Notify("Chọn một HĐ trong danh sách hoặc nhập mã hợp đồng "+
+                        "(ví dụ 37452026) rồi thử lại.");
+                    return;
+                }
+                var check=MotorWorkbookHealth.Inspect(
+                    _service.Settings.TractionMachineListPath);
+                if(!check.CanWrite)
+                {
+                    Notify("Chưa đồng bộ vì file MÁY KÉO.xlsx không đạt kiểm tra chỉ đọc:\n"+
+                        string.Join("\n",check.Findings.Where(x=>x.Level=="Lỗi")
+                            .Take(6).Select(x=>x.Detail)));
+                    return;
+                }
+                if(!Ask("ĐỒNG BỘ LẠI NGÀY BÀN GIAO · HĐ "+contract+
+                    "\nChỉ kiểm tra các máy kéo của HĐ này đã có phiếu Đã xuất. "+
+                    "Lấy ngày xuất từ phiếu và chỉ ghi cột K khi khớp duy nhất "+
+                    "số HĐ + serial (cột I).\n"+
+                    "Không ghi ngày cho HĐ khác; không thay thế ngày do người dùng "+
+                    "đã nhập. HISA sẽ tạo bản sao lưu trước khi ghi. Tiếp tục?"))
+                    return;
+                try
+                {
+                    var result=await _service.RetryMotorHandoverAsync(contract);
+                    ShowMotorHungYen();
+                    Notify("ĐỒNG BỘ NGÀY BÀN GIAO · HĐ "+contract+
+                        "\nĐã ghi: "+result.Written+" máy · "+
+                        "Chưa đối chiếu: "+result.Unmatched+" máy.\n"+
+                        (result.Warnings.Count>0?
+                            string.Join("\n",result.Warnings.Take(8)):
+                            "Không còn sai lệch cần ghi. Kiểm tra lại cột K trong Excel."));
+                }
+                catch(Exception ex)
+                {
+                    Notify("Đồng bộ bị dừng, không tự sửa ngày cột K:\n"+
+                        ex.Message+"\nKiểm tra file nguồn, serial và thử lại.");
+                }
+            },true)),
             confirmedOnly,
             contractsSummary,
             summary,
