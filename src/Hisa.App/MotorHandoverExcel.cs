@@ -49,10 +49,9 @@ public static class MotorHandoverExcel
     {
         var values=new Dictionary<string,string>(StringComparer.Ordinal);
         var ambiguous=new HashSet<string>(StringComparer.Ordinal);
-        foreach(var slip in allSlips.Where(x=>x.Status=="delivered"))
+        foreach(var slip in slips.Where(x=>x.Status=="delivered"))
         foreach(var serial in MotorSerials.ActiveRows(slip))
         {
-            if(limited && Rules.Contract(serial.Contract)!=scope)continue;
             if(string.IsNullOrWhiteSpace(serial.SerialNumber) ||
                string.IsNullOrWhiteSpace(serial.Project) ||
                string.IsNullOrWhiteSpace(serial.Company) ||
@@ -182,9 +181,10 @@ public static class MotorHandoverExcel
                 " serial máy kéo. Không tự đoán ngày bàn giao theo số HĐ; "+
                 "kiểm tra serial trên phiếu và cột I MÁY KÉO.xlsx.");
         }
-        foreach(var slip in slips.Where(x=>x.Status=="delivered"))
+        foreach(var slip in allSlips.Where(x=>x.Status=="delivered"))
         foreach(var serial in MotorSerials.ActiveRows(slip))
         {
+            if(limited && Rules.Contract(serial.Contract)!=scope)continue;
             if(string.IsNullOrWhiteSpace(serial.SerialNumber) ||
                string.IsNullOrWhiteSpace(serial.Project) ||
                string.IsNullOrWhiteSpace(serial.Company))continue;
