@@ -86,7 +86,7 @@ public static class ZaloContainerQuickImportDiagnostics
         doc.Arrivals[2].SelectedForArrival=false;
         var filtered=ZaloContainerQuickImport.ContractRequests(
             doc.Arrivals.Where(x=>x.SelectedForArrival));
-        Check(filtered.Count==3 &&
+        Check(filtered.Count==2 &&
               filtered.All(x=>Rules.Contract(x.Contract)!="29102026"),
             "Unticking an incoming HĐ removes it from the next scan without affecting another contract");
         return checks;
