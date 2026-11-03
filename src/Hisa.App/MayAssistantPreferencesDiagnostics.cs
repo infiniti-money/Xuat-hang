@@ -32,8 +32,19 @@ public static class MayAssistantPreferencesDiagnostics
                 "Invalid persisted microphone and sensitivity are safely reset");
             File.WriteAllText(file,"not json");
             var recovered=MayAssistantPreferences.Read(file);
-            Check(!recovered.AutoSpeak&&recovered.MicrophoneNumber==-1,
-                "Damaged preferences cannot enable speaker or microphone implicitly");
+            Check(recovered.AutoSpeak&&recovered.MicrophoneNumber==-1,
+                "Damaged preferences revert to speaker-on default without listening");
+            new MayAssistantPreferences{AutoSpeak=false}.Save(file);
+            Check(!MayAssistantPreferences.Read(file).AutoSpeak,
+                "Explicit user choice to mute auto speaker remains saved");
+            var greeting=new MayVoiceGreeting();
+            Check(MayVoiceGreeting.Opening.Contains("chào anh") &&
+                  MayVoiceGreeting.Opening.Contains("muốn Mây giúp gì"),
+                "Mây greeting welcomes and asks what the user needs in Vietnamese");
+            Check(!greeting.TryBegin(1,false) && greeting.TryBegin(1,true) &&
+                  !greeting.TryBegin(1,true) &&
+                  !greeting.TryBegin(1,false) && greeting.TryBegin(3,true),
+                "Greeting occurs once per explicitly activated voice session only");
             Check(!typeof(MayAssistantPreferences).GetProperties()
                 .Any(x=>x.Name.Contains("Consent")||x.Name.Contains("ApiKey")),
                 "Voice preferences never store Gemini API credentials or permission grants");
