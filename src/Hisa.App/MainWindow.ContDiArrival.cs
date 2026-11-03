@@ -120,7 +120,7 @@ public partial class MainWindow
             },true),
             B("Bỏ chọn",()=>{foreach(var x in rows)x.Selected=false;grid.Items.Refresh();}),
             A(quickZaloReview
-                ? "✓ Xác nhận nhập kiện đã chọn → Tổng hợp.xlsx"
+                ? "③ Nhập file Tổng hợp.xlsx · xác nhận kiện đã về"
                 : "✓ Sao chép kiện đã về → Tổng hợp.xlsx",async()=>
             {
                 commitInput?.Invoke();Commit(grid);
