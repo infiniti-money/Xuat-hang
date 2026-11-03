@@ -43,6 +43,17 @@ public static class MotorSerialExcelSyncDiagnostics
                 sheet.Cell(5,9).Value="SERIAL-T2";
                 workbook.SaveAs(source);
             }
+            // An advanced Excel file may contain parts outside ClosedXML's
+            // object model. Patching a serial must preserve them byte-for-byte.
+            var opaque=System.Text.Encoding.UTF8.GetBytes(
+                "EXCEL_CUSTOM_PART_PRESERVE"+Guid.NewGuid().ToString("N"));
+            using(var zip=System.IO.Compression.ZipFile.Open(
+                source,System.IO.Compression.ZipArchiveMode.Update))
+            {
+                var entry=zip.CreateEntry("customXml/hisa-opaque.bin");
+                using var output=entry.Open();
+                output.Write(opaque);
+            }
             var settings=new AppSettings{TractionMachineListPath=source};
             var slip=new Slip{Contracts=["56062026"],
                 Lines=[new MaterialLine{Id="motor-1",Contract="56062026",
@@ -59,6 +70,14 @@ public static class MotorSerialExcelSyncDiagnostics
             var done=MotorSerialExcelSync.Apply(settings,slip,backups);
             Check(done.Written==2&&Directory.GetFiles(backups,"*.xlsx").Length==1,
                 "Confirmed manual serials persist in original Excel and create backup");
+            using(var zip=System.IO.Compression.ZipFile.OpenRead(source))
+            {
+                using var opaqueStream=zip.GetEntry("customXml/hisa-opaque.bin")!.Open();
+                using var copied=new MemoryStream();
+                opaqueStream.CopyTo(copied);
+                Check(copied.ToArray().SequenceEqual(opaque),
+                    "Serial patch preserves opaque workbook extension parts exactly");
+            }
             using(var workbook=new XLWorkbook(source))
             {
                 var sheet=workbook.Worksheets.First();

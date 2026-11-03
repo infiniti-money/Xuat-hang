@@ -14,8 +14,8 @@ namespace Hisa.App;
 /// </summary>
 public static class MotorHandoverExcel
 {
-    private const string ColumnTitle="Ngày xuất kho";
-    private const int StatusColumn=11; // Cột K: trạng thái gia công hoặc ngày xuất kho (hai chiều)
+    private const string ColumnTitle="Ngày bàn giao";
+    private const int StatusColumn=11; // Cột K: NGÀY BÀN GIAO thực tế, không ghi trạng thái chữ.
     private const string ReceiptFile="motor_handover_excel_sync.json";
     private static readonly JsonSerializerOptions Json=new() {WriteIndented=true};
     public sealed class Receipt
@@ -111,34 +111,6 @@ public static class MotorHandoverExcel
         finally{if(File.Exists(temp))File.Delete(temp);}
     }
 
-    private static void SaveExcel(XLWorkbook book,string excelPath,string backupDir)
-    {
-        var folder=Path.GetDirectoryName(Path.GetFullPath(excelPath))!;
-        var temp=Path.Combine(folder,"."+Path.GetFileNameWithoutExtension(excelPath)+"."+
-            Guid.NewGuid().ToString("N")+".tmp.xlsx");
-        try
-        {
-            // Respect an open/locked production workbook and always retain its
-            // complete pre-write bytes before updating the actual original.
-            using(var locked=new FileStream(excelPath,FileMode.Open,FileAccess.ReadWrite,FileShare.None)){}
-            Directory.CreateDirectory(backupDir);
-            var backup=Path.Combine(backupDir,"MAY-KEO-truoc-ngay-ban-giao-"+
-                DateTime.Now.ToString("yyyyMMdd-HHmmss-fff")+"-"+
-                Guid.NewGuid().ToString("N")[..8]+".xlsx");
-            File.Copy(excelPath,backup,false);
-            book.SaveAs(temp,new SaveOptions{
-                EvaluateFormulasBeforeSaving=false,GenerateCalculationChain=false
-            });
-            File.Move(temp,excelPath,true);
-        }
-        catch(IOException e)
-        {
-            throw new IOException("Không thể cập nhật ngày bàn giao trong MÁY KÉO.xlsx. "+
-                "Hãy lưu và đóng file Excel trước khi thử lại; phiếu đã xuất vẫn được giữ. "+e.Message,e);
-        }
-        finally{if(File.Exists(temp))File.Delete(temp);}
-    }
-
     public static Outcome Sync(AppSettings settings,IEnumerable<Slip> slips,
         string dataDirectory,string excelBackupDirectory,string? explicitWorkIdentity=null)
     {
@@ -146,8 +118,15 @@ public static class MotorHandoverExcel
         var path=settings.TractionMachineListPath;
         var receiptPath=Path.Combine(dataDirectory,ReceiptFile);
         var allReceipts=ReadReceipts(receiptPath);
-        var legacy=allReceipts.Where(x=>!string.Equals(x.Column,"K",StringComparison.OrdinalIgnoreCase)).ToList();
-        var prior=allReceipts.Where(x=>string.Equals(x.Column,"K",StringComparison.OrdinalIgnoreCase)).ToList();
+        // Old versions wrote "Đã làm/Chưa làm" into K. Preserve their
+        // receipts as history, but DO NOT use them to restore work text when
+        // a delivered slip is cancelled. A blank K means not handed over.
+        var legacy=allReceipts.Where(x=>
+            !string.Equals(x.Column,"K",StringComparison.OrdinalIgnoreCase) ||
+            IsWorkText(x.Date)).ToList();
+        var prior=allReceipts.Where(x=>
+            string.Equals(x.Column,"K",StringComparison.OrdinalIgnoreCase) &&
+            !IsWorkText(x.Date)).ToList();
         var incomplete=slips.Where(x=>x.Status=="delivered")
             .SelectMany(x=>x.Lines.Where(MotorSerials.IsMotor))
             .Any(x=>x.Quantity is >0);
@@ -198,20 +177,9 @@ public static class MotorHandoverExcel
                 !DateTime.TryParseExact(DateText(c),"yyyy-MM-dd",
                     CultureInfo.InvariantCulture,DateTimeStyles.None,out _)))
             throw new InvalidDataException("Cột K không có tiêu đề nhưng chứa dữ liệu ngoài Chưa làm / Đã làm / ngày xuất kho. HISA không ghi đè.");
+        // Read status only from Excel. Work progress is kept in the HISA
+        // tracking JSON, never written to production column K.
         var rows=EquipmentListReader.Read(path,"Máy kéo");
-        var workItems=new MotorHungYenStore(dataDirectory).List(rows);
-        foreach(var item in workItems.Where(x=>x.PresentInSource &&
-            !string.IsNullOrWhiteSpace(x.Serial) &&
-            !string.IsNullOrWhiteSpace(x.Project) &&
-            !string.IsNullOrWhiteSpace(x.Company)))
-        {
-            var choice=item.WorkChoice;
-            if(choice.Length==0 && item.State==MotorHungYenStore.Completed)
-                choice="Đã làm"; // Existing v1.9.13 work confirmations
-            if(!IsWorkText(choice))continue;
-            var id=IdentityFor(item);
-            if(!wished.ContainsKey(id))wished[id]=choice;
-        }
         if(wished.Count==0 && prior.Count==0)
             return new Outcome(0,0,0,warnings);
         var indexed=rows.Where(x=>!string.IsNullOrWhiteSpace(x.Serial))
@@ -238,19 +206,17 @@ public static class MotorHandoverExcel
             var cell=sheet.Cell(candidates[0].SourceRow,dateColumn);
             var existing=DateText(cell);
             priorByKey.TryGetValue(identity,out var owned);
-            // Excel is also an input: a human's change in K must not be
-            // silently reverted by background reconciliation with stale JSON.
-            // Only an explicit click in HISA may replace one work word with another.
-            bool explicitWork=explicitWorkIdentity==identity && IsWorkText(day) &&
-                IsWorkText(existing);
+            // Only delivered slips create a date. Existing human-entered
+            // dates are authoritative and are never replaced. Legacy "Đã làm"
+            // may be upgraded to an actual date after confirmed shipment.
             if(owned==null && existing.Length>0 && existing!=day &&
-               !(IsWorkText(existing) && !IsWorkText(day)) && !explicitWork)
+               !IsWorkText(existing))
             {
                 unmatched++;
                 warnings.Add("Cột K có dữ liệu nhập tay khác trạng thái dự kiến; không ghi đè: "+identity);
                 continue;
             }
-            if(owned!=null&&existing!=owned.Date&&existing!=day && !explicitWork)
+            if(owned!=null&&existing!=owned.Date&&existing!=day)
             {
                 unmatched++;
                 warnings.Add("Cột K đã bị sửa bên ngoài HISA. Không ghi đè: "+identity);
@@ -259,10 +225,11 @@ public static class MotorHandoverExcel
             // An already-matching value typed by the operator stays operator-owned.
             // Claim ownership only when HISA actually changes the cell.
             if(owned==null && existing==day)continue;
-            actions.Add((candidates[0].SourceRow,day,identity,owned?.PreviousDate??existing));
+            // No date means in production/not yet handed over. On reversal
+            // restore an EMPTY K, not the old work-text status.
+            actions.Add((candidates[0].SourceRow,day,identity,""));
             next[identity]=new Receipt{Identity=identity,Column="K",Date=day,
-                PreviousDate=explicitWork && owned!=null && existing!=owned.Date
-                    ? existing : owned?.PreviousDate??existing};
+                PreviousDate=""};
         }
         foreach(var old in prior)
         {
@@ -282,42 +249,43 @@ public static class MotorHandoverExcel
                 warnings.Add("Ngày bàn giao đã được sửa thủ công; giữ nguyên: "+old.Identity);
                 continue;
             }
-            actions.Add((matched[0].SourceRow,old.PreviousDate,old.Identity,""));
+            actions.Add((matched[0].SourceRow,"",old.Identity,""));
         }
-        if(newlyAdded)
-        {
-            sheet.Cell(2,dateColumn).Value=ColumnTitle;
-            sheet.Cell(2,dateColumn).Style.Font.Bold=true;
-            sheet.Column(dateColumn).Width=20;
-        }
+        var edits=new List<MotorWorkbookCellPatch.Edit>();
+        if(newlyAdded && actions.Count>0)
+            edits.Add(new MotorWorkbookCellPatch.Edit(2,dateColumn,ColumnTitle));
         foreach(var action in actions)
         {
             var cell=sheet.Cell(action.Row,dateColumn);
             if(DateText(cell)==(action.NewDay??""))continue;
-            if(string.IsNullOrEmpty(action.NewDay))
+            if(action.NewDay==null || action.NewDay.Length==0)
             {
-                cell.Clear(XLClearOptions.Contents);
+                edits.Add(new MotorWorkbookCellPatch.Edit(action.Row,dateColumn,null));
                 cleared++;
             }
             else if(DateTime.TryParseExact(action.NewDay,"yyyy-MM-dd",
-                CultureInfo.InvariantCulture,DateTimeStyles.None,out var day))
+                CultureInfo.InvariantCulture,DateTimeStyles.None,out _))
             {
-                cell.Value=day;
-                cell.Style.NumberFormat.Format="dd/MM/yyyy";
+                edits.Add(new MotorWorkbookCellPatch.Edit(action.Row,dateColumn,
+                    action.NewDay,true));
                 written++;
             }
-            else if(IsWorkText(action.NewDay??""))
-            {
-                cell.Value=action.NewDay!;
-                written++;
-            }
+            else
+                throw new InvalidDataException(
+                    "Cột K chỉ nhận ngày bàn giao đã xác nhận, không ghi trạng thái chữ.");
         }
-        if(newlyAdded||written>0||cleared>0)
-            SaveExcel(book,path,excelBackupDirectory);
+        // Do not resave the whole original workbook via ClosedXML.
+        // Only patch K cells in OOXML, preserving all unrelated package parts.
+        if(edits.Count>0)
+            MotorWorkbookCellPatch.Apply(path,excelBackupDirectory,edits,
+                "MAY-KEO-truoc-ngay-ban-giao");
         // The receipt file only changes after Excel was safely committed.
         if(prior.Count!=next.Count || prior.Any(x=>!next.TryGetValue(x.Identity,out var y)||
             y.Date!=x.Date||y.PreviousDate!=x.PreviousDate))
-            PersistReceipts(receiptPath,legacy.Concat(next.Values)
+            PersistReceipts(receiptPath,legacy
+                .Where(x=>!string.Equals(x.Column,"K",StringComparison.OrdinalIgnoreCase) ||
+                    !next.ContainsKey(x.Identity))
+                .Concat(next.Values)
                 .OrderBy(x=>x.Column).ThenBy(x=>x.Identity).ToList());
         return new Outcome(written,cleared,unmatched,warnings);
     }

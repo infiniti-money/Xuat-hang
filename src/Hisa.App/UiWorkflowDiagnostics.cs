@@ -200,11 +200,11 @@ public static class UiWorkflowDiagnostics
                 "Updater information screen exposes a single action instead of two installation steps");
             Call("ShowSettings");
             Check(navigation.Children.OfType<Button>().Any(b=>b.Content?.ToString()
-                    ?.Contains("Máy kéo gia công tại Hưng Yên")==true),
+                    ?.Contains("Lịch làm máy kéo")==true),
                 "Motor Hưng Yên tracker has its own visible navigation menu");
             Call("ShowMotorHungYen");
             Check(window.FindName("PageTitle") is TextBlock motorTitle &&
-                  motorTitle.Text=="Máy kéo gia công tại Hưng Yên",
+                  motorTitle.Text=="Lịch làm máy kéo",
                 "Motor outsourcing page title uses the corrected Hưng Yên location");
             Check(MotorHungYenStore.Name(MotorHungYenStore.Sent)=="Đã gửi gia công tại Hưng Yên",
                 "Motor status label is corrected without altering persisted status codes");
@@ -215,11 +215,11 @@ public static class UiWorkflowDiagnostics
 
             Check(Children(window).OfType<Button>().Count(b=>b.Content is StackPanel sp &&
                 sp.Children.OfType<TextBlock>().Any(t=>t.Text is
-                    "TỔNG SỐ MÁY" or "CHƯA GỬI" or "ĐANG GIA CÔNG" or
-                    "ĐÃ LÀM XONG" or "ĐÃ BÀN GIAO"))==5,
-                "Motor screen shows five visible clickable KPI filters");
-            Check(Children(window).OfType<Button>().Any(x=>x.Content?.ToString()=="✓ ĐÃ LÀM XONG · GHI EXCEL") &&
-                  Children(window).OfType<Button>().Any(x=>x.Content?.ToString()=="○ CHƯA LÀM · GHI EXCEL") &&
+                    "TỔNG SỐ MÁY" or "ĐANG LÀM · CHƯA BÀN GIAO" or
+                    "ĐÃ BÀN GIAO · CÓ NGÀY K"))==3,
+                "Motor schedule shows three filters reflecting the column K delivery day");
+            Check(Children(window).OfType<Button>().Any(x=>x.Content?.ToString()=="✓ ĐÃ LÀM XONG · LƯU TIẾN ĐỘ") &&
+                  Children(window).OfType<Button>().Any(x=>x.Content?.ToString()=="○ CHƯA LÀM · LƯU TIẾN ĐỘ") &&
                   Children(window).OfType<Button>().Any(x=>x.Content?.ToString()=="Bỏ lọc HĐ"),
                 "Motor status offers direct action buttons and clear contract filter");
             Check(Children(window).OfType<Expander>().Any(x=>
@@ -229,12 +229,12 @@ public static class UiWorkflowDiagnostics
             Check(Children(window).OfType<DataGrid>().Any(g=>
                 g.Columns.OfType<DataGridTextColumn>().Any(c=>c.Header?.ToString()=="Tiến độ xác nhận") &&
                 g.Columns.OfType<DataGridTextColumn>().Any(c=>c.Header?.ToString()=="Chọn làm") &&
-                g.Columns.OfType<DataGridTextColumn>().Any(c=>c.Header?.ToString()=="Cột K (Excel)") &&
+                g.Columns.OfType<DataGridTextColumn>().Any(c=>c.Header?.ToString()=="Cột K · ngày bàn giao") &&
                 g.Columns.OfType<DataGridTextColumn>().Any(c=>c.Header?.ToString()=="Ngày bàn giao")),
                 "Motor tracker separates selected work status from actual delivery date");
             Check(Children(window).OfType<ComboBox>().Any(c=>
                     c.Items.Cast<object>().Select(x=>x.ToString()).SequenceEqual(new[]{"Chưa làm","Đã làm"})) &&
-                Children(window).OfType<Button>().Any(b=>b.Content?.ToString()=="Lưu trạng thái vào Excel cột K") &&
+                Children(window).OfType<Button>().Any(b=>b.Content?.ToString()=="Lưu tiến độ trong HISA") &&
                 !Children(window).OfType<Button>().Any(b=>
                     b.Content?.ToString()?.Contains("Xác nhận đã bàn giao")==true) &&
                 Children(window).OfType<Button>().Any(b=>b.Content?.ToString()=="Lịch sử dòng chọn"),
@@ -245,9 +245,9 @@ public static class UiWorkflowDiagnostics
                 g.Columns.OfType<DataGridTextColumn>().Any(c=>c.Header?.ToString()=="Bàn giao")),
                 "Motor tracker displays a separate contract-level outsourcing overview");
             Check(Children(window).OfType<CheckBox>().Any(c=>
-                c.Content?.ToString()?.Contains("Chỉ hiện hợp đồng đã xác nhận gửi gia công tại Hưng Yên")==true &&
+                c.Content?.ToString()?.Contains("Chỉ hiện hợp đồng có máy kéo trong danh sách Excel")==true &&
                 c.IsChecked==true),
-                "Contract overview defaults to confirmed Hưng Yên subcontracting only, never all unverified Excel rows");
+                "Motor schedule lists all source contracts and K dates decide handover");
             var simulated=AiScheduleWorkspace.NewDraft(new DateTime(2026,10,31));
             simulated.Arrivals.Add(new AiScheduleLine{Contract="05492026",Project="Công trình A",Company="Công ty A",PlannedDate=simulated.ArrivalDate});
             simulated.Dispatches.Add(new AiScheduleLine{Contract="20012026",Project="Công trình C",Company="Công ty A",PlannedDate=simulated.DispatchDate});
