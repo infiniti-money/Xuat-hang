@@ -3,6 +3,22 @@ namespace Hisa.App;
 /// <summary>Builds an editable draft report exclusively from explicitly checked AI dispatch rows.</summary>
 public static class AiHandoverSelection
 {
+    // Only explicit numeric subproject markers are used as a hard conflict.
+    // Ordinary project names and addresses may differ between OCR and Excel.
+    private static string ExplicitTower(string? project)
+    {
+        var code = Rules.ProjectCode(project);
+        var towerIndex = code.LastIndexOf("|T:", StringComparison.Ordinal);
+        if (towerIndex < 0) return "";
+        var tower = code[(towerIndex + 3)..];
+        if (tower.Length > 0) return tower;
+        var parentIndex = code.IndexOf("|P:", StringComparison.Ordinal);
+        if (parentIndex < 0) return "";
+        var parent = code[(parentIndex + 3)..towerIndex];
+        var digits = parent.TrimStart('T');
+        return digits.Length > 0 && digits.All(char.IsDigit) ? digits : "";
+    }
+
     public static ContractReport Build(ContractReport report, AiScheduleDocument schedule,
         IReadOnlyList<AiScheduleLine> selected)
     {
@@ -47,10 +63,34 @@ public static class AiHandoverSelection
             }
 
             var sameContract = candidates.Where(x => Rules.Contract(x.Contract) == contract).ToList();
-            if (sameContract.Count > 0)
-                throw new InvalidOperationException("HĐ " + ai.Contract + " · " + ai.Project +
-                    " không khớp chính xác công trình/công ty trong Tổng hợp.xlsx. " +
-                    "Hãy sửa dòng AI hoặc tra cứu hợp đồng; không tự chọn nhầm công trình.");
+            // Zalo OCR often expands a customer name into its street address,
+            // while the Excel master keeps a shorter project/company label.
+            // For ONE authoritative source identity, the contract number is
+            // sufficient; the draft receives the original Excel fields.
+            // Different explicit T1/T2 (or numbered subprojects) still block.
+            if (sameContract.Count == 1)
+            {
+                var source = sameContract[0];
+                var aiTower = ExplicitTower(ai.Project);
+                var sourceTower = ExplicitTower(source.Project);
+                if (aiTower.Length > 0 && sourceTower.Length > 0 &&
+                    aiTower != sourceTower)
+                    throw new InvalidOperationException("HĐ " + ai.Contract +
+                        " có thang/công trình (" + aiTower + ") khác dữ liệu Excel (" +
+                        sourceTower + "). Kiểm tra lại đúng T1/T2 trước khi lập phiếu.");
+                source.Selected = true;
+                if (matches.Add(source.Identity)) selectedCount++;
+                report.Warnings.Add("HĐ " + source.Contract +
+                    ": tự đối chiếu theo số hợp đồng duy nhất. Dùng công trình/đơn vị " +
+                    "từ Tổng hợp.xlsx thay cho tên OCR từ Zalo.");
+                continue;
+            }
+            if (sameContract.Count > 1)
+                throw new InvalidOperationException("HĐ " + ai.Contract +
+                    " có nhiều công trình/đơn vị trong Tổng hợp.xlsx: " +
+                    string.Join("; ",sameContract.Take(6).Select(x => x.Project +
+                        " / " + x.Company)) +
+                    ". Hãy chọn đúng T1/T2 hoặc công trình; không tự gộp kiện.");
 
             var missing = report.Missing.SingleOrDefault(x => Rules.Contract(x.Contract) == contract);
             if (missing == null)
