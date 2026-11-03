@@ -161,6 +161,40 @@ public static class MotorWorkbookCellPatch
         return document;
     }
 
+    // Verify actual decompressed OOXML part contents, not only ZIP entry names
+    // and timestamps. The one selected worksheet may change, but everything
+    // else (styles, media, macros, custom XML, formulas in other sheets) must
+    // remain exactly as supplied by the operator.
+    private static void VerifyUnchangedParts(
+        ZipArchive original,string stagedPath,string patchedSheetPath)
+    {
+        using var staged=ZipFile.OpenRead(stagedPath);
+        if(original.Entries.Count!=staged.Entries.Count)
+            throw new InvalidDataException(
+                "Bản thử ghi Excel thay đổi số lượng thành phần OOXML.");
+        var map=new Dictionary<string,ZipArchiveEntry>(StringComparer.Ordinal);
+        foreach(var entry in staged.Entries)
+            if(!map.TryAdd(entry.FullName,entry))
+                throw new InvalidDataException(
+                    "Bản thử ghi có thành phần ZIP trùng tên: "+entry.FullName);
+        foreach(var entry in original.Entries)
+        {
+            if(!map.TryGetValue(entry.FullName,out var candidate))
+                throw new InvalidDataException(
+                    "Bản thử ghi làm mất thành phần Excel: "+entry.FullName);
+            if(entry.FullName==patchedSheetPath)continue;
+            if(entry.Length!=candidate.Length)
+                throw new InvalidDataException(
+                    "Bản thử ghi thay đổi kích thước thành phần: "+entry.FullName);
+            using var left=entry.Open();
+            using var right=candidate.Open();
+            if(!SHA256.HashData(left).AsSpan().SequenceEqual(SHA256.HashData(right)))
+                throw new InvalidDataException(
+                    "Bản thử ghi thay đổi thành phần không được phép: "+
+                    entry.FullName);
+        }
+    }
+
     private static string HashFile(string path)
     {
         using var source=File.OpenRead(path);
@@ -217,11 +251,36 @@ public static class MotorWorkbookCellPatch
                         }
                     }
                 }
-                // The patch must remain a valid workbook before any source is
-                // replaced. No writes to the real workbook happen at this point.
+                // Fail closed when any non-target part changed, even if a
+                // library would still be able to read the rebuilt workbook.
+                VerifyUnchangedParts(archive,tmp,sheetPath);
+                // Verify every intended cell in the staged workbook before
+                // replacing the original file, including dates and serials.
                 using var verify=new XLWorkbook(tmp);
                 if(verify.Worksheets.Count==0)
                     throw new InvalidDataException("Bản Excel thử ghi không có sheet.");
+                var verifiedSheet=verify.Worksheets.First();
+                foreach(var edit in edits)
+                {
+                    var checkedCell=verifiedSheet.Cell(edit.Row,edit.Column);
+                    if(edit.Value==null && !checkedCell.IsEmpty())
+                        throw new InvalidDataException(
+                            "Ô cần xóa vẫn còn dữ liệu sau kiểm tra: "+
+                            checkedCell.Address);
+                    if(edit.Date && (!checkedCell.TryGetValue<DateTime>(
+                            out var checkedDay) ||
+                        checkedDay.ToString("yyyy-MM-dd",CultureInfo.InvariantCulture)
+                            !=edit.Value))
+                        throw new InvalidDataException(
+                            "Ngày bàn giao ở ô "+checkedCell.Address+
+                            " khác giá trị xác nhận.");
+                    if(edit.Value!=null && !edit.Date &&
+                        !string.Equals(checkedCell.GetString(),edit.Value,
+                            StringComparison.Ordinal))
+                        throw new InvalidDataException(
+                            "Serial/tiêu đề ở ô "+checkedCell.Address+
+                            " khác giá trị xác nhận.");
+                }
                 Directory.CreateDirectory(backupFolder);
                 var backup=Path.Combine(backupFolder,backupPrefix+"-"+
                     DateTime.Now.ToString("yyyyMMdd-HHmmss-fff")+"-"+
