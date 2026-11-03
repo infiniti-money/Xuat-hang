@@ -54,7 +54,8 @@ public static class ZaloContainerQuickImport
         // lots is NEVER automatically marked as actually arrived. The user
         // must tick the intended packages explicitly before saving.
         foreach(var row in rows)
-            if(ambiguous.Contains(Rules.Contract(row.Contract)))
+            if(ambiguous.Contains(Rules.Contract(row.Contract)) ||
+               row.Notes.Contains("CẢNH BÁO",StringComparison.OrdinalIgnoreCase))
                 row.Selected=false;
         return new Review(rows.Count(x=>x.Status==ContDiArrivalLookup.Ready),
             rows.Count(x=>x.Selected),
