@@ -306,7 +306,7 @@ public partial class MainWindow
             Row(A("↻ Đồng bộ ngày bàn giao cột K · HĐ đang chọn",async()=>
             {
                 var contract=(grid.SelectedItem as MotorHungYenStore.Item)?.Contract ??
-                    (contractGrid.SelectedItem as MotorHungYenContractOverview.Contract)?.Contract ??
+                    (contractGrid.SelectedItem as MotorHungYenContractOverview.Contract)?.ContractNumber ??
                     query.Text?.Trim() ?? "";
                 if(Rules.Contract(contract).Length==0)
                 {
