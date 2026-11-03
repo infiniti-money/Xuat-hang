@@ -1,3 +1,13 @@
+## HISA v1.9.47 — Bỏ chọn/Chọn lại theo nhóm vật tư ngay trong phiếu bàn giao
+
+- Ngay trong tab **Vật tư trên phiếu**, bên cạnh các thao tác Lưu phiếu, Xem trước/in và Chọn in tất cả, bổ sung dòng **Chọn nhóm vật tư trên phiếu** cùng hai nút **Bỏ chọn cả nhóm** và **Chọn lại nhóm**.
+- Danh sách nhóm tự lấy từ những dòng thực tế trên phiếu (ví dụ **Ray dẫn hướng, Đầu cửa tầng, Bass nối ray**). Có thể tắt hoặc bật lại mọi dòng của một nhóm qua một lần nhấn, kể cả khi nhóm trải trên nhiều hợp đồng.
+- Khi bỏ tích một nhóm, các nhóm khác giữ nguyên. **Không xóa dòng, không thay đổi số lượng, công trình hay hợp đồng**, không ghi Excel hoặc xác nhận hàng đã xuất. Chỉ thay đổi cột **Xuất / in** của phiếu đang sửa.
+- Những thay đổi được áp dụng vào phiếu khi bấm **Lưu phiếu bàn giao** hoặc xem trước/in theo hành vi hiện có. Có thông báo số dòng vừa thay đổi; thêm vật tư mới làm mới danh sách nhóm.
+- Bổ sung kiểm thử hồi quy cả logic chọn nhóm và nút thao tác giao diện WPF, cùng quy trình build Windows/cài mới/cài đè/ZIP/SHA-256.
+
+---
+
 ## HISA v1.9.46 — Một quy trình bốn bước Zalo → Phân tích → Nhập file → Lên phiếu
 
 - Bảng điều khiển Zalo hiển thị rõ **① Chọn ảnh → ② Phân tích → ③ Nhập file → ④ Lên phiếu** và đánh dấu bước hiện tại. Lựa chọn ảnh mới làm mới các bước và không dùng nhầm lịch AI cũ.

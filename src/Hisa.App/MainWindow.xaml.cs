@@ -610,6 +610,44 @@ public partial class MainWindow : Window
         var status=new ComboBox{Width=170,ItemsSource=new[]{new Choice("planned","Chờ xuất"),new Choice("delivered","Đã xuất"),new Choice("delayed","Tạm hoãn"),new Choice("cancelled","Đã hủy")},DisplayMemberPath="Label",SelectedValuePath="Value"};status.SelectedValue=slip.Status;
         var reason=Input(slip.Status=="cancelled"?slip.CancelReason:slip.DelayReason);reason.Width=510;
         var lines=MaterialsTable(slip.Lines,true);
+        // Fast group toggles apply to ALL rows belonging to the chosen group,
+        // including multiple contracts. They modify only Include, not the
+        // source material list or warehouse stock.
+        var materialGroupPicker=new ComboBox
+        {
+            Width=205,DisplayMemberPath="Label",SelectedValuePath="Value",
+            ToolTip="Chọn một nhóm đang có trên phiếu để bỏ tích hoặc chọn lại cả nhóm"
+        };
+        var materialGroupStatus=T("Bỏ tích nhóm chỉ thay đổi cột Xuất / in, không xóa vật tư.",12,false,Muted);
+        void RefreshMaterialGroupChoices()
+        {
+            var previous=materialGroupPicker.SelectedValue?.ToString();
+            var available=SlipMaterialGroupSelection.AvailableGroups(slip.Lines);
+            materialGroupPicker.ItemsSource=available.Select(group=>new Choice(group,group)).ToList();
+            materialGroupPicker.SelectedValue=previous!=null && available.Contains(previous)
+                ?previous:available.FirstOrDefault();
+            materialGroupPicker.IsEnabled=available.Count>0;
+        }
+        void SetMaterialGroupIncluded(bool include)
+        {
+            // Validate any in-progress quantity or text edits before changing
+            // selection. This keeps the operator's unsaved edits intact.
+            Commit(lines);
+            var group=materialGroupPicker.SelectedValue?.ToString();
+            if(string.IsNullOrWhiteSpace(group))
+            {
+                materialGroupStatus.Text="Phiếu chưa có nhóm vật tư để lựa chọn.";
+                return;
+            }
+            var changed=SlipMaterialGroupSelection.SetGroupIncluded(
+                slip.Lines,group,include);
+            lines.Items.Refresh();
+            materialGroupStatus.Text=(include?"Đã chọn lại ":"Đã bỏ chọn ")+
+                changed+" dòng nhóm "+group+". Còn "+
+                slip.Lines.Count(line=>line.Include)+"/"+slip.Lines.Count+
+                " dòng được đánh dấu Xuất / in.";
+        }
+        RefreshMaterialGroupChoices();
         void readHeader(){slip.Name=name.Text;slip.Note=note.Text;slip.HandoverDate=Day(day);slip.TemplateId=template.SelectedValue?.ToString()??"internal_summary";slip.Status=status.SelectedValue?.ToString()??"planned";if(slip.Status=="delayed")slip.DelayReason=reason.Text.Trim();if(slip.Status=="cancelled")slip.CancelReason=reason.Text.Trim();}
         void read(){Commit(lines);readHeader();}
         _captureDraftEditor=read;
@@ -628,7 +666,12 @@ public partial class MainWindow : Window
             if(slip.Status=="delivered"&&!Ask($"Ghi nhận phiếu này ĐÃ XUẤT vào Thành phẩm xuất kho.xlsx và ghi Ngày bàn giao cho đúng seri trong MÁY KÉO.xlsx?\n\n{slip.ContractLabel}"))return;
             if(slip.Status=="delivered"&&!ConfirmMotorSerialsForDelivery(slip))return;
             var saved=await _service.SaveSlipAsync(slip);Notify("Đã lưu phiếu "+saved.SlipCode);_draft=null;_draftReport=null;Navigate("slips");
-        },true),B("Xem trước / in phiếu",()=>{if(scopeChanged?.Invoke()==true){Notify("Bạn đã đổi mã hợp đồng/bộ lọc. Tải lại vật tư để xem trước đúng phiếu.");return;}read();PrintSlipWithMotorSerials(slip);}),A("Sửa mẫu phiếu in",async()=>{var editor=new TemplateEditorWindow(FindTemplate(template.SelectedValue?.ToString()??slip.TemplateId)){Owner=this};if(editor.ShowDialog()==true){await _service.SaveTemplateAsync(editor.ResultTemplate);Notify("Đã lưu mẫu in. Bấm Xem trước để kiểm tra.");}}),B("+ Thêm vật tư",()=>{var item=EditLine(slip.Lines.FirstOrDefault());if(item!=null){slip.Lines.Add(item);lines.Items.Refresh();}}),B("Chọn in tất cả",()=>{foreach(var l in slip.Lines)l.Include=true;lines.Items.Refresh();}),B("Bỏ chọn dòng đang chọn",()=>{foreach(var l in lines.SelectedItems.OfType<MaterialLine>())l.Include=false;lines.Items.Refresh();})));
+        },true),B("Xem trước / in phiếu",()=>{if(scopeChanged?.Invoke()==true){Notify("Bạn đã đổi mã hợp đồng/bộ lọc. Tải lại vật tư để xem trước đúng phiếu.");return;}read();PrintSlipWithMotorSerials(slip);}),A("Sửa mẫu phiếu in",async()=>{var editor=new TemplateEditorWindow(FindTemplate(template.SelectedValue?.ToString()??slip.TemplateId)){Owner=this};if(editor.ShowDialog()==true){await _service.SaveTemplateAsync(editor.ResultTemplate);Notify("Đã lưu mẫu in. Bấm Xem trước để kiểm tra.");}}),B("+ Thêm vật tư",()=>{var item=EditLine(slip.Lines.FirstOrDefault());if(item!=null){slip.Lines.Add(item);lines.Items.Refresh();RefreshMaterialGroupChoices();}}),B("Chọn in tất cả",()=>{foreach(var l in slip.Lines)l.Include=true;lines.Items.Refresh();}),B("Bỏ chọn dòng đang chọn",()=>{foreach(var l in lines.SelectedItems.OfType<MaterialLine>())l.Include=false;lines.Items.Refresh();})));
+        toolbar.Children.Add(Row(
+            Field("Chọn nhóm vật tư trên phiếu",materialGroupPicker),
+            B("Bỏ chọn cả nhóm",()=>SetMaterialGroupIncluded(false)),
+            B("Chọn lại nhóm",()=>SetMaterialGroupIncluded(true)),
+            materialGroupStatus));
         toolbar.Children.Add(Row(
             B("↓ Lấy serial từ MÁY KÉO.xlsx",()=>
             {

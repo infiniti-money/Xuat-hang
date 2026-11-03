@@ -208,6 +208,7 @@ public static class SelfTests
             result.Checks.AddRange(AuditPrintDiagnostics.Run());
             result.Checks.AddRange(PlannedArrivalBulkDiagnostics.Run());
             result.Checks.AddRange(HandoverMaterialGroupsDiagnostics.Run());
+            result.Checks.AddRange(SlipMaterialGroupSelectionDiagnostics.Run());
             result.Checks.AddRange(ZaloDispatchContractImportDiagnostics.Run());
             result.Checks.AddRange(ZaloContainerQuickImportDiagnostics.Run());
             result.Checks.AddRange(ZaloDispatchQuickSelectionDiagnostics.Run());
