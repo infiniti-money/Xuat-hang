@@ -79,7 +79,7 @@ public static class MotorHandoverExcelDiagnostics
             var ws=book.Worksheet(1);
             Check(ws.Cell(2,11).GetString()=="Ngày xuất kho" &&
                 ws.Cell(3,11).GetDateTime()==new DateTime(2026,10,27),
-                "Confirmed delivery writes a real Excel date in column K under Ngày xuất kho");
+                "Confirmed delivery writes a real Excel date in column K without changing unrelated cells");
             Check(ws.Cell(4,11).IsEmpty() && ws.Cell(5,11).IsEmpty() &&
                 ws.Cell(6,11).GetDateTime()==new DateTime(2026,10,19) &&
                 ws.Cell(7,11).IsEmpty() &&
@@ -163,10 +163,10 @@ public static class MotorHandoverExcelDiagnostics
                 book.Worksheet(1).Cell(2,11).GetString()=="Ngày xuất kho" &&
                 book.Worksheet(1).Cell(4,11).GetDateTime()==new DateTime(2026,10,29) &&
                 book.Worksheet(1).Cell(3,14).GetString()=="Không sửa",
-                "Without column K header, create exactly L while leaving legacy N notes unchanged");
+                "Without column K header, add date header only and leave legacy N notes unchanged");
 
-        // Explicit Chưa làm / Đã làm must write text, then a confirmed slip
-        // replaces only that word with a real date. Cancellation restores work.
+        // New contract: K is a delivery DATE ONLY. Status changes remain
+        // in HISA JSON and must not rewrite the operator's Excel workbook.
         var workPath=Path.Combine(production,"MÁY KÉO work.xlsx");
         File.Copy(otherPath,workPath);
         var workData=Path.Combine(root,"work-data");
@@ -175,54 +175,26 @@ public static class MotorHandoverExcelDiagnostics
         var tracker=new MotorHungYenStore(workData);
         var machine=tracker.List(EquipmentListReader.Read(workPath,"Máy kéo"))
             .Single(x=>x.Serial=="S-001");
-        tracker.SetWorkStatus(machine,true,DateTime.Today.ToString("yyyy-MM-dd"),"Kiểm thử");
+        var beforeWork=File.ReadAllBytes(workPath);
+        tracker.SetWorkStatus(machine,true,DateTime.Today.ToString("yyyy-MM-dd"),
+            "Đang gia công");
         var workResult=MotorHandoverExcel.Sync(settings,[planned],workData,archive);
-        using(var book=new XLWorkbook(workPath))
-            Check(workResult.Written==1&&
-                book.Worksheet(1).Cell(3,11).GetString()=="Đã làm",
-                "Choosing Đã làm writes text to L and not a date");
-        var readBack=EquipmentListReader.Read(workPath,"Máy kéo");
-        Check(readBack.Single(x=>x.Serial=="S-001").MotorColumnK=="Đã làm" &&
-              new MotorHungYenStore(workData).List(readBack)
-                  .Single(x=>x.Serial=="S-001").WorkLabel=="Đã làm",
-            "Status written to Excel is read back by the tracker, including manual edits");
+        Check(workResult.Written==0 &&
+              beforeWork.SequenceEqual(File.ReadAllBytes(workPath)),
+            "Work progress remains in local tracking, never writes Đã làm into K");
         var actual=MakeSlip("S-001","delivered","2026-10-27","actual-work");
-        MotorHandoverExcel.Sync(settings,[actual],workData,archive);
+        var afterDelivery=MotorHandoverExcel.Sync(settings,[actual],workData,archive);
         using(var book=new XLWorkbook(workPath))
-            Check(book.Worksheet(1).Cell(3,11).GetDateTime()==new DateTime(2026,10,27),
-                "Confirmed slip replaces Đã làm with actual date in L");
+            Check(afterDelivery.Written==1 &&
+                  book.Worksheet(1).Cell(3,11).GetDateTime()==
+                      new DateTime(2026,10,27),
+                "Delivered slip automatically writes actual slip export day into K");
         actual.Status="cancelled";
         MotorHandoverExcel.Sync(settings,[actual],workData,archive);
         using(var book=new XLWorkbook(workPath))
-            Check(book.Worksheet(1).Cell(3,11).GetString()=="Đã làm",
-                "Cancelling slip restores Đã làm, not an invented delivery date");
-        tracker.SetWorkStatus(tracker.List(EquipmentListReader.Read(workPath,"Máy kéo"))
-            .Single(x=>x.Serial=="S-001"),false,DateTime.Today.ToString("yyyy-MM-dd"),"Kiểm thử lại");
-        MotorHandoverExcel.Sync(settings,[actual],workData,archive);
-        using(var book=new XLWorkbook(workPath))
-            Check(book.Worksheet(1).Cell(3,11).GetString()=="Chưa làm",
-                "Changing back to Chưa làm updates L but keeps the audit history");
+            Check(book.Worksheet(1).Cell(3,11).IsEmpty(),
+                "Reversed delivery clears only app-owned K date, never restores work text");
 
-        // Two-way edit: an Excel operator changes L without using HISA.
-        // HISA must display the new word and not silently restore stale JSON.
-        using(var book=new XLWorkbook(workPath))
-        {
-            book.Worksheet(1).Cell(3,11).Value="Đã làm";
-            book.Save();
-        }
-        var manualRows=EquipmentListReader.Read(workPath,"Máy kéo");
-        var manualItem=tracker.List(manualRows).Single(x=>x.Serial=="S-001");
-        Check(manualItem.WorkLabel=="Đã làm" && manualItem.ExcelStatusLabel=="Đã làm",
-            "Direct editing in Excel column K is reflected in the HISA work selector");
-        var protectedSync=MotorHandoverExcel.Sync(settings,[planned],workData,archive);
-        using(var book=new XLWorkbook(workPath))
-            Check(protectedSync.Written==0 && book.Worksheet(1).Cell(3,11).GetString()=="Đã làm",
-                "Background reconciliation cannot overwrite an external L work edit");
-        var identity=MotorHandoverExcel.IdentityFor(manualItem);
-        var explicitSync=MotorHandoverExcel.Sync(settings,[planned],workData,archive,identity);
-        using(var book=new XLWorkbook(workPath))
-            Check(explicitSync.Written==1 && book.Worksheet(1).Cell(3,11).GetString()=="Chưa làm",
-                "Explicit HISA work confirmation can safely write back into L");
         using(var book=new XLWorkbook(workPath))
         {
             book.Worksheet(1).Cell(3,11).Value=new DateTime(2026,10,25);
@@ -233,27 +205,23 @@ public static class MotorHandoverExcelDiagnostics
             .Single(x=>x.Serial=="S-001");
         Check(dateItem.ExcelDispatchDay=="2026-10-25" &&
               dateItem.ExcelStatusLabel.Contains("25/10/2026"),
-            "A manual L date is read and displayed as the Excel dispatch date");
+            "Pre-existing human-entered column K date means already handed over");
         var keepDate=MotorHandoverExcel.Sync(settings,[planned],workData,archive);
         using(var book=new XLWorkbook(workPath))
             Check(keepDate.Written==0 &&
-                book.Worksheet(1).Cell(3,11).GetDateTime()==new DateTime(2026,10,25),
-                "Stale HISA work state cannot replace a human-entered Excel dispatch date");
-        // Old versions used N; keep their receipts for audit, but never treat
-        // an N receipt as permission to overwrite a protected L date.
+                  book.Worksheet(1).Cell(3,11).GetDateTime()==new DateTime(2026,10,25),
+                "No delivered slip cannot overwrite previous human-entered date");
+        var identity=MotorHandoverExcel.IdentityFor(dateItem);
         var receiptPath=Path.Combine(workData,"motor_handover_excel_sync.json");
-        var beforeLegacy=File.ReadAllText(receiptPath);
         var oldReceipt=System.Text.Json.JsonSerializer.Serialize(new[]{
-            new {Identity=identity,Date="2026-10-25",PreviousDate=""}
+            new {Identity=identity,Date="Đã làm",Column="K",PreviousDate=""}
         });
         File.WriteAllText(receiptPath,oldReceipt);
         var legacySync=MotorHandoverExcel.Sync(settings,[planned],workData,archive);
         using(var book=new XLWorkbook(workPath))
             Check(legacySync.Written==0 &&
-                book.Worksheet(1).Cell(3,11).GetDateTime()==new DateTime(2026,10,25) &&
-                book.Worksheet(1).Cell(3,14).GetString()=="Không sửa",
-                "A legacy N receipt never claims ownership of column K or changes N");
-        File.WriteAllText(receiptPath,beforeLegacy);
+                  book.Worksheet(1).Cell(3,11).GetDateTime()==new DateTime(2026,10,25),
+                "Legacy K work-state receipts do not erase an actual handover date");
 
         // A pre-used unrelated column K must block the write entirely.
         var blockedPath=Path.Combine(production,"MÁY KÉO blocked.xlsx");
@@ -269,7 +237,7 @@ public static class MotorHandoverExcelDiagnostics
         try{MotorHandoverExcel.Sync(settings,[delivered],Path.Combine(root,"blocked-data"),archive);}
         catch(InvalidDataException){refused=true;}
         Check(refused&&unchanged.SequenceEqual(File.ReadAllBytes(blockedPath)),
-            "Occupied N column is never overwritten or silently relocated");
+            "Occupied K column is never overwritten or silently relocated");
         return checks;
     }
 }
