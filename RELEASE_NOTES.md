@@ -1,3 +1,16 @@
+## HISA v1.9.50 — Khôi phục đồng bộ ngày bàn giao máy kéo theo HĐ 37452026
+
+- Sửa trường hợp phiếu **Đã xuất** nhưng cột K vẫn trống: khi tên công trình/công ty trong phiếu (từ ảnh Zalo hoặc Tổng hợp) khác cách ghi trong MÁY KÉO.xlsx, chỉ cần **mã hợp đồng và serial vật lý duy nhất** trong Excel để xác định dòng máy. Nếu serial bị trùng hoặc không có, KHÔNG tự ghi ngày theo số HĐ.
+- Khi phiếu Đã xuất còn thiếu serial hoặc ngày xuất không hợp lệ, hiển thị cảnh báo cụ thể và giữ trạng thái chờ đồng bộ thay vì đánh dấu các bước ghi Excel đều hoàn tất. Việc tạo phiếu **Chờ xuất** không thay đổi cột K.
+- Trong **Lịch làm máy kéo**, thêm nút **Đồng bộ ngày bàn giao cột K · HĐ đang chọn**. Chọn hoặc nhập HĐ (ví dụ 37452026), xác nhận, HISA kiểm tra tính hợp lệ của file rồi **chỉ** đồng bộ HĐ đó từ những phiếu đã Đã xuất, tạo sao lưu trước khi ghi; trả về số dòng đã ghi và chưa khớp.
+- Không ghi nhầm Thang 01/Thang 02: yêu cầu số HĐ + serial duy nhất, không ghi sang hợp đồng khác, không ghi đè ngày đã do người dùng nhập. Đồng bộ lặp lại không tạo bản ghi trùng.
+- Tạo bộ dữ liệu kiểm thử giả lập HĐ **37452026** với hai máy kéo cùng HĐ, tên công trình/đơn vị khác Excel và một HĐ khác, xác nhận chỉ cập nhật đúng cột K của serial đã xuất.
+- Giữ cơ chế ghi OOXML theo ô của v1.9.49, sao lưu file gốc và kiểm tra lại workbook trước khi thay thế.
+
+**Giới hạn:** bản sửa được kiểm thử bằng Excel giả lập, không chứng minh file MÁY KÉO.xlsx thật trên máy đã được cập nhật. Trước khi đồng bộ vào file nguồn hãy kiểm tra file không bị Excel Repair, sao lưu và xác nhận serial I/ngày K.
+
+---
+
 ## HISA v1.9.49 — Kiểm tra an toàn file MÁY KÉO.xlsx (chỉ đọc)
 
 - Tại **Lịch làm máy kéo**, thêm nút **Kiểm tra file Excel (chỉ đọc)** để kiểm tra file được liên kết trước khi ghi dữ liệu thật. Nút chỉ đọc: không chỉnh sửa, không phục hồi, không thay serial hoặc trạng thái phiếu.
