@@ -97,7 +97,8 @@ public static class MotorHandoverRecoveryDiagnostics
                 Directory.GetFiles(backup,"*.xlsx").Length==1,
                 "Repeated repair is idempotent and creates no extra backup");
             var noSerial=SlipFor("37452026","","delivered","2026-10-31");
-            var blocked=MotorHandoverExcel.Sync(settings,[noSerial],
+            var blocked=MotorHandoverExcel.Sync(settings,
+                [delivered,noSerial,unconfirmed,other],
                 data,backup,contractScope:"37452026");
             Check(blocked.Written==0 && blocked.Unmatched>0 &&
                 blocked.Warnings.Any(x=>x.Contains("thiếu") &&
