@@ -482,16 +482,63 @@ public partial class MainWindow
         incomingBody.Children.Add(arrivalMaterials);
         UpdateMaterialDetail(incoming,arrivalMaterials);
 
-        outgoingBody.Children.Add(T("Tích ô 'Làm phiếu' của các HĐ cần xuất/bàn giao. Khi lập phiếu, HISA tự lấy số serial máy kéo từ MÁY KÉO.xlsx điền vào từng máy trên phiếu và IN KÈM serial. Mây không tự ghi ngày xuất hoặc xác nhận Đã xuất.",12,false,Muted));
+        if(_aiReceiptSummary.Length>0)
+            outgoingBody.Children.Add(Alert("✓ "+_aiReceiptSummary+
+                "  TIẾP THEO: chọn hợp đồng DỰ KIẾN XUẤT, nhóm vật tư rồi lập phiếu bàn giao. "+
+                "Không cần chọn hoặc phân tích lại ảnh Zalo."));
+        outgoingBody.Children.Add(T(
+            "TÍCH SỐ HỢP ĐỒNG CẦN BÀN GIAO → CHỌN NHÓM VẬT TƯ → LẬP PHIẾU CHỜ. "+
+            "Mọi vật tư lấy từ Tổng hợp.xlsx đã tải lại, serial máy kéo tự lấy từ "+
+            "MÁY KÉO.xlsx; không tự xác nhận đã xuất.",13,true,Brush("#177E89")));
+        outgoingBody.Children.Add(Row(Field("Ngày dự kiến lên phiếu · yyyy-MM-dd",
+            dayDispatch)));
+        if(doc.Dispatches.Count==0)
+            outgoingBody.Children.Add(Alert(
+                "Ảnh Zalo chưa có hợp đồng DỰ KIẾN XUẤT. "+
+                "Có thể thêm HĐ tại 'Bổ sung hợp đồng phát sinh' bên dưới; "+
+                "không tự dùng các HĐ cont về để xuất."));
+        var dispatchFilter=Input("");
+        dispatchFilter.Width=260;
+        var dispatchSelection=T("",12,true,Brush("#177E89"));
+        void RefreshDispatchSelection()
+        {
+            dispatchSelection.Text="Đã chọn "+doc.Dispatches.Count(x=>x.SelectedForHandover)+
+                "/"+doc.Dispatches.Count+" hợp đồng dự kiến xuất. "+
+                "Chỉ những HĐ được tích mới lên phiếu chờ.";
+        }
+        refreshDispatchSelection=RefreshDispatchSelection;
+        dispatchFilter.TextChanged+=(_,_) =>
+        {
+            Commit(outgoing);
+            var term=Rules.Norm(dispatchFilter.Text).Trim();
+            outgoing.ItemsSource=term.Length==0
+                ? doc.Dispatches
+                : doc.Dispatches.Where(x=>
+                    Rules.Norm(x.Contract).Contains(term,StringComparison.Ordinal) ||
+                    Rules.Norm(x.Project).Contains(term,StringComparison.Ordinal) ||
+                    Rules.Norm(x.Company).Contains(term,StringComparison.Ordinal)).ToList();
+            RefreshDispatchSelection();
+        };
+        RefreshDispatchSelection();
+        outgoingBody.Children.Add(Row(Field("Lọc nhanh số HĐ / công trình",
+            dispatchFilter),dispatchSelection));
         outgoingBody.Children.Add(Row(
-            B("☑ Chọn tất cả HĐ xuất Hưng Yên",()=>
+            B("☑ Chọn tất cả HĐ đủ dữ liệu",()=>
             {
                 Commit(outgoing);
-                AiScheduleBulkSelection.SetAll(doc,false,true);
+                var count=ZaloDispatchQuickSelection.SelectAllEligible(doc);
                 outgoing.Items.Refresh();
-                saved.Text="Đã chọn "+doc.Dispatches.Count+" HĐ dự kiến xuất để đối chiếu. CHƯA lập phiếu/ghi sổ xuất.";
+                RefreshDispatchSelection();
+                saved.Text="Đã chọn "+count+" HĐ xuất đủ thông tin; "+
+                    "hợp đồng thiếu ngày, công trình/đơn vị hoặc cần kiểm tra "+
+                    "phải chỉnh riêng trước khi lập phiếu. Chưa ghi sổ xuất.";
             },true),
-            B("Bỏ tích làm phiếu",()=>{AiScheduleBulkSelection.SetAll(doc,false,false);outgoing.Items.Refresh();}),
+            B("Bỏ tích làm phiếu",()=>
+            {
+                AiScheduleBulkSelection.SetAll(doc,false,false);
+                outgoing.Items.Refresh();
+                RefreshDispatchSelection();
+            }),
             B("Trạng thái lịch xuất",()=>CycleSchedule(outgoing))
         ));
 
@@ -588,7 +635,7 @@ public partial class MainWindow
                 : string.Join("\n", warnings.Take(60)) + (warnings.Count > 60 ? "\n... còn " + (warnings.Count - 60) + " cảnh báo." : "");
         }
         RefreshWarnings();
-        var toPlan = A("✓  Lập phiếu từ hợp đồng đã tích", async () =>
+        var toPlan = A("✓ Lập phiếu từ hợp đồng & nhóm vật tư đã chọn", async () =>
         {
             Commit(outgoing);
             RefreshWarnings();
@@ -596,12 +643,11 @@ public partial class MainWindow
                 System.Globalization.CultureInfo.InvariantCulture,
                 System.Globalization.DateTimeStyles.None,out _))
                 throw new InvalidOperationException("Ngày dự kiến xuất không hợp lệ. Sửa ngày yyyy-MM-dd rồi lập phiếu.");
-            var chosen = doc.Dispatches.Where(x => x.SelectedForHandover).ToList();
+            var chosen = ZaloDispatchQuickSelection.Selected(doc);
             if (chosen.Count == 0)
-            {
-                Notify("Tích ô 'Làm phiếu' của hợp đồng cần bàn giao ở danh sách số 2.");
-                return;
-            }
+                throw new InvalidOperationException(
+                    "Chọn một hoặc nhiều số HĐ dự kiến xuất trong bảng phía trên. "+
+                    "Anh có thể lọc theo HĐ/công trình hoặc dùng nút Chọn tất cả HĐ đủ dữ liệu.");
             var codes = chosen.Select(x => x.Contract).DistinctBy(Rules.Contract).ToArray();
             SaveMaterialGroups();
             var filter=HandoverMaterialGroups.BuildFilter(string.Join("\n",codes),_aiHandoverGroups);
@@ -627,11 +673,20 @@ public partial class MainWindow
         outgoingBody.Children.Add(outgoing);
         outgoingBody.Children.Add(materialGroupCard);
         outgoingBody.Children.Add(Row(toPlan));
-        outgoingBody.Children.Add(Row(
-            B("▤ Xem 3 danh sách thiết bị",()=>OpenEquipmentLists(doc.Dispatches,"Thiết bị của các HĐ làm phiếu")),
-            B("▤ Xem toàn bộ vật tư HĐ bàn giao",()=>OpenAllMaterials(doc.Dispatches,"Vật tư các hợp đồng làm phiếu")),
-            B("🔢 Xem serial nguồn sẽ điền vào phiếu",()=>OpenMotorStatuses(doc.Dispatches,"Serial máy kéo của các HĐ dự kiến xuất"))));
-        outgoingBody.Children.Add(dispatchMaterials);
+        outgoingBody.Children.Add(new Expander
+        {
+            Header="▤ Đối chiếu vật tư và serial nguồn (tùy chọn)",
+            IsExpanded=false,Margin=new Thickness(0,8,0,10),
+            Content=Stack(
+                Row(
+                    B("▤ Xem 3 danh sách thiết bị",()=>OpenEquipmentLists(
+                        doc.Dispatches,"Thiết bị của các HĐ làm phiếu")),
+                    B("▤ Xem toàn bộ vật tư HĐ bàn giao",()=>OpenAllMaterials(
+                        doc.Dispatches,"Vật tư các hợp đồng làm phiếu")),
+                    B("🔢 Xem serial nguồn sẽ điền vào phiếu",()=>OpenMotorStatuses(
+                        doc.Dispatches,"Serial máy kéo của các HĐ dự kiến xuất"))),
+                dispatchMaterials)
+        });
         UpdateMaterialDetail(outgoing,dispatchMaterials);
         // Exactly one primary list is shown at a time.
         // This only changes UI state; nothing is saved to Excel here.
@@ -665,7 +720,9 @@ public partial class MainWindow
             IsExpanded=false,
             Content=Card(Stack(
                 Row(Field("Dự kiến nhập kho · yyyy-MM-dd",dayArrival),
-                    Field("Dự kiến xuất kho · yyyy-MM-dd",dayDispatch),
+                    dispatchStep
+                        ? T("Ngày dự kiến xuất được hiển thị ngay trong bước lập phiếu.",12,false,Muted)
+                        : Field("Dự kiến xuất kho · yyyy-MM-dd",dayDispatch),
                     B("Kiểm tra cảnh báo",RefreshWarnings)),
                 T("Lịch dự kiến không phải xác nhận nhập/xuất. "+
                   "Chỉ xác nhận cont đã nhận hoặc phiếu Đã xuất mới ghi dữ liệu thực tế.",12,false,Muted),
