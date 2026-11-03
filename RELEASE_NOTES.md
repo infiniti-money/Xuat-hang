@@ -1,3 +1,15 @@
+## HISA v1.9.41 — Quét nhanh toàn bộ hợp đồng cont về từ ảnh Zalo
+
+- **Ảnh Zalo → nhập kho nhanh:** Sau khi Gemini phân tích, HISA tự chọn **tất cả mã số hợp đồng hợp lệ** ở phần HÀNG DỰ KIẾN VỀ KHO, bỏ dòng trùng mã, **không lấy hợp đồng chỉ nằm trong HÀNG DỰ KIẾN XUẤT KHO**.
+- Tự chạy **một lượt quét nguồn Excel tại các thư mục Container** sau khi phân tích xong. Ghép chính xác mã HĐ với từng kiện được đánh dấu HƯNG YÊN/HUNG YEN, giữ đúng công trình/T1/T2, đợt cont, vật tư, số lượng từ **file Excel nguồn**, không tin tuyệt đối tên công trình hoặc container OCR nhận sai trong ảnh.
+- Bảng kết quả chỉ hiển thị kiện **chưa nhập** có ID nguồn và vật tư Hưng Yên, hiển thị hợp đồng thiếu dữ liệu, kiện không đạt điều kiện và lịch sử kiện đã nhập/ngày đã nhập trong `Tổng hợp.xlsx / chi tiết`. Không tự tạo dữ liệu vật tư hoặc nhập lại kiện cũ.
+- Các kiện duy nhất, đủ nguồn và không có cảnh báo trùng được **tự tích sẵn**. Nếu một số HĐ có nhiều công trình/T1/T2 hay nhiều đợt cont hoặc cảnh báo cùng vật tư đã nhập thì **không tự tích**, người dùng tự chọn kiện tương ứng ở bảng.
+- Khi cont đã thực về, chọn **ngày về thực tế**, bỏ tích kiện chưa nhận và bấm **Xác nhận nhập kiện đã chọn → Tổng hợp.xlsx**. Ứng dụng quét lại nguồn để chống thay đổi/trùng kiện, hiện một bản xác nhận tổng hợp số HĐ/kiện/vật tư rồi mới sao lưu và ghi **sheet chi tiết**. Ngày dự kiến trong ảnh không tự trở thành ngày đã nhận.
+- Màn hình đầu ưu tiên bảng kiện và nút xác nhận; bảng chỉnh sửa lịch gốc từ ảnh Zalo được thu gọn ở mục tùy chọn. Có nút quét lại HĐ khi nguồn thay đổi.
+- Kiểm thử hồi quy cho tất cả HĐ trong ảnh, hợp đồng trùng T1/T2, khác OCR, kiện Hưng Yên, thiếu nguồn, cảnh báo trùng và hành vi **không ghi Excel trước xác nhận**; kiểm thử tích hợp nhận kiện vào `Tổng hợp.xlsx` trên bộ dữ liệu mẫu tạm.
+
+---
+
 # v1.9.40 — Mây Mây trò chuyện xuyên trang, không mở cửa sổ mới
 
 - Nút **Nói với Mây** ở thanh công cụ bật/dừng micro ngay tại trang hiện tại, không mở popup và không chuyển trang.
