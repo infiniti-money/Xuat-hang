@@ -203,6 +203,7 @@ public partial class MainWindow
         }
 
         var doc = _aiDocument;
+        var dispatchStep=_aiShowDispatch || doc.Arrivals.Count==0;
         var quickZaloReview=doc.AnalyzedBy=="Gemini" && _aiImagePath.Length>0;
         var incomingCodes=ZaloContainerQuickImport.ContractRequests(doc.Arrivals);
         var dayArrival = Input(doc.ArrivalDate);
@@ -490,8 +491,9 @@ public partial class MainWindow
             "TÍCH SỐ HỢP ĐỒNG CẦN BÀN GIAO → CHỌN NHÓM VẬT TƯ → LẬP PHIẾU CHỜ. "+
             "Mọi vật tư lấy từ Tổng hợp.xlsx đã tải lại, serial máy kéo tự lấy từ "+
             "MÁY KÉO.xlsx; không tự xác nhận đã xuất.",13,true,Brush("#177E89")));
-        outgoingBody.Children.Add(Row(Field("Ngày dự kiến lên phiếu · yyyy-MM-dd",
-            dayDispatch)));
+        if(dispatchStep)
+            outgoingBody.Children.Add(Row(Field("Ngày dự kiến lên phiếu · yyyy-MM-dd",
+                dayDispatch)));
         if(doc.Dispatches.Count==0)
             outgoingBody.Children.Add(Alert(
                 "Ảnh Zalo chưa có hợp đồng DỰ KIẾN XUẤT. "+
@@ -690,7 +692,6 @@ public partial class MainWindow
         UpdateMaterialDetail(outgoing,dispatchMaterials);
         // Exactly one primary list is shown at a time.
         // This only changes UI state; nothing is saved to Excel here.
-        var dispatchStep=_aiShowDispatch || doc.Arrivals.Count==0;
         if(!dispatchStep)
         {
             panel.Children.Add(T("1 · CHỌN HỢP ĐỒNG CONT VỀ HƯNG YÊN",16,true));
