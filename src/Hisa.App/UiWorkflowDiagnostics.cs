@@ -234,8 +234,8 @@ public static class UiWorkflowDiagnostics
             var aiScroll=aiLayout.Children.OfType<ScrollViewer>().Single();
             var aiPanel=(StackPanel)aiScroll.Content;
             var headings=Children(aiPanel).OfType<TextBlock>().Select(x=>x.Text).ToArray();
-            Check(headings.Any(x=>x.Contains("1 · CHỌN HỢP ĐỒNG CONT")) &&
-                  !headings.Any(x=>x.Contains("2 · CHỌN HỢP ĐỒNG LẬP PHIẾU")),
+            Check(headings.Any(x=>x.Contains("3 · NHẬP FILE · CHỌN KIỆN")) &&
+                  !headings.Any(x=>x.Contains("4 · LÊN PHIẾU")),
                 "Zalo screen shows incoming contracts first, not both lists at once");
             Check(Children(aiPanel).OfType<TextBlock>().Any(t=>
                     t.Text.Contains("CHỌN HỢP ĐỒNG ĐỂ NHẬP VÀO TỔNG HỢP.XLSX")),
@@ -298,7 +298,7 @@ public static class UiWorkflowDiagnostics
             aiLayout=(Grid)aiHost.Children[0];
             aiScroll=aiLayout.Children.OfType<ScrollViewer>().Single();
             aiPanel=(StackPanel)aiScroll.Content;
-            Check(Children(aiPanel).OfType<TextBlock>().Any(x=>x.Text.Contains("2 · CHỌN HỢP ĐỒNG LẬP PHIẾU")) &&
+            Check(Children(aiPanel).OfType<TextBlock>().Any(x=>x.Text.Contains("4 · LÊN PHIẾU")) &&
                   !Children(aiPanel).OfType<DataGrid>().Any(g=>g.Columns.OfType<DataGridTemplateColumn>()
                       .Any(x=>x.Header?.ToString()=="Cont đã về?")),
                 "Next-step button replaces cont table with outgoing slip table");
@@ -320,7 +320,7 @@ public static class UiWorkflowDiagnostics
             selectGroups.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Check(materialGroups.All(x=>x.IsChecked==true),
                 "Select all restores only the six permitted material groups");
-            Check(Children(aiPanel).OfType<Button>().Any(b=>b.Content?.ToString()?.Contains("Lập phiếu từ hợp đồng")==true) &&
+            Check(Children(aiPanel).OfType<Button>().Any(b=>b.Content?.ToString()?.Contains("Lên phiếu bàn giao từ HĐ")==true) &&
                   Children(aiPanel).OfType<Button>().Any(b=>b.Content?.ToString()?.Contains("Xem toàn bộ vật tư HĐ bàn giao")==true) &&
                   Children(aiPanel).OfType<Button>().Any(b=>b.Content?.ToString()?.Contains("Quay lại chọn cont")==true),
                 "Outgoing stage can create a slip without schedule approval and return to incoming");
@@ -329,15 +329,27 @@ public static class UiWorkflowDiagnostics
                 "Opening Gemini results does not mark arrival, issue a slip or approve schedule");
             Check(Children(aiPanel).OfType<Expander>().Count(x=>!x.IsExpanded)>=2,
                 "Optional manual entry and warnings stay below the main flow and are collapsed");
-            typeof(MainWindow).GetField("_aiReceiptSummary",flags)!.SetValue(
-                window,"Đã nhập thành công vào Tổng hợp.xlsx: 1 HĐ · 2 kiện");
-            typeof(MainWindow).GetField("_aiShowDispatch",flags)!.SetValue(window,true);
+            Check(Children(window).OfType<TextBlock>().Any(t=>
+                    t.Text.Contains("1 Chọn ảnh") &&
+                    t.Text.Contains("2 Phân tích") &&
+                    t.Text.Contains("3 Nhập file") &&
+                    t.Text.Contains("4 Lên phiếu")),
+                "Four-step Zalo workflow stays visible from analysis to handover");
+            var advance=typeof(MainWindow).GetMethod(
+                "AdvanceZaloAfterReceipt",flags)!;
+            var selectedCount=(int)advance.Invoke(window,
+                [simulated,"Đã nhập thành công vào Tổng hợp.xlsx: 1 HĐ · 2 kiện"])!;
+            Check(selectedCount==1 && simulated.Dispatches[0].SelectedForHandover &&
+                  !simulated.Arrivals[0].SelectedForHandover &&
+                  (bool)typeof(MainWindow).GetField("_aiShowDispatch",flags)!
+                      .GetValue(window)!,
+                "Verified Excel receipt advances to step 4 and preselects dispatch rows only");
             Call("ShowAiSchedules");
             aiLayout=(Grid)aiHost.Children[0];
             aiPanel=(StackPanel)aiLayout.Children.OfType<ScrollViewer>().Single().Content;
             Check(Children(aiPanel).OfType<TextBlock>().Any(x=>
                     x.Text.Contains("Đã nhập thành công vào Tổng hợp.xlsx") &&
-                    x.Text.Contains("TIẾP THEO: chọn hợp đồng")) &&
+                    x.Text.Contains("HISA đã chuyển sang LÊN PHIẾU")) &&
                   Children(aiPanel).OfType<TextBlock>().Any(x=>
                     x.Text.Contains("TÍCH SỐ HỢP ĐỒNG CẦN BÀN GIAO")) &&
                   Children(aiPanel).OfType<TextBlock>().Any(x=>
@@ -346,7 +358,7 @@ public static class UiWorkflowDiagnostics
             Check(Children(aiPanel).OfType<Button>().Any(x=>
                     x.Content?.ToString()=="☑ Chọn tất cả HĐ đủ dữ liệu") &&
                   Children(aiPanel).OfType<Button>().Any(x=>
-                    x.Content?.ToString()?.Contains("Lập phiếu từ hợp đồng & nhóm vật tư")==true) &&
+                    x.Content?.ToString()?.Contains("Lên phiếu bàn giao từ HĐ và vật tư")==true) &&
                   Children(aiPanel).OfType<CheckBox>().Count(x=>
                     HandoverMaterialGroups.Options.Any(g=>
                         x.Content?.ToString()==g.Label))==6,
