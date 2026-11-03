@@ -149,14 +149,25 @@ public static class MotorHandoverExcel
         var missingSerialSlots=0;
         foreach(var slip in slips.Where(x=>x.Status=="delivered"))
         {
-            var wanted=slip.Lines.Where(MotorSerials.IsMotor)
-                .Sum(x=>x.Quantity is >0 ? (int)decimal.Truncate(x.Quantity.Value) : 0);
+            var motors=slip.Lines.Where(MotorSerials.IsMotor).ToList();
+            var wanted=motors.Sum(x=>x.Quantity is >0 ?
+                checked((int)decimal.Truncate(x.Quantity.Value)) : 0);
+            if(wanted==0)continue;
+            var contracts=string.Join(", ",motors.Select(x=>x.Contract)
+                .DistinctBy(Rules.Contract));
+            if(!DateTime.TryParseExact(slip.HandoverDate,"yyyy-MM-dd",
+                CultureInfo.InvariantCulture,DateTimeStyles.None,out _))
+            {
+                missingSerialSlots+=wanted;
+                warnings.Add("Phiếu "+slip.SlipCode+" / HĐ "+contracts+
+                    " đã xuất nhưng không có ngày xuất hợp lệ. "+
+                    "Kiểm tra ngày trên phiếu trước khi đồng bộ cột K.");
+                continue;
+            }
             var filled=MotorSerials.ActiveRows(slip).Count;
             if(wanted<=filled)continue;
             missingSerialSlots+=wanted-filled;
-            warnings.Add("Phiếu "+slip.SlipCode+" / HĐ "+
-                string.Join(", ",slip.Lines.Where(MotorSerials.IsMotor)
-                    .Select(x=>x.Contract).DistinctBy(Rules.Contract))+
+            warnings.Add("Phiếu "+slip.SlipCode+" / HĐ "+contracts+
                 " đã xuất nhưng thiếu "+(wanted-filled)+
                 " serial máy kéo. Không tự đoán ngày bàn giao theo số HĐ; "+
                 "kiểm tra serial trên phiếu và cột I MÁY KÉO.xlsx.");
