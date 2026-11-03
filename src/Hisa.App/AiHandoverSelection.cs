@@ -19,8 +19,37 @@ public static class AiHandoverSelection
         return digits.Length > 0 && digits.All(char.IsDigit) ? digits : "";
     }
 
+    /// <summary>Exact contract-number matches from the canonical Excel report.</summary>
+    public static List<ContractRow> SourceOptions(ContractReport report,AiScheduleLine line) =>
+        report.Rows.Concat(report.NoMaterialMatch)
+            .Where(x=>Rules.Contract(x.Contract)==Rules.Contract(line.Contract)).ToList();
+
+    // Auto-pick a tower only when all source rows belong to the SAME
+    // project/company family, and the Zalo image explicitly states T1/T2.
+    // Without a numeric tower hint, the operator must choose.
+    private static ContractRow? PreferredTower(IReadOnlyList<ContractRow> sources,AiScheduleLine ai)
+    {
+        var tower=ExplicitTower(ai.Project);
+        if(tower.Length==0 || sources.Count<=1)return null;
+        var families=sources.Select(x=>Rules.ProjectCode(x.Project).Split("|P:",2)[0]+
+            "|" +Rules.Code(x.Company)).Distinct(StringComparer.Ordinal).ToList();
+        if(families.Count!=1)return null;
+        var matching=sources.Where(x=>ExplicitTower(x.Project)==tower).ToList();
+        return matching.Count==1?matching[0]:null;
+    }
+
+    public static bool RequiresProjectChoice(ContractReport report,AiScheduleLine line)
+    {
+        var options=SourceOptions(report,line);
+        if(options.Count<=1)return false;
+        var exact=options.Count(x=>x.Identity==Rules.Identity(line.Contract,line.Project,line.Company));
+        if(exact!=0)return false; // A duplicated identical identity remains a source error.
+        return PreferredTower(options,line)==null;
+    }
+
     public static ContractReport Build(ContractReport report, AiScheduleDocument schedule,
-        IReadOnlyList<AiScheduleLine> selected)
+        IReadOnlyList<AiScheduleLine> selected,
+        IReadOnlyDictionary<AiScheduleLine,List<ContractRow>>? confirmedTargets=null)
     {
         // No separate schedule-approval step: an explicit checkbox is enough
         // to prepare an unsaved draft, but source identity must still be exact.
@@ -50,6 +79,25 @@ public static class AiHandoverSelection
                 throw new InvalidOperationException("HĐ " + ai.Contract +
                     " có ngày xuất khác ngày lịch đang duyệt. Hãy kiểm tra lại ảnh và ngày dự kiến.");
 
+            // Explicit source choices from the in-app T1/T2 picker. Multiple
+            // towers may be checked, but only rows from this exact HĐ/report.
+            if(confirmedTargets!=null && confirmedTargets.TryGetValue(ai,out var picked))
+            {
+                if(picked.Count==0)
+                    throw new InvalidOperationException("Chưa chọn công trình cho HĐ "+ai.Contract+".");
+                foreach(var source in picked)
+                {
+                    if(!candidates.Contains(source) ||
+                        Rules.Contract(source.Contract)!=contract ||
+                        candidates.Count(x=>x.Identity==source.Identity)!=1)
+                        throw new InvalidOperationException(
+                            "Lựa chọn công trình không còn hợp lệ cho HĐ "+ai.Contract+
+                            ". Tải lại Tổng hợp.xlsx và chọn lại đúng thang.");
+                    source.Selected=true;
+                    if(matches.Add(source.Identity))selectedCount++;
+                }
+                continue;
+            }
             var identity = Rules.Identity(ai.Contract, ai.Project, ai.Company);
             var exact = candidates.Where(x => x.Identity == identity).ToList();
             if (exact.Count > 1)
@@ -86,11 +134,22 @@ public static class AiHandoverSelection
                 continue;
             }
             if (sameContract.Count > 1)
+            {
+                var byTower=PreferredTower(sameContract,ai);
+                if(byTower!=null)
+                {
+                    byTower.Selected=true;
+                    if(matches.Add(byTower.Identity))selectedCount++;
+                    report.Warnings.Add("HĐ "+ai.Contract+
+                        ": đối chiếu đúng thang "+ExplicitTower(ai.Project)+
+                        " theo Tổng hợp.xlsx.");
+                    continue;
+                }
                 throw new InvalidOperationException("HĐ " + ai.Contract +
-                    " có nhiều công trình/đơn vị trong Tổng hợp.xlsx: " +
-                    string.Join("; ",sameContract.Take(6).Select(x => x.Project +
-                        " / " + x.Company)) +
-                    ". Hãy chọn đúng T1/T2 hoặc công trình; không tự gộp kiện.");
+                    " có nhiều công trình/đơn vị trong Tổng hợp.xlsx. " +
+                    "Hãy chọn đúng Thang 01/Thang 02 ở hộp chọn công trình khi lập phiếu; " +
+                    "không tự gộp kiện.");
+            }
 
             var missing = report.Missing.SingleOrDefault(x => Rules.Contract(x.Contract) == contract);
             if (missing == null)
