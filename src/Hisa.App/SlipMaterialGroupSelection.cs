@@ -14,8 +14,10 @@ public static class SlipMaterialGroupSelection
             .Distinct(StringComparer.Ordinal).ToList();
         var order=HandoverMaterialGroups.All;
         return groups.OrderBy(group=>
-                order.IndexOf(group) is var index && index>=0?index:int.MaxValue)
-            .ThenBy(group=>group,StringComparer.CurrentCulture).ToList();
+        {
+            var index=order.IndexOf(group);
+            return index<0?int.MaxValue:index;
+        }).ThenBy(group=>group,StringComparer.CurrentCulture).ToList();
     }
 
     /// <returns>Number of checkboxes whose Include flag actually changed.</returns>
