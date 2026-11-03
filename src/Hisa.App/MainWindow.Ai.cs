@@ -16,6 +16,18 @@ public partial class MainWindow
     // Step 1: incoming containers; step 2: outgoing slips.
     private bool _aiShowDispatch;
     private string _aiReceiptSummary="";
+    // Only a successful, verified workbook write advances stage 3 to stage 4.
+    // Selecting outgoing draft checkboxes never ships goods or saves a slip.
+    private int AdvanceZaloAfterReceipt(AiScheduleDocument doc,string receiptSummary)
+    {
+        if(!ReferenceEquals(doc,_aiDocument) || string.IsNullOrWhiteSpace(receiptSummary))
+            throw new InvalidOperationException(
+                "Chưa xác nhận nhập file Tổng hợp.xlsx thành công.");
+        _aiReceiptSummary=receiptSummary;
+        _aiShowDispatch=true;
+        return ZaloDispatchQuickSelection.SelectAllEligible(doc);
+    }
+
     // Checked material groups survive switching between Cont and dispatch steps.
     private List<string> _aiHandoverGroups=HandoverMaterialGroups.All;
 
@@ -130,7 +142,7 @@ public partial class MainWindow
             ? "● ĐÃ CẤU HÌNH GEMINI · Khóa được lưu an toàn trong Windows và giữ lại sau khi cập nhật."
             : "○ CHƯA CÓ GEMINI API KEY · Vào Cấu hình & sao lưu → Gemini AI để nhập và lưu.",
             12, true, keySaved ? Brush("#16745C") : Brush("#AF6A38"));
-        var choose = B("Chọn ảnh từ Zalo", () =>
+        var choose = B("① Chọn ảnh Zalo", () =>
         {
             var file = new OpenFileDialog
             {
@@ -145,9 +157,10 @@ public partial class MainWindow
                 _aiHandoverGroups=HandoverMaterialGroups.All;
                 _aiReceiptSummary="";
                 upload.Text = Path.GetFileName(file.FileName);
+                ShowAiSchedules(); // Update stage indicator.
             }
         }, true);
-        var analyze = A("②  Phân tích ảnh với Gemini", async () =>
+        var analyze = A("② Phân tích", async () =>
         {
             if (_aiImagePath.Length == 0)
                 throw new InvalidOperationException("Chọn một ảnh lịch nhập/xuất trước.");
@@ -184,10 +197,24 @@ public partial class MainWindow
             _aiImagePath="";
             ShowAiSchedules();
         });
+        // All four user-facing steps stay visible; Gemini reads the image once.
+        int activeStage=_aiDocument==null
+            ? (_aiImagePath.Length==0?1:2)
+            : (_aiShowDispatch || _aiDocument.Arrivals.Count==0?4:3);
+        var stageLabels=new[]{"Chọn ảnh","Phân tích","Nhập file","Lên phiếu"};
+        var stepLine=string.Join("  →  ",stageLabels.Select((label,i)=>
+            (i+1<activeStage?"✓":i+1==activeStage?"➤":"○")+
+            " "+(i+1)+" "+label));
         var top = Card(Stack(
-            T("ẢNH ZALO → NHẬN CONT / LÀM PHIẾU", 18, true),
-            T("① Đọc ảnh Zalo → ② Nhập kiện Hưng Yên → ③ Chọn HĐ xuất và nhóm vật tư → ④ Lập phiếu bàn giao.",13,true,Brush("#177E89")),
-            T("Ngày cont dự kiến về chỉ là dự báo, KHÔNG phải hàng đã nhập. Nhận cont và làm phiếu là hai thao tác độc lập.",12,false,Muted),
+            T("ZALO → TỔNG HỢP.XLSX → PHIẾU BÀN GIAO",18,true),
+            T(stepLine,14,true,Brush("#177E89")),
+            T(activeStage switch {
+                1=>"BƯỚC 1/4: Chọn một ảnh Zalo chứa lịch cont về và dự kiến xuất.",
+                2=>"BƯỚC 2/4: Phân tích ảnh một lần bằng Gemini; giữ cả lịch nhập và lịch xuất.",
+                3=>"BƯỚC 3/4: Kiểm tra kiện thực tế đã về và xác nhận ghi vào Tổng hợp.xlsx.",
+                _=>"BƯỚC 4/4: Hợp đồng dự kiến xuất đã được chọn sẵn nếu hợp lệ; chọn nhóm vật tư rồi lên phiếu chờ."
+            },12,true),
+            T("Lịch Zalo là dự kiến. Chỉ kiện đã kiểm tra và xác nhận thực nhận mới được ghi vào Excel; phiếu chờ không xác nhận xuất kho.",12,false,Muted),
             status,
             Row(choose,upload,analyze),
             Row(createManual,B("⚙  Cấu hình Gemini", () => Navigate("settings"))),
@@ -296,7 +323,7 @@ public partial class MainWindow
         // explicit action: the source file, date and each package are verified.
         if(doc.Arrivals.Count>0)
         {
-            incomingBody.Children.Add(T("TÌM KIỆN HƯNG YÊN TỪ CONTAINER · XÁC NHẬN VỀ KHO",16,true));
+            incomingBody.Children.Add(T("③ NHẬP FILE · ĐỐI CHIẾU KIỆN HƯNG YÊN VÀ XÁC NHẬN TỔNG HỢP.XLSX",16,true));
             incomingBody.Children.Add(BuildContDiSourcePanel(
                 ()=>quickZaloReview
                     ? ZaloContainerQuickImport.ContractRequests(
@@ -308,8 +335,7 @@ public partial class MainWindow
                 onReceiptCommitted:quickZaloReview
                     ? summary=>
                     {
-                        _aiReceiptSummary=summary;
-                        _aiShowDispatch=true;
+                        AdvanceZaloAfterReceipt(doc,summary);
                         ShowAiSchedules();
                     }
                     : null));
@@ -485,8 +511,10 @@ public partial class MainWindow
 
         if(_aiReceiptSummary.Length>0)
             outgoingBody.Children.Add(Alert("✓ "+_aiReceiptSummary+
-                "  TIẾP THEO: chọn hợp đồng DỰ KIẾN XUẤT, nhóm vật tư rồi lập phiếu bàn giao. "+
-                "Không cần chọn hoặc phân tích lại ảnh Zalo."));
+                "  HISA đã chuyển sang LÊN PHIẾU và đánh dấu "+
+                doc.Dispatches.Count(x=>x.SelectedForHandover)+
+                " hợp đồng xuất đủ dữ liệu. Bỏ tích HĐ chưa cần bàn giao, "+
+                "chọn nhóm vật tư rồi lập phiếu chờ. Không cần quét lại ảnh."));
         outgoingBody.Children.Add(T(
             "TÍCH SỐ HỢP ĐỒNG CẦN BÀN GIAO → CHỌN NHÓM VẬT TƯ → LẬP PHIẾU CHỜ. "+
             "Mọi vật tư lấy từ Tổng hợp.xlsx đã tải lại, serial máy kéo tự lấy từ "+
@@ -637,7 +665,7 @@ public partial class MainWindow
                 : string.Join("\n", warnings.Take(60)) + (warnings.Count > 60 ? "\n... còn " + (warnings.Count - 60) + " cảnh báo." : "");
         }
         RefreshWarnings();
-        var toPlan = A("✓ Lập phiếu từ hợp đồng & nhóm vật tư đã chọn", async () =>
+        var toPlan = A("④ Lên phiếu bàn giao từ HĐ và vật tư đã chọn", async () =>
         {
             Commit(outgoing);
             RefreshWarnings();
@@ -702,7 +730,7 @@ public partial class MainWindow
         // This only changes UI state; nothing is saved to Excel here.
         if(!dispatchStep)
         {
-            panel.Children.Add(T("1 · CHỌN HỢP ĐỒNG CONT VỀ HƯNG YÊN",16,true));
+            panel.Children.Add(T("3 · NHẬP FILE · CHỌN KIỆN CONT VỀ HƯNG YÊN",16,true));
             panel.Children.Add(Card(incomingBody));
             panel.Children.Add(Card(Stack(
                 Row(B("Tiếp theo: Lập phiếu xuất →",()=>{
@@ -716,7 +744,7 @@ public partial class MainWindow
         }
         else
         {
-            panel.Children.Add(T("2 · CHỌN HỢP ĐỒNG LẬP PHIẾU XUẤT",16,true));
+            panel.Children.Add(T("4 · LÊN PHIẾU · CHỌN HỢP ĐỒNG VÀ NHÓM VẬT TƯ",16,true));
             panel.Children.Add(Card(Stack(
                 Row(B("← Quay lại chọn cont về",()=>{
                     _aiShowDispatch=false;ShowAiSchedules();
@@ -751,7 +779,7 @@ public partial class MainWindow
             Content=Card(Stack(T("Nguồn: "+doc.AnalyzedBy,12,true),warningsBlock)),
             Margin=new Thickness(0,0,0,12)
         });
-        SetPage("Ảnh Zalo → nhập cont / làm phiếu", "Hai danh sách độc lập · chỉ ghi khi xác nhận thực tế", Layout(top,
+        SetPage("4 bước · Zalo → phân tích → nhập file → lên phiếu", "Chỉ ghi nhập thực tế và xuất hàng khi bạn xác nhận", Layout(top,
             new ScrollViewer { Content = panel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }));
     }
 }
