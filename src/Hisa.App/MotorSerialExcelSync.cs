@@ -167,57 +167,17 @@ public static class MotorSerialExcelSync
                         "và xác nhận các dòng cột I lần nữa.");
             }
             if(actions.Count==0)return new Outcome(0,already,[],warnings);
-            var sheet=book.Worksheets.First();
-            foreach(var action in actions)
-            {
-                var cell=sheet.Cell(action.SourceRow,SerialColumn);
-                if(cell.HasFormula||!string.IsNullOrWhiteSpace(cell.GetString()))
-                    throw new InvalidDataException("Cột I đã thay đổi, không ghi đè serial.");
-                cell.Style.NumberFormat.Format="@";
-                cell.Value=action.Serial;
-            }
-            var full=Path.GetFullPath(path);
-            var tmp=Path.Combine(Path.GetDirectoryName(full)!,"."+
-                Path.GetFileNameWithoutExtension(full)+"-serial-"+
-                Guid.NewGuid().ToString("N")+".tmp.xlsx");
-            try
-            {
-                using(var guard=new FileStream(full,FileMode.Open,FileAccess.ReadWrite,FileShare.None))
-                {
-                    if(guard.Length!=length||File.GetLastWriteTimeUtc(full)!=stamp)
-                        throw new IOException("File Máy kéo vừa thay đổi. Làm mới, đối chiếu lại rồi xác nhận.");
-                    Directory.CreateDirectory(backupFolder);
-                    var backup=Path.Combine(backupFolder,"MAY-KEO-truoc-ghi-serial-"+
-                        DateTime.Now.ToString("yyyyMMdd-HHmmss-fff")+"-"+
-                        Guid.NewGuid().ToString("N")[..8]+".xlsx");
-                    using(var backupStream=new FileStream(backup,FileMode.CreateNew,FileAccess.Write,FileShare.None))
-                    {
-                        guard.Position=0;
-                        guard.CopyTo(backupStream);
-                    }
-                }
-                // ClosedXML may re-open the original internally when saving a
-                // workbook to a new path; do not retain an exclusive source
-                // handle while calling SaveAs. We verify the source again
-                // afterwards before replacing it.
-                book.SaveAs(tmp,new SaveOptions{
-                    EvaluateFormulasBeforeSaving=false,GenerateCalculationChain=false});
-                // Never replace the original if Excel or another writer has
-                // opened it after we released the verification lock.
-                using(var guard=new FileStream(full,FileMode.Open,FileAccess.ReadWrite,FileShare.None))
-                {
-                    if(guard.Length!=length||File.GetLastWriteTimeUtc(full)!=stamp)
-                        throw new IOException("Excel đã thay đổi trong lúc ghi; không thay thế file nguồn.");
-                }
-                File.Move(tmp,full,true);
-                return new Outcome(actions.Count,already,actions,warnings);
-            }
-            catch(IOException e)
-            {
-                throw new IOException("Không thể ghi serial vào MÁY KÉO.xlsx. "+
-                    "Hãy lưu và đóng Excel nguồn rồi thử lại. "+e.Message,e);
-            }
-            finally {if(File.Exists(tmp))File.Delete(tmp);}
+            // The previous ClosedXML SaveAs rebuilt the entire workbook,
+            // which could discard Excel-only extensions and make Excel repair
+            // a production file. Patch ONLY column I XML cells instead.
+            if(File.GetLastWriteTimeUtc(path)!=stamp ||
+                new FileInfo(path).Length!=length)
+                throw new IOException("MÁY KÉO.xlsx vừa thay đổi; tải lại và duyệt serial.");
+            MotorWorkbookCellPatch.Apply(path,backupFolder,
+                actions.Select(a=>new MotorWorkbookCellPatch.Edit(
+                    a.SourceRow,SerialColumn,a.Serial)).ToList(),
+                "MAY-KEO-truoc-ghi-serial");
+            return new Outcome(actions.Count,already,actions,warnings);
         }
     }
 }
