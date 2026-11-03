@@ -305,9 +305,15 @@ public partial class MainWindow
                 B("Bỏ lọc HĐ",()=>{selectedContractKey="";contractGrid.SelectedItem=null;FilterMachines();})),
             Row(A("↻ Đồng bộ ngày bàn giao cột K · HĐ đang chọn",async()=>
             {
-                var contract=(grid.SelectedItem as MotorHungYenStore.Item)?.Contract ??
+                // An explicitly typed HĐ has priority over a previously
+                // selected grid row; never sync the wrong selection silently.
+                var typed=query.Text?.Trim()??"";
+                var explicitContract=typed.Length>=4 &&
+                    typed.All(c=>char.IsDigit(c)||char.IsWhiteSpace(c));
+                var contract=explicitContract?typed:
+                    (grid.SelectedItem as MotorHungYenStore.Item)?.Contract ??
                     (contractGrid.SelectedItem as MotorHungYenContractOverview.Contract)?.ContractNumber ??
-                    query.Text?.Trim() ?? "";
+                    typed;
                 if(Rules.Contract(contract).Length==0)
                 {
                     Notify("Chọn một HĐ trong danh sách hoặc nhập mã hợp đồng "+
