@@ -160,7 +160,7 @@ public static class MotorHandoverExcelDiagnostics
         var created=MotorHandoverExcel.Sync(settings,[other],separateData,archive);
         using(var book=new XLWorkbook(otherPath))
             Check(created.Written==1 &&
-                book.Worksheet(1).Cell(2,11).GetString()=="Ngày xuất kho" &&
+                book.Worksheet(1).Cell(2,11).GetString()=="Ngày bàn giao" &&
                 book.Worksheet(1).Cell(4,11).GetDateTime()==new DateTime(2026,10,29) &&
                 book.Worksheet(1).Cell(3,14).GetString()=="Không sửa",
                 "Without column K header, add date header only and leave legacy N notes unchanged");
