@@ -329,6 +329,28 @@ public static class UiWorkflowDiagnostics
                 "Opening Gemini results does not mark arrival, issue a slip or approve schedule");
             Check(Children(aiPanel).OfType<Expander>().Count(x=>!x.IsExpanded)>=2,
                 "Optional manual entry and warnings stay below the main flow and are collapsed");
+            typeof(MainWindow).GetField("_aiReceiptSummary",flags)!.SetValue(
+                window,"Đã nhập thành công vào Tổng hợp.xlsx: 1 HĐ · 2 kiện");
+            typeof(MainWindow).GetField("_aiShowDispatch",flags)!.SetValue(window,true);
+            Call("ShowAiSchedules");
+            aiLayout=(Grid)aiHost.Children[0];
+            aiPanel=(StackPanel)aiLayout.Children.OfType<ScrollViewer>().Single().Content;
+            Check(Children(aiPanel).OfType<TextBlock>().Any(x=>
+                    x.Text.Contains("Đã nhập thành công vào Tổng hợp.xlsx") &&
+                    x.Text.Contains("TIẾP THEO: chọn hợp đồng")) &&
+                  Children(aiPanel).OfType<TextBlock>().Any(x=>
+                    x.Text.Contains("TÍCH SỐ HỢP ĐỒNG CẦN BÀN GIAO")) &&
+                  Children(aiPanel).OfType<TextBlock>().Any(x=>
+                    x.Text.Contains("Ngày dự kiến lên phiếu")),
+                "After confirmed Zalo receipt, same screen opens outgoing picker and visible dispatch date");
+            Check(Children(aiPanel).OfType<Button>().Any(x=>
+                    x.Content?.ToString()=="☑ Chọn tất cả HĐ đủ dữ liệu") &&
+                  Children(aiPanel).OfType<Button>().Any(x=>
+                    x.Content?.ToString()?.Contains("Lập phiếu từ hợp đồng & nhóm vật tư")==true) &&
+                  Children(aiPanel).OfType<CheckBox>().Count(x=>
+                    HandoverMaterialGroups.Options.Any(g=>
+                        x.Content?.ToString()==g.Label))==6,
+                "Fast dispatch step combines contract selection, six material groups and one create-slip action");
             // A completed Gemini analysis should open the fast inbound screen:
             // no separate contract-ticking and no second manual scan needed.
             simulated.AnalyzedBy="Gemini";
