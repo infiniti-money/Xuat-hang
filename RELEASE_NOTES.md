@@ -1,3 +1,15 @@
+## HISA v1.9.46 — Một quy trình bốn bước Zalo → Phân tích → Nhập file → Lên phiếu
+
+- Bảng điều khiển Zalo hiển thị rõ **① Chọn ảnh → ② Phân tích → ③ Nhập file → ④ Lên phiếu** và đánh dấu bước hiện tại. Lựa chọn ảnh mới làm mới các bước và không dùng nhầm lịch AI cũ.
+- Gemini chỉ phân tích **một ảnh** để lấy hai danh sách: container dự kiến về và hợp đồng dự kiến xuất, không tải ảnh lần thứ hai. Sau phân tích, số HĐ cont về được đưa vào tìm kiện Hưng Yên trong Container.
+- Bước **Nhập file** cho phép kiểm tra nguồn, trùng kiện/T1/T2, ngày về thực tế; chỉ ghi vào sheet chi tiết của `Tổng hợp.xlsx` sau khi xác nhận, có kiểm tra lại nguồn và sao lưu.
+- **Sau khi nhập file thành công**, ứng dụng **tự chuyển sang Lên phiếu** và **đánh dấu sẵn những hợp đồng dự kiến xuất có đủ dữ liệu trong chính ảnh đã quét**. Người dùng có thể bỏ tích HĐ, thay đổi nhóm vật tư (chỉ 6 nhóm cho phép) và tạo phiếu bàn giao chờ kiểm tra.
+- Không cần chọn lại ảnh, phân tích lại hoặc tự nhập mã hợp đồng; dùng vật tư từ Excel nguồn, tra serial máy kéo theo HĐ, yêu cầu chọn công trình khi cùng HĐ có T1/T2 khác nhau.
+- Việc chọn sẵn HĐ chỉ chuẩn bị **phiếu chờ**, **không tự đánh dấu Đã xuất** hoặc ghi sổ xuất. Trường hợp không có cont về trong ảnh có thể đi thẳng tới phiếu, nhưng vẫn phải chọn đúng HĐ và vật tư.
+- Bổ sung kiểm thử giao diện bốn bước và tự chọn hợp đồng xuất sau ghi file thành công; kiểm thử cài mới, cài đè, ZIP và SHA-256 trên Windows CI trước khi phát hành.
+
+---
+
 ## HISA v1.9.45 — Mây Mây tự chào và phát tiếng Việt qua loa
 
 - Khi bấm **🎙 Nói với Mây**, kể cả ở thanh công cụ từ trang kho đang thao tác, Mây phát lời chào tiếng Việt “Dạ, Mây Mây chào anh. Hôm nay anh muốn Mây giúp gì ạ?” qua loa trước khi bắt đầu nghe.
