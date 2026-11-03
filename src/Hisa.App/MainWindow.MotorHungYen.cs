@@ -40,10 +40,8 @@ public partial class MainWindow
         var stage=new ComboBox
         {
             Width=175,
-            ItemsSource=new[]{"Tất cả trạng thái",MotorHungYenStore.Name(MotorHungYenStore.Pending),
-                MotorHungYenStore.Name(MotorHungYenStore.Sent),
-                MotorHungYenStore.Name(MotorHungYenStore.Completed),
-                MotorHungYenStore.Name(MotorHungYenStore.HandedOver)},
+            ItemsSource=new[]{"Tất cả máy kéo","Đang làm · Chưa bàn giao",
+                "Đã bàn giao · Có ngày cột K"},
             SelectedIndex=0
         };
         var workChoice=new ComboBox
@@ -133,22 +131,18 @@ public partial class MainWindow
             var filtered=items.Where(x=>
                 (selectedContractKey.Length==0 ||
                     MotorHungYenContractOverview.Identity(x)==selectedContractKey) &&
-                (selectedStage==0 || x.State==(selectedStage switch
-                {
-                    1=>MotorHungYenStore.Pending,2=>MotorHungYenStore.Sent,
-                    3=>MotorHungYenStore.Completed,4=>MotorHungYenStore.HandedOver,
-                    _=>""
-                })) &&
+                (selectedStage==0 ||
+                    (selectedStage==1 && x.ExcelDispatchDay.Length==0) ||
+                    (selectedStage==2 && x.ExcelDispatchDay.Length>0)) &&
                 (search.Length==0 || Rules.Code(x.Contract+" "+x.Project+" "+x.Company+
                     " "+x.Material+" "+x.Serial+" "+x.Lot).Contains(search,StringComparison.Ordinal)))
                 .OrderBy(x=>x.Contract).ThenBy(x=>x.Project).ThenBy(x=>x.Serial).ToList();
             var previous=(grid.SelectedItem as MotorHungYenStore.Item)?.Key;
             grid.ItemsSource=filtered;
             if(previous!=null)grid.SelectedItem=filtered.FirstOrDefault(x=>x.Key==previous);
-            summary.Text=$"{filtered.Count:N0} máy kéo đang xem / {items.Count:N0} máy · "+
-                $"{items.Count(x=>x.State==MotorHungYenStore.Sent):N0} đang làm · "+
-                $"{items.Count(x=>x.State==MotorHungYenStore.Completed):N0} đã làm xong · "+
-                $"{items.Count(x=>x.State==MotorHungYenStore.HandedOver):N0} đã bàn giao";
+            summary.Text=$"{filtered.Count:N0} máy đang xem / {items.Count:N0} máy · "+
+                $"{items.Count(x=>x.PresentInSource && x.ExcelDispatchDay.Length==0):N0} đang làm/chưa bàn giao · "+
+                $"{items.Count(x=>x.PresentInSource && x.ExcelDispatchDay.Length>0):N0} đã có ngày bàn giao ở cột K";
         }
 
         void RefreshContracts()
@@ -165,10 +159,10 @@ public partial class MainWindow
             if(selectedContractKey.Length>0)
                 contractGrid.SelectedItem=shown.FirstOrDefault(x=>x.Key==selectedContractKey);
             contractsSummary.Text=$"{shown.Count:N0} hợp đồng đang hiển thị · "+
-                $"{MotorHungYenContractOverview.Summarize(items,true).Count:N0} hợp đồng đã gửi gia công tại Hưng Yên · "+
-                $"{MotorHungYenContractOverview.Summarize(items,false).Count:N0} hợp đồng trong file Máy kéo";
-            if(shown.Count==0 && confirmedOnly.IsChecked==true)
-                contractsSummary.Text+="\nChưa có hợp đồng được xác nhận gửi. Bỏ chọn bộ lọc để xem HĐ từ Excel, sau đó chọn máy và xác nhận gửi thực tế.";
+                $"{MotorHungYenContractOverview.Summarize(items,false).Count:N0} công trình/hợp đồng trong file MÁY KÉO.xlsx. "+
+                "Ngày cột K là căn cứ xác định đã bàn giao.";
+            if(shown.Count==0)
+                contractsSummary.Text+="\nKhông có hợp đồng phù hợp bộ lọc hoặc file chưa có dữ liệu.";
         }
 
         contractGrid.SelectionChanged+=(_,_)=>
@@ -275,11 +269,14 @@ public partial class MainWindow
             return button;
         }
         var filters=Row(
-            StageTile("TỔNG SỐ MÁY",items.Count,0,"#EFF4F9",true),
-            StageTile("CHƯA GỬI",items.Count(x=>x.State==MotorHungYenStore.Pending),1,"#F4F6F8",true),
-            StageTile("ĐANG GIA CÔNG",items.Count(x=>x.State==MotorHungYenStore.Sent),2,"#FFF4DC"),
-            StageTile("ĐÃ LÀM XONG",items.Count(x=>x.State==MotorHungYenStore.Completed),3,"#E3F6F0"),
-            StageTile("ĐÃ BÀN GIAO",items.Count(x=>x.State==MotorHungYenStore.HandedOver),4,"#E6F1FF")
+            StageTile("TỔNG SỐ MÁY",items.Count(x=>x.PresentInSource),
+                0,"#EFF4F9",true),
+            StageTile("ĐANG LÀM · CHƯA BÀN GIAO",
+                items.Count(x=>x.PresentInSource && x.ExcelDispatchDay.Length==0),
+                1,"#FFF4DC"),
+            StageTile("ĐÃ BÀN GIAO · CÓ NGÀY K",
+                items.Count(x=>x.PresentInSource && x.ExcelDispatchDay.Length>0),
+                2,"#E6F1FF")
         );
 
         var tools=Card(Stack(
