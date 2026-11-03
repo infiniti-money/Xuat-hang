@@ -484,7 +484,17 @@ public sealed partial class WarehouseService : IDisposable
                 warnings.AddRange(loaded.Warnings);
                 if(_exportsPending || _slips.Any(x=>x.ProductExportPending))
                 {
-                    try { SyncExportsCore(); } catch(Exception e){warnings.Add(e.Message);Log("retry-export",e);}
+                    try
+                    {
+                        SyncExportsCore();
+                        // RefreshCore overwrites its summary warnings at the end.
+                        // Preserve unresolved motor sync warnings so the user can
+                        // see WHY a delivered slip's Excel column K stayed blank.
+                        lock(_stateLock)
+                            warnings.AddRange(_warnings.Where(x=>x.StartsWith(
+                                "Ngày bàn giao máy kéo:",StringComparison.Ordinal)));
+                    }
+                    catch(Exception e){warnings.Add(e.Message);Log("retry-export",e);}
                 }
                 try
                 {
