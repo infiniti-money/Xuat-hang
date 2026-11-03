@@ -60,7 +60,14 @@ public static class SlipStateDiagnostics
             Check(saved.ProductExportPending&&service.Slips.Single(x=>x.Id==id).Status=="delivered","Locked Excel ledger preserves saved state and marks export pending");
         }
         await service.RefreshAsync(false);
-        Check(!service.Slips.Single(x=>x.Id==id).ProductExportPending&&new ExcelStore().ReadShipments(service.Settings).Any(x=>x.SlipId==id),"Pending canonical ledger write retries after Excel lock is released");
+        var recoveredLedger=new ExcelStore().ReadShipments(service.Settings)
+            .Any(x=>x.SlipId==id);
+        var motorOnlyPending=service.Slips.Single(x=>x.Id==id).ProductExportPending;
+        Check(recoveredLedger &&
+            (!motorOnlyPending || service.Warnings.Any(x=>
+                x.Contains("Ngày bàn giao máy kéo") ||
+                x.Contains("sổ Excel đang chờ cập nhật"))),
+            "After ledger lock is released shipment recovers; unresolved motor K date remains pending only with a visible warning");
         using var reopened=new WarehouseService(workspace);await reopened.InitializeAsync();
         Check(reopened.Slips.Single(x=>x.Id==id).SlipCode==code&&reopened.Slips.Single(x=>x.Id==id).Status=="delivered","Four-state workflow persists across native application reopen");
         Check(Rules.StatusLabel("planned")=="Chờ xuất"&&Rules.StatusLabel("delivered")=="Đã xuất"&&Rules.StatusLabel("delayed")=="Tạm hoãn"&&Rules.StatusLabel("cancelled")=="Đã hủy","Four state labels match the Vietnamese application");

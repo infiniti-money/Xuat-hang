@@ -113,9 +113,13 @@ public static class MotorHandoverExcelDiagnostics
                 book.Worksheet(1).Cell(6,11).GetDateTime()==new DateTime(2026,10,19),
                 "Manual handover date conflict is reported and never overwritten");
         var wrongProject=MakeSlip("S-003","delivered","2026-10-30","wrong-project");
-        var noMatch=MotorHandoverExcel.Sync(settings,[wrongProject],data,archive);
-        Check(noMatch.Written==0&&noMatch.Unmatched==1,
-            "Same HĐ and serial with different project/identity never matches incorrectly");
+        var fallback=MotorHandoverExcel.Sync(settings,[wrongProject],data,archive);
+        using(var checkBook=new XLWorkbook(path))
+            Check(fallback.Written==1&&fallback.Unmatched==0 &&
+                checkBook.Worksheet(1).Cell(5,11).GetDateTime()==
+                    new DateTime(2026,10,30) &&
+                checkBook.Worksheet(1).Cell(4,11).IsEmpty(),
+                "Unique HĐ + physical serial writes only the matching motor despite project-label differences");
         var missingSerial=MakeSlip("","delivered","2026-10-30","missing-serial");
         var skipped=MotorHandoverExcel.Sync(settings,[missingSerial],data,archive);
         Check(skipped.Written==0,"No serial means no inferred delivery date for all rows on a contract");
