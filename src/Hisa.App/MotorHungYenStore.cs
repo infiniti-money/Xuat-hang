@@ -88,9 +88,11 @@ public sealed class MotorHungYenStore
         public string ExcelDispatchDay => DateTime.TryParseExact(SourceWorkValue,
             "yyyy-MM-dd",CultureInfo.InvariantCulture,DateTimeStyles.None,out var day)
             ? day.ToString("yyyy-MM-dd",CultureInfo.InvariantCulture) : "";
+        // The K column is the real delivery date, not work progress.
+        // A blank K (including old work-text cells) is NOT a delivery.
         public string ExcelStatusLabel => ExcelDispatchDay.Length>0
-            ? "Xuất kho: "+Rules.Day(ExcelDispatchDay)
-            : SourceWorkValue.Length>0?SourceWorkValue:"—";
+            ? "Đã bàn giao: "+Rules.Day(ExcelDispatchDay)
+            : "Đang làm · Chưa bàn giao";
         public string SentDay { get; set; }="";
         public string CompletedDay { get; set; }="";
         public string HandoverDay { get; set; }="";
