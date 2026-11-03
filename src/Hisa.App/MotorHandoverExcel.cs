@@ -7,9 +7,10 @@ using ClosedXML.Excel;
 namespace Hisa.App;
 
 /// <summary>
-/// Synchronizes fixed column K in the ORIGINAL MÁY KÉO.xlsx:
-/// explicit "Đã làm"/"Chưa làm" before delivery, real dates only from confirmed slips.
-/// Never marks machines based on an HĐ alone or from a draft / projected shipment.
+/// Synchronizes confirmed delivery dates only into column K of MÁY KÉO.xlsx.
+/// Matches on full identity first, or unique HĐ + physical serial when
+/// project/company spelling differs between slip and workbook. Never assigns
+/// a date using the contract number alone or from a draft shipment.
 /// Tracking own writes enables safe reversal after a slip is cancelled.
 /// </summary>
 public static class MotorHandoverExcel
@@ -142,7 +143,24 @@ public static class MotorHandoverExcel
                 "Phiếu đã xác nhận xuất được giữ nguyên; cần kiểm tra Kho HISA rồi đồng bộ lại.");
         }
         var wished=new Dictionary<string,string>(StringComparer.Ordinal);
+        var requests=new Dictionary<string,(string Contract,string Serial)>(
+            StringComparer.Ordinal);
         var conflict=new HashSet<string>(StringComparer.Ordinal);
+        var missingSerialSlots=0;
+        foreach(var slip in slips.Where(x=>x.Status=="delivered"))
+        {
+            var wanted=slip.Lines.Where(MotorSerials.IsMotor)
+                .Sum(x=>x.Quantity is >0 ? (int)decimal.Truncate(x.Quantity.Value) : 0);
+            var filled=MotorSerials.ActiveRows(slip).Count;
+            if(wanted<=filled)continue;
+            missingSerialSlots+=wanted-filled;
+            warnings.Add("Phiếu "+slip.SlipCode+" / HĐ "+
+                string.Join(", ",slip.Lines.Where(MotorSerials.IsMotor)
+                    .Select(x=>x.Contract).DistinctBy(Rules.Contract))+
+                " đã xuất nhưng thiếu "+(wanted-filled)+
+                " serial máy kéo. Không tự đoán ngày bàn giao theo số HĐ; "+
+                "kiểm tra serial trên phiếu và cột I MÁY KÉO.xlsx.");
+        }
         foreach(var slip in slips.Where(x=>x.Status=="delivered"))
         foreach(var serial in MotorSerials.ActiveRows(slip))
         {
@@ -152,6 +170,7 @@ public static class MotorHandoverExcel
             if(!DateTime.TryParseExact(slip.HandoverDate,"yyyy-MM-dd",
                 CultureInfo.InvariantCulture,DateTimeStyles.None,out _))continue;
             var id=Key(serial);
+            requests[id]=(serial.Contract,serial.SerialNumber);
             if(wished.TryGetValue(id,out var old) && old!=slip.HandoverDate)
                 conflict.Add(id);
             else wished[id]=slip.HandoverDate;
@@ -181,12 +200,22 @@ public static class MotorHandoverExcel
         // tracking JSON, never written to production column K.
         var rows=EquipmentListReader.Read(path,"Máy kéo");
         if(wished.Count==0 && prior.Count==0)
-            return new Outcome(0,0,0,warnings);
-        var indexed=rows.Where(x=>!string.IsNullOrWhiteSpace(x.Serial))
-            .GroupBy(Key).ToDictionary(x=>x.Key,x=>x.ToList(),StringComparer.Ordinal);
+            return new Outcome(0,0,missingSerialSlots,warnings);
+        var populated=rows.Where(x=>!string.IsNullOrWhiteSpace(x.Serial)).ToList();
+        var indexed=populated.GroupBy(Key)
+            .ToDictionary(x=>x.Key,x=>x.ToList(),StringComparer.Ordinal);
+        // The serial is the physical identifier. A project name may contain
+        // a Zalo OCR address, while Excel stores a shorter name. Allow only a
+        // UNIQUE physical serial belonging to the exact same HĐ; if that
+        // serial is duplicated anywhere in Excel, fail closed.
+        var byContractAndSerial=populated.GroupBy(x=>
+                Rules.Contract(x.Contract)+"|"+Rules.Code(x.Serial))
+            .ToDictionary(x=>x.Key,x=>x.ToList(),StringComparer.Ordinal);
+        var bySerial=populated.GroupBy(x=>Rules.Code(x.Serial))
+            .ToDictionary(x=>x.Key,x=>x.ToList(),StringComparer.Ordinal);
         var next=new Dictionary<string,Receipt>(StringComparer.Ordinal);
         var priorByKey=prior.ToDictionary(x=>x.Identity,StringComparer.Ordinal);
-        int written=0,cleared=0,unmatched=0;
+        int written=0,cleared=0,unmatched=missingSerialSlots;
         // Plan every mutation before touching any workbook cell. Only unique
         // HĐ + project + company + model + serial identities can be marked.
         var actions=new List<(int Row,string? NewDay,string Identity,string PreviousDay)>();
@@ -197,13 +226,41 @@ public static class MotorHandoverExcel
                 warnings.Add("Một máy kéo có nhiều ngày xuất khác nhau. Chưa ghi Excel: "+identity);
                 unmatched++;continue;
             }
-            if(!indexed.TryGetValue(identity,out var candidates)||candidates.Count!=1)
+            indexed.TryGetValue(identity,out var candidates);
+            var matched=candidates?.Count==1?candidates[0]:null;
+            var (contract,serial)=requests[identity];
+            var normalizedContract=Rules.Contract(contract);
+            var normalizedSerial=Rules.Code(serial);
+            var fallbackKey=normalizedContract+"|"+normalizedSerial;
+            if(!bySerial.TryGetValue(normalizedSerial,out var allSameSerial) ||
+                allSameSerial.Count!=1)
             {
                 unmatched++;
-                warnings.Add("Không có đúng một máy kéo khớp HĐ / công trình / đơn vị / seri. Chưa ghi: "+identity);
+                warnings.Add("HĐ "+contract+" · serial "+serial+
+                    ": serial vắng mặt hoặc trùng trên nhiều dòng máy kéo. "+
+                    "Không ghi cột K; kiểm tra cột I.");
                 continue;
             }
-            var cell=sheet.Cell(candidates[0].SourceRow,dateColumn);
+            if(matched==null)
+            {
+                if(byContractAndSerial.TryGetValue(fallbackKey,out var exactPhysical) &&
+                    exactPhysical.Count==1)
+                {
+                    matched=exactPhysical[0];
+                    warnings.Add("HĐ "+contract+" · serial "+serial+
+                        ": tên công trình/đơn vị trên phiếu khác Excel; "+
+                        "đã đối chiếu bằng số HĐ và serial vật lý duy nhất.");
+                }
+                else
+                {
+                    unmatched++;
+                    warnings.Add("HĐ "+contract+" · serial "+serial+
+                        ": chưa tìm được đúng một máy kéo trong cột D/I. "+
+                        "Chưa ghi ngày bàn giao cột K.");
+                    continue;
+                }
+            }
+            var cell=sheet.Cell(matched.SourceRow,dateColumn);
             var existing=DateText(cell);
             priorByKey.TryGetValue(identity,out var owned);
             // Only delivered slips create a date. Existing human-entered
@@ -227,7 +284,7 @@ public static class MotorHandoverExcel
             if(owned==null && existing==day)continue;
             // No date means in production/not yet handed over. On reversal
             // restore an EMPTY K, not the old work-text status.
-            actions.Add((candidates[0].SourceRow,day,identity,""));
+            actions.Add((matched.SourceRow,day,identity,""));
             next[identity]=new Receipt{Identity=identity,Column="K",Date=day,
                 PreviousDate=""};
         }
