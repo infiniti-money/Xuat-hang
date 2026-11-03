@@ -49,9 +49,10 @@ public static class MotorHandoverExcel
     {
         var values=new Dictionary<string,string>(StringComparer.Ordinal);
         var ambiguous=new HashSet<string>(StringComparer.Ordinal);
-        foreach(var slip in slips.Where(x=>x.Status=="delivered"))
+        foreach(var slip in allSlips.Where(x=>x.Status=="delivered"))
         foreach(var serial in MotorSerials.ActiveRows(slip))
         {
+            if(limited && Rules.Contract(serial.Contract)!=scope)continue;
             if(string.IsNullOrWhiteSpace(serial.SerialNumber) ||
                string.IsNullOrWhiteSpace(serial.Project) ||
                string.IsNullOrWhiteSpace(serial.Company) ||
@@ -113,9 +114,13 @@ public static class MotorHandoverExcel
     }
 
     public static Outcome Sync(AppSettings settings,IEnumerable<Slip> slips,
-        string dataDirectory,string excelBackupDirectory,string? explicitWorkIdentity=null)
+        string dataDirectory,string excelBackupDirectory,string? explicitWorkIdentity=null,
+        string? contractScope=null)
     {
         var warnings=new List<string>();
+        var scope=Rules.Contract(contractScope);
+        var limited=!string.IsNullOrWhiteSpace(contractScope);
+        var allSlips=slips.ToList();
         var path=settings.TractionMachineListPath;
         var receiptPath=Path.Combine(dataDirectory,ReceiptFile);
         var allReceipts=ReadReceipts(receiptPath);
@@ -124,13 +129,16 @@ public static class MotorHandoverExcel
         // a delivered slip is cancelled. A blank K means not handed over.
         var legacy=allReceipts.Where(x=>
             !string.Equals(x.Column,"K",StringComparison.OrdinalIgnoreCase) ||
-            IsWorkText(x.Date)).ToList();
+            IsWorkText(x.Date) ||
+            (limited && !x.Identity.StartsWith(scope+"|",StringComparison.Ordinal))).ToList();
         var prior=allReceipts.Where(x=>
             string.Equals(x.Column,"K",StringComparison.OrdinalIgnoreCase) &&
-            !IsWorkText(x.Date)).ToList();
-        var incomplete=slips.Where(x=>x.Status=="delivered")
+            !IsWorkText(x.Date) &&
+            (!limited || x.Identity.StartsWith(scope+"|",StringComparison.Ordinal))).ToList();
+        var incomplete=allSlips.Where(x=>x.Status=="delivered")
             .SelectMany(x=>x.Lines.Where(MotorSerials.IsMotor))
-            .Any(x=>x.Quantity is >0);
+            .Any(x=>x.Quantity is >0 &&
+                (!limited || Rules.Contract(x.Contract)==scope));
         if(string.IsNullOrWhiteSpace(path))
         {
             if(incomplete)warnings.Add("Chưa cấu hình MÁY KÉO.xlsx; không thể đồng bộ ngày bàn giao theo seri.");
@@ -147,9 +155,10 @@ public static class MotorHandoverExcel
             StringComparer.Ordinal);
         var conflict=new HashSet<string>(StringComparer.Ordinal);
         var missingSerialSlots=0;
-        foreach(var slip in slips.Where(x=>x.Status=="delivered"))
+        foreach(var slip in allSlips.Where(x=>x.Status=="delivered"))
         {
-            var motors=slip.Lines.Where(MotorSerials.IsMotor).ToList();
+            var motors=slip.Lines.Where(x=>MotorSerials.IsMotor(x) &&
+                (!limited || Rules.Contract(x.Contract)==scope)).ToList();
             var wanted=motors.Sum(x=>x.Quantity is >0 ?
                 checked((int)decimal.Truncate(x.Quantity.Value)) : 0);
             if(wanted==0)continue;
@@ -164,7 +173,8 @@ public static class MotorHandoverExcel
                     "Kiểm tra ngày trên phiếu trước khi đồng bộ cột K.");
                 continue;
             }
-            var filled=MotorSerials.ActiveRows(slip).Count;
+            var filled=MotorSerials.ActiveRows(slip)
+                .Count(x=>!limited || Rules.Contract(x.Contract)==scope);
             if(wanted<=filled)continue;
             missingSerialSlots+=wanted-filled;
             warnings.Add("Phiếu "+slip.SlipCode+" / HĐ "+contracts+
