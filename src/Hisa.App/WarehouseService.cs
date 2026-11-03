@@ -827,12 +827,48 @@ public sealed partial class WarehouseService : IDisposable
             lock(_stateLock)_warnings.Add("Ngày bàn giao máy kéo: "+warning);
             Log("motor-handover",new InvalidOperationException(warning));
         }
-        foreach(var s in _slips)s.ProductExportPending=false;
-        Persist("slips.json",_slips);_exportsPending=false;
+        // A confirmed slip can be in the export ledger while its companion
+        // motor K date is still unresolved. Do not mark that work "complete":
+        // retain a pending flag across restarts and retry when Excel is fixed.
+        var motorPending=motorDates.Unmatched>0 ||
+            motorDates.Warnings.Any(x=>x.Contains("Chưa cấu hình",StringComparison.Ordinal));
+        foreach(var s in _slips)
+            s.ProductExportPending=motorPending && s.Status=="delivered" &&
+                s.Lines.Any(MotorSerials.IsMotor);
+        Persist("slips.json",_slips);_exportsPending=motorPending;
         _shipments=_excel.ReadShipments(Settings);
         _ledgerFingerprint=HistoryFingerprint();_historyCacheValid=true;
         PersistCache();
     }
+    /// <summary>
+    /// Explicit safe retry for already-confirmed slips. Does not mark any
+    /// additional slip as delivered or change the shipment day. A date is
+    /// written only if serial and contract resolve to one physical motor.
+    /// </summary>
+    public Task<MotorHandoverExcel.Outcome> RetryMotorHandoverAsync()=>
+        MutateAsync(()=>
+        {
+            var result=MotorHandoverExcel.Sync(Settings,Slips,_data,
+                Path.Combine(BackupDirectory,"Excel"));
+            lock(_stateLock)
+            {
+                _warnings.RemoveAll(x=>x.StartsWith(
+                    "Ngày bàn giao máy kéo:",StringComparison.Ordinal));
+                foreach(var warning in result.Warnings)
+                    _warnings.Add("Ngày bàn giao máy kéo: "+warning);
+            }
+            var pending=result.Unmatched>0 ||
+                result.Warnings.Any(x=>x.Contains("Chưa cấu hình",StringComparison.Ordinal));
+            if(pending)_exportsPending=true;
+            var all=Slips;
+            foreach(var slip in all.Where(x=>x.Status=="delivered" &&
+                x.Lines.Any(MotorSerials.IsMotor)))
+                slip.ProductExportPending=pending;
+            Persist("slips.json",all);
+            lock(_stateLock)_slips=all;
+            return result;
+        });
+
     private void PrepareSlipTransition(Slip item,Slip? prior,List<Slip> existing)
     {
         item.Lines ??= [];item.Contracts ??= [];item.ContractPackages ??= [];
