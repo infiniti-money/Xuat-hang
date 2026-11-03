@@ -79,7 +79,7 @@ public static class MotorSerialDiagnostics
         using(var source=new XLWorkbook(motorExcel))
         {
             var sheet=source.Worksheet(1);
-            Check(sheet.Cell(2,11).GetString()=="Ngày xuất kho" &&
+            Check(sheet.Cell(2,11).GetString()=="Ngày bàn giao" &&
                 Enumerable.Range(3,5).All(row=>sheet.Cell(row,11).GetDateTime()==
                     new DateTime(2026,10,27)),
                 "Actual confirmed export automatically writes handover day in MÁY KÉO.xlsx for all five serials");
