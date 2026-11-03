@@ -33,6 +33,30 @@ public static class UiWorkflowDiagnostics
             Check(state.IsEnabled,"Slip editor supports all four selectable statuses");
             var expander=Children(window).OfType<Expander>().First(x=>x.Header?.ToString()?.StartsWith("Hợp đồng / bộ lọc")==true);
             Check(!expander.IsExpanded,"Loaded slip keeps material workspace visible with contract controls collapsed");
+            var groupPicker=Children(window).OfType<ComboBox>().Single(c=>
+                c.ToolTip?.ToString()?.Contains("Chọn một nhóm đang có trên phiếu")==true);
+            var groupValues=groupPicker.Items.Cast<object>()
+                .Select(x=>x.GetType().GetProperty("Value")?.GetValue(x)?.ToString())
+                .ToList();
+            Check(groupValues.Contains("Máy kéo") &&
+                  groupPicker.SelectedValue?.ToString()=="Máy kéo",
+                "Slip editor offers a group picker from materials currently on the slip");
+            var deselectGroup=Children(window).OfType<Button>().Single(
+                x=>x.Content?.ToString()=="Bỏ chọn cả nhóm");
+            var restoreGroup=Children(window).OfType<Button>().Single(
+                x=>x.Content?.ToString()=="Chọn lại nhóm");
+            var editedSlip=(Slip)typeof(MainWindow).GetField("_draft",flags)!
+                .GetValue(window)!;
+            Check(editedSlip.Lines.Any(x=>x.Group=="Máy kéo" && x.Include),
+                "Slip starts with selected source materials");
+            deselectGroup.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Check(editedSlip.Lines.Where(x=>x.Group=="Máy kéo")
+                .All(x=>!x.Include) && editedSlip.Lines.Count>0,
+                "Clicking Bỏ chọn cả nhóm turns off print/export for all rows in that group");
+            restoreGroup.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Check(editedSlip.Lines.Where(x=>x.Group=="Máy kéo")
+                .All(x=>x.Include),
+                "Clicking Chọn lại nhóm restores only the selected material group");
             state.SelectedValue="delayed";
             var reason=Children(window).OfType<TextBlock>().Single(x=>x.Text=="Lý do tạm hoãn / hủy");
             Check(((FrameworkElement)reason.Parent).Visibility==Visibility.Visible,"Temporary delay displays reason editor");
