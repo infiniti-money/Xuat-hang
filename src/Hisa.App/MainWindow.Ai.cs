@@ -141,6 +141,10 @@ public partial class MainWindow
             try
             {
                 _aiDocument = await AiScheduleReader.AnalyzeAsync(_aiImagePath, geminiKey);
+                // Every recognized incoming contract is included in the first
+                // Container lookup by default. These transient flags do not
+                // mean the goods have actually arrived.
+                AiScheduleBulkSelection.SetAll(_aiDocument,true,true);
                 _aiShowDispatch = false;
                 _aiHandoverGroups=HandoverMaterialGroups.All;
                 ShowAiSchedules();
@@ -163,7 +167,7 @@ public partial class MainWindow
         });
         var top = Card(Stack(
             T("ẢNH ZALO → NHẬN CONT / LÀM PHIẾU", 18, true),
-            T("① Chọn ảnh Zalo  →  ② Tích hợp đồng cont về  →  ③ Tiếp theo: Lập phiếu xuất.",13,true,Brush("#177E89")),
+            T("① Chọn ảnh Zalo → ② Tự lấy tất cả số HĐ về → ③ Quét Container / tìm kiện Hưng Yên → ④ Xác nhận một lần để nhập Tổng hợp.",13,true,Brush("#177E89")),
             T("Ngày cont dự kiến về chỉ là dự báo, KHÔNG phải hàng đã nhập. Nhận cont và làm phiếu là hai thao tác độc lập.",12,false,Muted),
             status,
             Row(choose,upload,analyze),
@@ -180,6 +184,8 @@ public partial class MainWindow
         }
 
         var doc = _aiDocument;
+        var quickZaloReview=doc.AnalyzedBy=="Gemini" && _aiImagePath.Length>0;
+        var incomingCodes=ZaloContainerQuickImport.ContractRequests(doc.Arrivals);
         var dayArrival = Input(doc.ArrivalDate);
         dayArrival.Width = 150;
         var dayDispatch = Input(doc.DispatchDate);
@@ -225,13 +231,23 @@ public partial class MainWindow
             MarkWorkingSchedule();
             grid.Items.Refresh();
         }
-        incomingBody.Children.Add(Alert(
-            "CHỌN HỢP ĐỒNG ĐỂ NHẬP VÀO TỔNG HỢP.XLSX: tích ô 'Cont đã về?' "+
-            "cho từng HĐ thực nhận, sau đó bấm Tìm kiện, chọn đúng kiện và "+
-            "xác nhận ngày thực tế. Chưa tích HĐ thì không ghi dữ liệu."));
-        incomingBody.Children.Add(T("Không phải tất cả hợp đồng trong ảnh đều đã về. "+
-            "Chỉ các số HĐ đã tích mới được đối chiếu với thư mục Container. "+
-            "Không tự lấy tất cả kiện cùng một HĐ.",12,false,Muted));
+        incomingBody.Children.Add(Alert(quickZaloReview
+            ? "QUÉT NHANH TỪ ẢNH ZALO: đã trích "+incomingCodes.Count+
+              " số HĐ khác nhau. HISA tự tìm kiện Hưng Yên trong thư mục Container "+
+              "và đánh dấu sẵn kiện hợp lệ, không trùng. Kiểm tra danh sách "+
+              "và ngày cont về thực tế rồi bấm xác nhận để ghi Tổng hợp.xlsx."
+            : "CHỌN HỢP ĐỒNG ĐỂ NHẬP VÀO TỔNG HỢP.XLSX: tích ô 'Cont đã về?' "+
+              "cho từng HĐ thực nhận, sau đó bấm Tìm kiện, chọn đúng kiện và "+
+              "xác nhận ngày thực tế. Chưa tích HĐ thì không ghi dữ liệu."));
+        incomingBody.Children.Add(T(quickZaloReview
+            ? "HĐ đọc từ ảnh: "+string.Join(", ",incomingCodes.Take(30).Select(x=>x.Contract))+
+              (incomingCodes.Count>30?"…":"")+
+              ". Chương trình chỉ lọc theo số hợp đồng; công trình, T1/T2, "+
+              "container và vật tư dùng dữ liệu Excel gốc để đối chiếu. "+
+              "HĐ có nhiều công trình/đợt cont cần tích kiện thủ công."
+            : "Không phải tất cả hợp đồng trong ảnh đều đã về. "+
+              "Chỉ các số HĐ đã tích mới được đối chiếu với thư mục Container. "+
+              "Không tự lấy tất cả kiện cùng một HĐ.",12,false,Muted));
         incomingBody.Children.Add(Row(
             B("☑ Chọn tất cả cont Hưng Yên",()=>
             {
@@ -252,8 +268,13 @@ public partial class MainWindow
         {
             incomingBody.Children.Add(T("TÌM KIỆN HƯNG YÊN TỪ CONTAINER · XÁC NHẬN VỀ KHO",16,true));
             incomingBody.Children.Add(BuildContDiSourcePanel(
-                ()=>doc.Arrivals.Where(x=>x.SelectedForArrival).ToList(),
-                ()=>Commit(incoming),searchWhenLoaded:false));
+                ()=>quickZaloReview
+                    ? ZaloContainerQuickImport.ContractRequests(
+                        doc.Arrivals.Where(x=>x.SelectedForArrival))
+                    : doc.Arrivals.Where(x=>x.SelectedForArrival).ToList(),
+                ()=>Commit(incoming),
+                searchWhenLoaded:quickZaloReview,
+                quickZaloReview:quickZaloReview));
         }
 
         EquipmentListReader.Catalog? productionCache=null;
