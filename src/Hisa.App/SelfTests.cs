@@ -211,6 +211,7 @@ public static class SelfTests
             result.Checks.AddRange(ZaloDispatchContractImportDiagnostics.Run());
             result.Checks.AddRange(ZaloContainerQuickImportDiagnostics.Run());
             result.Checks.AddRange(ZaloDispatchQuickSelectionDiagnostics.Run());
+            result.Checks.AddRange(AiHandoverSelectionDiagnostics.Run());
             result.Checks.AddRange(await AuditStateDiagnostics.RunAsync());
             result.Checks.AddRange(ContDiArrivalLookupDiagnostics.Run());
             result.Checks.AddRange(await ContDiArrivalLookupDiagnostics.RunWorkbookAsync());
