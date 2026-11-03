@@ -1,3 +1,15 @@
+## HISA v1.9.48 — Bảo vệ MÁY KÉO.xlsx khi ghi serial và ngày bàn giao
+
+- Thay thao tác lưu lại toàn bộ MÁY KÉO.xlsx bằng ClosedXML (có thể làm mất các phần mở rộng Excel) bằng cập nhật chọn lọc đúng ô trong XML worksheet, sao lưu nguyên bản và kiểm tra tính hợp lệ trước khi thay thế. Các thành phần khác của tệp được giữ nguyên; nếu file đang mở/khóa, ô có công thức hoặc nằm trong vùng gộp, HISA từ chối ghi.
+- Ghi serial thủ công **chỉ vào cột I** theo các dòng đã đối chiếu/duyệt.
+- **Cột K là ngày bàn giao:** có ngày = đã bàn giao; chưa có ngày = đang làm, chưa bàn giao. Tiến độ Đã làm/Chưa làm chỉ còn lưu trong HISA, không ghi chữ vào K.
+- Sau khi phiếu được xác nhận **Đã xuất**, HISA dùng **ngày xuất trên phiếu** điền vào K theo HĐ/công trình/đơn vị và đúng serial. Không tự cập nhật khi đang Chờ xuất, khi trùng serial/dòng, hoặc ngày đã được nhập khác.
+- Đổi tên menu và màn hình thành **Lịch làm máy kéo** với bộ lọc Đang làm/Chưa bàn giao và Đã bàn giao/Có ngày K.
+- Bổ sung kiểm thử ZIP OOXML bảo toàn phần không liên quan, serial, công thức, sao lưu, ngày bàn giao và hồi quy Windows.
+- **Lưu ý:** bản này không tự phục hồi tệp người dùng đã bị Excel sửa chữa; cần dùng bản sao lưu sạch/Version History và đối chiếu dữ liệu trước khi tiếp tục ghi.
+
+---
+
 ## HISA v1.9.47 — Bỏ chọn/Chọn lại theo nhóm vật tư ngay trong phiếu bàn giao
 
 - Ngay trong tab **Vật tư trên phiếu**, bên cạnh các thao tác Lưu phiếu, Xem trước/in và Chọn in tất cả, bổ sung dòng **Chọn nhóm vật tư trên phiếu** cùng hai nút **Bỏ chọn cả nhóm** và **Chọn lại nhóm**.
