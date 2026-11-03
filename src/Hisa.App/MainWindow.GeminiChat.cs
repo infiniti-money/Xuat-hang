@@ -13,6 +13,7 @@ public partial class MainWindow
     private bool _geminiChatIncludeWarehouse=GeminiWarehouseSharingConsent.Read();
     private bool _geminiChatSending;
     private readonly GeminiVoice _geminiVoice=new();
+    private readonly MayVoiceGreeting _mayVoiceGreeting=new();
     private readonly GeminiMicrophoneRecorder _geminiMicrophone=new();
     private bool _geminiMicrophoneConsent;
     private bool _geminiChatTranscribing;
@@ -121,7 +122,7 @@ public partial class MainWindow
 
         if(_geminiChatHistory.Count==0)
         {
-            Bubble("model","Dạ, Mây chào anh! Cứ gọi Mây hoặc Mây Mây nha. "+
+            Bubble("model",MayVoiceGreeting.Opening+" "+
                 "Mây có thể trò chuyện bằng tiếng Việt, xem lịch cont và lịch xuất trong HISA, "+
                 "và giúp lên phiếu xuất nháp để anh kiểm tra, duyệt. Mây không tự lưu phiếu hay ghi Excel đâu ạ.");
         }
@@ -280,6 +281,60 @@ public partial class MainWindow
             if(HandsFreeCurrent(session))StartHandsFreeListening(session);
         }
 
+        // Every explicit press starts a NEW session with exactly one spoken
+        // welcome. The microphone stays closed until the voice playback ends,
+        // avoiding feedback from Mây's own greeting into Gemini recognition.
+        async Task GreetThenListenAsync(int session,string key)
+        {
+            if(!HandsFreeCurrent(session) || !_mayVoiceGreeting.TryBegin(
+                session,_geminiHandsFreeActive))return;
+            var token=_geminiHandsFreeCancellation?.Token??CancellationToken.None;
+            activity.Text="Mây đang chào anh bằng tiếng Việt qua loa · micro tạm tắt…";
+            UpdateMayVoiceIndicator("● Mây đang chào · micro tạm tắt");
+            try
+            {
+                await _geminiVoice.SpeakGeminiAsync(key,MayVoiceGreeting.Opening,
+                    message=>Dispatcher.BeginInvoke(new Action(()=>
+                    {
+                        if(HandsFreeCurrent(session))activity.Text=message;
+                    })),
+                    ()=>Dispatcher.BeginInvoke(new Action(()=>
+                        _=ResumeAfterSpeakerAsync(session))),token);
+            }
+            catch(OperationCanceledException)
+            {
+                // Stop button cancelled the session before playback completed.
+            }
+            catch(Exception ttsError)
+            {
+                if(!HandsFreeCurrent(session))return;
+                // Offline fallback only if Windows has a genuine Vietnamese
+                // voice; never substitute a foreign-language TTS voice.
+                try
+                {
+                    _geminiVoice.Speak(MayVoiceGreeting.Opening,
+                        message=>Dispatcher.BeginInvoke(new Action(()=>
+                        {
+                            if(HandsFreeCurrent(session))activity.Text=message;
+                        })),
+                        ()=>Dispatcher.BeginInvoke(new Action(()=>
+                            _=ResumeAfterSpeakerAsync(session))));
+                    StatusText.Text="Gemini TTS chưa phát được; Mây đang chào bằng giọng tiếng Việt Windows.";
+                }
+                catch(Exception windowsError)
+                {
+                    if(!HandsFreeCurrent(session))return;
+                    StatusText.Text="Không phát được lời chào qua loa: "+ttsError.Message+
+                        " · Windows vi-VN: "+windowsError.Message;
+                    // The user explicitly opted into listening. Keep the
+                    // hands-free workflow usable and show the audible failure.
+                    StartHandsFreeListening(session);
+                    activity.Text="⚠ Chưa phát được lời chào. Mây đang nghe; kiểm tra loa "+
+                        "và cấu hình Gemini TTS để có phản hồi bằng tiếng Việt.";
+                }
+            }
+        }
+
         async Task ProcessHandsFreeAudioAsync(byte[] wav,int session)
         {
             try
@@ -392,7 +447,7 @@ public partial class MainWindow
             handsFree!.Content="⏹ Dừng Mây";
             TopVoiceButton.Content="⏹ Dừng Mây";
             UpdateMayTrayStatus();
-            StartHandsFreeListening(session);
+            _=GreetThenListenAsync(session,key);
         });
         _geminiHandsFreeToggle=handsFree;
 
