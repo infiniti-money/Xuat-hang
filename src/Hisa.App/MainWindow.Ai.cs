@@ -654,7 +654,15 @@ public partial class MainWindow
             SaveMaterialGroups();
             var filter=HandoverMaterialGroups.BuildFilter(string.Join("\n",codes),_aiHandoverGroups);
             var report=_service.Search(filter);
-            report=AiHandoverSelection.Build(report,doc,chosen);
+            var choices=ChooseHandoverProjects(report,chosen);
+            if(choices is null)return; // Operator cancelled; do not create or save any slip.
+            report=AiHandoverSelection.Build(report,doc,chosen,choices);
+            // Preserve exact manually checked tower/company scopes on any
+            // subsequent reload in the ordinary slip editor.
+            report.Filter.ProjectTargets=report.Rows.Concat(report.NoMaterialMatch)
+                .Where(x=>x.Selected).Select(x=>new ContractRow{
+                    Contract=x.Contract,Project=x.Project,Company=x.Company
+                }).ToList();
             HandoverMaterialGroups.EnsureSelectedContractsHaveMaterials(report);
             if(report.Missing.Any(x=>x.Selected))
                 throw new InvalidOperationException("Hợp đồng chưa có dữ liệu Tổng hợp.xlsx: "+

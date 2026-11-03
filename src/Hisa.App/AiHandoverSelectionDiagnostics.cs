@@ -55,6 +55,56 @@ public static class AiHandoverSelectionDiagnostics
         catch (InvalidOperationException ex) { refused = ex.Message.Contains("T1/T2"); }
         Check(refused,"Even a unique contract cannot silently cross explicit T1 and T2");
 
+        // Production bug reported in v1.9.43: HĐ 43822026 has two Excel
+        // identities whose names differ only by Thang 01 / Thang 02, while
+        // the Zalo OCR row ends with the unnumbered word "Thang".
+        const string projectRoot =
+            "Công Ty CP Cung Ứng Tàu Biển Quảng Ninh - Số 2, Đường Hạ Long, "+
+            "Phường Bãi Cháy, Quảng Ninh";
+        var excel1=Source("43822026",projectRoot+" (Thang 01)","Vinatech");
+        var excel2=Source("43822026",projectRoot+" (Thang 02)","Vinatech");
+        var vague=Dispatch("43822026",
+            "Cty Tàu Biển Quảng Ninh - Số 2, Đường Hạ Long / Thang",
+            "Vinatech");
+        var twoTower=Report(excel1,excel2);
+        Check(AiHandoverSelection.RequiresProjectChoice(twoTower,vague) &&
+            AiHandoverSelection.SourceOptions(twoTower,vague).Count==2,
+            "Unnumbered Zalo Thang presents two exact Excel source choices");
+
+        var pickSecond=new Dictionary<AiScheduleLine,List<ContractRow>>
+            { [vague]=[excel2] };
+        AiHandoverSelection.Build(twoTower,Schedule(vague),[vague],pickSecond);
+        Check(!excel1.Selected && excel2.Selected,
+            "Checking only Thang 02 selects no materials from Thang 01");
+
+        var pickBoth=new Dictionary<AiScheduleLine,List<ContractRow>>
+            { [vague]=[excel1,excel2] };
+        AiHandoverSelection.Build(twoTower,Schedule(vague),[vague],pickBoth);
+        Check(excel1.Selected && excel2.Selected,
+            "Checking both towers explicitly includes both source identities");
+
+        var forged=new Dictionary<AiScheduleLine,List<ContractRow>>
+            { [vague]=[Source("99992026","Thang 02","Vinatech")] };
+        refused=false;
+        try { AiHandoverSelection.Build(twoTower,Schedule(vague),[vague],forged); }
+        catch(InvalidOperationException ex) { refused=ex.Message.Contains("không còn hợp lệ"); }
+        Check(refused,"Stale/foreign source choice is rejected before drafting");
+
+        var explicitSecond=Dispatch("43822026",
+            "Cty Tàu Biển Quảng Ninh (Thang 02)","Vinatech");
+        Check(!AiHandoverSelection.RequiresProjectChoice(twoTower,explicitSecond),
+            "Explicit Thang 02 in OCR needs no additional source picker");
+        AiHandoverSelection.Build(twoTower,Schedule(explicitSecond),[explicitSecond]);
+        Check(!excel1.Selected && excel2.Selected,
+            "Explicit Thang 02 auto-resolves when Excel projects share one family");
+
+        var unrelated=Report(
+            Source("43822026","Dự án khác T1","Vinatech"),
+            Source("43822026","Tàu Biển Quảng Ninh T2","Vinatech"));
+        var unrelatedHint=Dispatch("43822026","Dự án khác T1","Hãng khác");
+        Check(AiHandoverSelection.RequiresProjectChoice(unrelated,unrelatedHint),
+            "Different Excel project families cannot auto-resolve from a tower alone");
+
         var arrivalsOnly = new AiScheduleDocument
         {
             DispatchDate = day,
