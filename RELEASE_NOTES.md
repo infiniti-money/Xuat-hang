@@ -1,3 +1,14 @@
+## HISA v1.9.43 — Sửa đối chiếu hợp đồng khi lập phiếu sau quét Zalo
+
+- Sửa lỗi **"không khớp chính xác công trình/công ty trong Tổng hợp.xlsx"** cho HĐ 43822026 và các HĐ có tên/địa chỉ OCR khác cách ghi trong Excel.
+- Nếu số HĐ chỉ khớp **một công trình/đơn vị trong Excel**, tự chọn dòng nguồn duy nhất và dùng tên công trình, công ty, vật tư **từ Excel** để lập phiếu; không yêu cầu sửa tên OCR cho trường hợp này.
+- Khi cùng số HĐ có **nhiều công trình/T1/T2**, chỉ tự chọn dòng khớp đầy đủ; nếu không xác định duy nhất thì hiển thị các công trình để đối chiếu, tuyệt đối không tự gộp vật tư.
+- Nếu OCR và Excel ghi rõ hai thang khác nhau (ví dụ T2 và T1), vẫn chặn để tránh nhầm vật tư dù số hợp đồng trùng.
+- Giữ nguyên 6 nhóm vật tư đã tích, lấy serial máy kéo theo nguồn, chỉ tạo **phiếu CHỜ XUẤT**; không tự ghi xuất kho hoặc thay đổi Excel.
+- Bổ sung hồi quy offline cho trường hợp lỗi trên ảnh, hai công trình T1/T2, trùng số HĐ và chỉ có HĐ cont về.
+
+---
+
 ## HISA v1.9.42 — Lập phiếu nhanh ngay sau khi nhập cont từ ảnh Zalo (đang kiểm thử)
 
 - **Một ảnh Zalo cho cả nhập và xuất:** Sau khi xác nhận nhận cont và ghi thành công vào `Tổng hợp.xlsx / chi tiết`, màn hình **tự chuyển** sang danh sách hợp đồng **HÀNG DỰ KIẾN XUẤT KHO** trong chính ảnh đã phân tích. Không yêu cầu tải lại ảnh hoặc tra lại mã hợp đồng; công trình, vật tư lấy từ dữ liệu Tổng hợp mới tải sau khi nhập kho.
