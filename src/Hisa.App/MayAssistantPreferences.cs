@@ -10,7 +10,7 @@ namespace Hisa.App;
 /// </summary>
 public sealed class MayAssistantPreferences
 {
-    public bool AutoSpeak { get; set; }
+    public bool AutoSpeak { get; set; }=true;
     public int MicrophoneNumber { get; set; }=-1;
     public double Sensitivity { get; set; }=0.0045;
 
