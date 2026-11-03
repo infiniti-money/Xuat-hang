@@ -25,6 +25,9 @@ public partial class MainWindow
             throw new InvalidOperationException("Chưa có Gemini API Key. Vào Cấu hình nguồn dữ liệu → Gemini AI trước khi đọc ảnh.");
         // Do not lose the existing working image/document on analysis failure.
         var parsed=await AiScheduleReader.AnalyzeAsync(picker.FileName,geminiKey);
+        // Entering from the slip screen must use the same one-scan workflow:
+        // all Zalo inbound codes are checked, but NO warehouse write occurs.
+        AiScheduleBulkSelection.SetAll(parsed,true,true);
         _aiImagePath=picker.FileName;
         _aiDocument=parsed;
         _aiShowDispatch=false;
