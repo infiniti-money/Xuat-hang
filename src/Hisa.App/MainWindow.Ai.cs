@@ -259,8 +259,12 @@ public partial class MainWindow
             B("Bỏ tích cont",()=>{AiScheduleBulkSelection.SetAll(doc,true,false);incoming.Items.Refresh();}),
             B("Trạng thái lịch xuất",()=>CycleSchedule(incoming))
         ));
-        incomingBody.Children.Add(T("Nhấp MỘT LẦN vào ô vuông để tích. Chọn một dòng bất kỳ để xem từng vật tư, số lượng và tình trạng thực nhận ngay bên dưới.",12,false,Muted));
-        incomingBody.Children.Add(incoming);
+        var incomingHelp=T("Nhấp MỘT LẦN vào ô vuông để tích. Chọn một dòng bất kỳ để xem từng vật tư, số lượng và tình trạng thực nhận ngay bên dưới.",12,false,Muted);
+        if(!quickZaloReview)
+        {
+            incomingBody.Children.Add(incomingHelp);
+            incomingBody.Children.Add(incoming);
+        }
         // Exact source search is available as soon as the photo is analyzed
         // or incoming contract codes are entered. Approval/receipt is a separate
         // explicit action: the source file, date and each package are verified.
@@ -275,6 +279,19 @@ public partial class MainWindow
                 ()=>Commit(incoming),
                 searchWhenLoaded:quickZaloReview,
                 quickZaloReview:quickZaloReview));
+        }
+        if(quickZaloReview)
+        {
+            // The first screenful contains the actual Container scan and
+            // one confirmation button. Operators only need to open the
+            // underlying Zalo schedule table if OCR needs correction.
+            incomingBody.Children.Add(new Expander
+            {
+                Header="▤ Xem/sửa danh sách HĐ đọc từ ảnh Zalo ("+
+                    doc.Arrivals.Count+" dòng) · tùy chọn",
+                IsExpanded=false,Margin=new Thickness(0,8,0,8),
+                Content=Stack(incomingHelp,incoming)
+            });
         }
 
         EquipmentListReader.Catalog? productionCache=null;
