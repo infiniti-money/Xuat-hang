@@ -147,8 +147,7 @@ public static class MotorWorkbookCellPatch
                 // t=d is an ISO-8601 OpenXML date cell.  Unlike numeric dates
                 // it does not need a newly injected style/numFmt in styles.xml.
                 cell.SetAttributeValue("t","d");
-                cell.Add(new XElement(Spreadsheet+"v",
-                    edit.Value+"T00:00:00"));
+                cell.Add(new XElement(Spreadsheet+"v",edit.Value));
             }
             else
             {
