@@ -11,7 +11,8 @@ public partial class MainWindow
     /// </summary>
     private FrameworkElement BuildContDiSourcePanel(
         Func<List<AiScheduleLine>> requests,Action? commitInput=null,
-        bool searchWhenLoaded=false,bool quickZaloReview=false)
+        bool searchWhenLoaded=false,bool quickZaloReview=false,
+        Action<string>? onReceiptCommitted=null)
     {
         var actualDate=DateInput(DateTime.Today.ToString("yyyy-MM-dd"));
         string SourceLabel()=>"các file Excel trong thư mục Container";
@@ -160,9 +161,19 @@ public partial class MainWindow
                 }
                 var outcome=await _service.RecordVerifiedArrivalAsync(selected,
                     actualDate.SelectedDate.Value,false);
-                Notify($"Đã sao chép vào Tổng hợp.xlsx: {outcome.Contracts} hợp đồng · "+
-                    $"{outcome.Packages} kiện · {outcome.Lines} dòng vật tư.\n"+
-                    string.Join("\n",outcome.Warnings));
+                var receiptMessage=$"Đã nhập thành công vào Tổng hợp.xlsx: "+
+                    $"{outcome.Contracts} hợp đồng · {outcome.Packages} kiện · "+
+                    $"{outcome.Lines} dòng vật tư.";
+                // The warehouse service has already reloaded the master after
+                // writing. From AI Zalo, carry the SAME analyzed image directly
+                // to the expected-dispatch selection; do not ask for a second
+                // image/upload or an extra scan.
+                if(onReceiptCommitted!=null && _service.LastError.Length==0)
+                {
+                    onReceiptCommitted(receiptMessage);
+                    return;
+                }
+                Notify(receiptMessage+"\n"+string.Join("\n",outcome.Warnings));
                 InvalidateSearch();
                 await SearchAsync();
             })

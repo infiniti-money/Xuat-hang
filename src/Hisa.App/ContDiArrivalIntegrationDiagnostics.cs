@@ -139,6 +139,38 @@ public static class ContDiArrivalIntegrationDiagnostics
               x.ArrivalDate==actualDay&&x.OriginPackageId==selected[0].Id&&
               x.Items.Count==2),
             "Master chi tiết records confirmed actual arrival date, original source ID and two goods");
+        // The real UI switches to the outgoing half of the SAME Zalo image
+        // after RecordVerifiedArrivalAsync has refreshed the warehouse. A
+        // handover draft must see the newly imported master materials without
+        // reopening the screenshot, and must not save a delivery transaction.
+        var dispatchSchedule=new AiScheduleDocument
+        {
+            DispatchDate=actualDay,
+            Arrivals=[new AiScheduleLine{Contract="88882026"}],
+            Dispatches=[new AiScheduleLine{Contract="29102026",
+                Project="Dự án Hưng Yên T1",Company="Công ty A",
+                PlannedDate=actualDay}]
+        };
+        dispatchSchedule.Dispatches[0].SelectedForHandover=true;
+        var dispatchFilter=HandoverMaterialGroups.BuildFilter("29102026",
+            ["Máy kéo","Ray dẫn hướng"]);
+        var dispatchReport=service.Search(dispatchFilter);
+        dispatchReport=AiHandoverSelection.Build(dispatchReport,
+            dispatchSchedule,ZaloDispatchQuickSelection.Selected(dispatchSchedule));
+        HandoverMaterialGroups.EnsureSelectedContractsHaveMaterials(dispatchReport);
+        var beforeSlips=service.Slips.Count;
+        var handover=service.CreateDraft(dispatchReport,
+            service.Templates.First().Id,actualDay);
+        Check(handover.Status=="planned"&&handover.Contracts.Count==1 &&
+              handover.Contracts[0]=="29102026" &&
+              handover.Lines.Count==2 &&
+              handover.Lines.Any(x=>x.Material=="Máy kéo HISA") &&
+              handover.Lines.Any(x=>x.Material=="Ray dẫn hướng"),
+            "After successful receipt, same Zalo outgoing HĐ plus chosen groups creates complete unsaved handover draft");
+        Check(service.Slips.Count==beforeSlips &&
+              !new ExcelStore().ReadShipments(service.Settings)
+                .Any(x=>x.Contract=="29102026"),
+            "Draft preview after container import never confirms dispatch or writes shipment ledger");
         var archived=Path.Combine(workspace,"Đã nhập kho","29.10","29102026.xlsx");
         Check(File.Exists(archived)&&!File.Exists(original),
             "Confirmed workbook moved to sibling Đã nhập kho preserving the source date folder");

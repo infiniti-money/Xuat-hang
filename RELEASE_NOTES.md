@@ -1,3 +1,14 @@
+## HISA v1.9.42 — Lập phiếu nhanh ngay sau khi nhập cont từ ảnh Zalo (đang kiểm thử)
+
+- **Một ảnh Zalo cho cả nhập và xuất:** Sau khi xác nhận nhận cont và ghi thành công vào `Tổng hợp.xlsx / chi tiết`, màn hình **tự chuyển** sang danh sách hợp đồng **HÀNG DỰ KIẾN XUẤT KHO** trong chính ảnh đã phân tích. Không yêu cầu tải lại ảnh hoặc tra lại mã hợp đồng; công trình, vật tư lấy từ dữ liệu Tổng hợp mới tải sau khi nhập kho.
+- **Danh sách xuất gọn:** Một checkbox **Làm phiếu** trên từng số HĐ, tên công trình/T1/T2, đơn vị, ngày dự kiến và ghi chú; có ô **lọc nhanh mã HĐ/công trình**, nút **Chọn tất cả HĐ đủ dữ liệu** và **Bỏ chọn**. HĐ thiếu thông tin, sai ngày hoặc cần đối chiếu OCR không tự được chọn; chỉ chọn các HĐ thuộc phần DỰ KIẾN XUẤT, không lấy HĐ chỉ nằm trong phần CONT DỰ KIẾN VỀ.
+- **Chọn nhóm vật tư rồi lên phiếu:** Sáu nhóm Tủ điện, Máy kéo, Đầu cửa tầng, Đầu cửa car, Ray dẫn hướng, Bass nối hiển thị ngay dưới bảng HĐ; một nút **Lập phiếu từ hợp đồng & nhóm vật tư đã chọn** tạo phiếu chờ trong trình soạn phiếu hiện có. Không tự thêm nhóm **Khác**, không tự xác nhận xuất/bàn giao hoặc ghi sổ xuất.
+- **Ngày dự kiến xuất nằm ngay đầu phần lập phiếu** để kiểm tra trước khi lập. Các bảng tra cứu thiết bị, vật tư và serial được thu gọn trong phần **tùy chọn** để giảm cuộn trang.
+- Sau khi tạo phiếu chờ, HISA vẫn tự điền serial máy kéo từ file `MÁY KÉO.xlsx` theo đối chiếu hợp đồng và để người dùng kiểm tra, in, ký/xác nhận xuất theo quy trình bình thường.
+- Kiểm thử với bộ Excel giả lập: nhập kiện Hưng Yên từ Container, refresh Tổng hợp, chọn hợp đồng thuộc lịch xuất và hai nhóm vật tư, tạo bản nháp **không ghi sổ xuất**; kiểm thử danh sách hợp đồng sai ngày/thiếu công trình và kiểm thử giao diện nhanh sau khi nhận cont.
+
+---
+
 ## HISA v1.9.41 — Quét nhanh toàn bộ hợp đồng cont về từ ảnh Zalo
 
 - **Ảnh Zalo → nhập kho nhanh:** Sau khi Gemini phân tích, HISA tự chọn **tất cả mã số hợp đồng hợp lệ** ở phần HÀNG DỰ KIẾN VỀ KHO, bỏ dòng trùng mã, **không lấy hợp đồng chỉ nằm trong HÀNG DỰ KIẾN XUẤT KHO**.
