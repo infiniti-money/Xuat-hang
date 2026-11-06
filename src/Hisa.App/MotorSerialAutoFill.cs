@@ -11,7 +11,8 @@ public static class MotorSerialAutoFill
     public sealed record Result(int Assigned,int Missing,IReadOnlyList<string> Warnings);
 
     public static Result Fill(Slip slip,IEnumerable<EquipmentListReader.Row> productionRows,
-        IEnumerable<Slip>? slipHistory=null)
+        IEnumerable<Slip>? slipHistory=null,
+        IReadOnlyDictionary<string,string>? approvedProjectChoices=null)
     {
         var warnings=new List<string>();
         // Legacy material slips may contain fractional or unknown quantities,
@@ -58,8 +59,13 @@ public static class MotorSerialAutoFill
             // Search column D by contract, then narrow to the project in B.
             // If the same contract has several projects, do not borrow a
             // serial from a different project just because D matches.
+            var selectionKey=MotorSerialProjectScope.SlipKey(
+                first.Contract,first.Project,first.Company);
+            string? selectedProject=null;
+            if(approvedProjectChoices!=null)
+                approvedProjectChoices.TryGetValue(selectionKey,out selectedProject);
             var selected=MotorSerialProjectScope.Resolve(
-                motors,first.Contract,first.Project,first.Company);
+                motors,first.Contract,first.Project,first.Company,selectedProject);
             if(selected.Warning!=null)
             {
                 warnings.Add(selected.Warning);
