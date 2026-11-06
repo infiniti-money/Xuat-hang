@@ -79,6 +79,28 @@ public static class MotorSerialAutoFillDiagnostics
               userEntered.MotorSerials[0].SerialNumber=="HY-SERIAL-102"&&
               userEntered.MotorSerials[1].SerialNumber=="HY-SERIAL-101",
             "Preserve manually entered serial and fill only missing unit from Excel");
+        var partialSource=new List<EquipmentListReader.Row>
+        {
+            new(){Category="Máy kéo",Contract="56062026",Project="Hưng Yên T1",
+                Company="Công ty A",Material="Máy kéo 11 kW",
+                Serial="KNOWN-T1",SourceRow=8,Quantity=1},
+            new(){Category="Máy kéo",Contract="56062026",Project="Hưng Yên T1",
+                Company="Công ty A",Material="Máy kéo 11 kW",
+                Serial="",SourceRow=9,Quantity=1},
+            new(){Category="Máy kéo",Contract="56062026",Project="Hưng Yên T2",
+                Company="Công ty A",Material="Máy kéo 11 kW",
+                Serial="KNOWN-T2",SourceRow=10,Quantity=1}
+        };
+        var partialSlip=NewSlip();
+        var partial=MotorSerialAutoFill.Fill(partialSlip,partialSource);
+        Check(partial.Assigned==1&&partial.Missing==1&&
+              partialSlip.MotorSerials.Count(x=>x.SerialNumber=="KNOWN-T1")==1&&
+              partialSlip.MotorSerials.All(x=>x.SerialNumber!="KNOWN-T2"),
+            "Known T1 serial auto-imports even if another unit is still blank");
+        var printedPartial=PrintedText(partialSlip,"contract_delivery");
+        Check(printedPartial.Contains("KNOWN-T1")&&!printedPartial.Contains("KNOWN-T2"),
+            "Printable handover shows known serial without requiring missing serial");
+
         var fallback=NewSlip(quantity:1);
         var modelDifferent=new List<EquipmentListReader.Row>
         {
