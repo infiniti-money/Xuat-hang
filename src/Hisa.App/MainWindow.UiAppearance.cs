@@ -13,6 +13,13 @@ public partial class MainWindow
         ApplyAppearance();
     }
 
+    // Regression tests can switch appearance in memory without altering user preferences.
+    internal void SetAppearanceForDiagnostics(bool dark)
+    {
+        _darkAppearance=dark;
+        ApplyAppearance();
+    }
+
     private void ToggleAppearanceClick(object sender,RoutedEventArgs e)
     {
         var newMode=!_darkAppearance;
