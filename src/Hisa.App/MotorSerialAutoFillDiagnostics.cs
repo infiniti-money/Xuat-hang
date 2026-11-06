@@ -101,6 +101,20 @@ public static class MotorSerialAutoFillDiagnostics
         Check(printedPartial.Contains("KNOWN-T1")&&!printedPartial.Contains("KNOWN-T2"),
             "Printable handover shows known serial without requiring missing serial");
 
+        var aliasSlip=NewSlip(project:"Tên công trình khác ở phiếu");
+        var aliasNotApproved=MotorSerialAutoFill.Fill(aliasSlip,source);
+        Check(aliasNotApproved.Assigned==0&&aliasNotApproved.Missing==2,
+            "Different project label never automatically borrows serial under same HĐ");
+        var explicitChoices=new Dictionary<string,string>
+        {
+            [MotorSerialProjectScope.SlipKey("56062026",
+                "Tên công trình khác ở phiếu","Công ty A")]="Hưng Yên T1"
+        };
+        var aliasApproved=MotorSerialAutoFill.Fill(
+            aliasSlip,source,null,explicitChoices);
+        Check(aliasApproved.Assigned==2&&aliasApproved.Missing==0&&
+              aliasSlip.MotorSerials.All(x=>x.SerialNumber!="HY-OTHER-T2"),
+            "Explicitly chosen source project can import its serials without T2 contamination");
         var fallback=NewSlip(quantity:1);
         var modelDifferent=new List<EquipmentListReader.Row>
         {
