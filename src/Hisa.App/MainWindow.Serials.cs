@@ -43,8 +43,10 @@ public partial class MainWindow
         PrintService.PreviewSlip(this,copy,FindTemplate(copy.TemplateId));
     }
 
-    private bool ConfirmMotorProjectSelection(Slip slip)
+    private bool ConfirmMotorProjectSelection(Slip slip,
+        out Dictionary<string,string> confirmedProjects)
     {
+        confirmedProjects=new();
         var production=EquipmentListReader.Load(_service.Settings);
         // Ask only for project collisions, and never change the HĐ/project
         // already selected on the source warehouse slip.
@@ -59,6 +61,8 @@ public partial class MainWindow
             var picker=new MotorSerialProjectWindow(
                 first.Contract,first.Project,projects){Owner=this};
             if(picker.ShowDialog()!=true)return false;
+            confirmedProjects[MotorSerialProjectScope.SlipKey(
+                first.Contract,first.Project,first.Company)]=picker.SelectedProject;
         }
         return true;
     }
@@ -68,13 +72,23 @@ public partial class MainWindow
         FillMotorSerialsFromSource(slip);
         var rows=MotorSerials.BuildRows(slip);
         if(rows.Count==0){slip.MotorSerials=[];if(!requireAll)Notify("Phiếu không có máy kéo đang chọn để bàn giao.");return true;}
-        if(!ConfirmMotorProjectSelection(slip))return false;
+        if(!ConfirmMotorProjectSelection(slip,out var confirmedProjects))
+            return false;
+        if(confirmedProjects.Count>0)
+        {
+            // A chosen alias/source project may have existing serials. Pull
+            // only those verified project-scoped entries into the draft.
+            MotorSerialAutoFill.Fill(slip,
+                EquipmentListReader.Load(_service.Settings).Rows,
+                _service.Slips,confirmedProjects);
+        }
         var dialog=new MotorSerialWindow(slip,_service.Slips,requireAll){Owner=this};
         if(dialog.ShowDialog()!=true)return false;
         slip.MotorSerials=dialog.ResultSerials;
         try
         {
-            var proposed=MotorSerialExcelSync.Preview(_service.Settings,slip);
+            var proposed=MotorSerialExcelSync.Preview(
+                _service.Settings,slip,confirmedProjects);
             if(proposed.Proposed.Count>0)
             {
                 var mappedRows=string.Join("\n",proposed.Proposed.Take(12)
@@ -91,7 +105,7 @@ public partial class MainWindow
                 {
                     var result=MotorSerialExcelSync.Apply(_service.Settings,slip,
                         System.IO.Path.Combine(_service.BackupDirectory,"Excel"),
-                        proposed.Proposed);
+                        proposed.Proposed,confirmedProjects);
                     Notify("Đã ghi "+result.Written+" serial vào MÁY KÉO.xlsx cột I."+
                         (result.Warnings.Count>0?"\nCảnh báo: "+
                         string.Join("\n",result.Warnings.Take(6)):""));
