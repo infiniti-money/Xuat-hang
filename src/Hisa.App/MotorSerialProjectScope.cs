@@ -10,6 +10,11 @@ public static class MotorSerialProjectScope
     public sealed record Selection(List<EquipmentListReader.Row> Rows,
         string? Warning, bool MultipleProjects);
 
+    // Stable selection key for one slip project, used only in the current
+    // explicitly confirmed serial editing session.
+    public static string SlipKey(string contract,string project,string company)=>
+        Rules.Contract(contract)+"|"+Rules.Code(project)+"|"+Rules.Code(company);
+
     public static List<string> Projects(IEnumerable<EquipmentListReader.Row> rows,
         string contract) =>
         rows.Where(x=>x.Category=="Máy kéo" &&
@@ -21,7 +26,8 @@ public static class MotorSerialProjectScope
             .ToList();
 
     public static Selection Resolve(IEnumerable<EquipmentListReader.Row> rows,
-        string contract,string project,string company)
+        string contract,string project,string company,
+        string? explicitlySelectedSourceProject=null)
     {
         var matching=rows.Where(x=>x.Category=="Máy kéo" &&
             Rules.Contract(x.Contract)==Rules.Contract(contract)).ToList();
@@ -30,6 +36,16 @@ public static class MotorSerialProjectScope
 
         var projects=Projects(matching,contract);
         var multiple=projects.Count>1;
+        if(explicitlySelectedSourceProject!=null)
+        {
+            // Only the manual writeback path supplies this override, after a
+            // modal confirmation. Auto-fill always uses the slip's own project.
+            if(!projects.Any(x=>Rules.Code(x)==
+                Rules.Code(explicitlySelectedSourceProject)))
+                return new([], "Công trình được chọn không còn tồn tại trong Excel. "+
+                    "Tải lại file máy kéo rồi xác nhận lại.",multiple);
+            project=explicitlySelectedSourceProject;
+        }
         if(multiple && string.IsNullOrWhiteSpace(project))
             return new([], "HĐ "+contract+" có nhiều công trình: "+
                 string.Join(", ",projects)+". Chọn công trình trước khi nhập serial.",true);
