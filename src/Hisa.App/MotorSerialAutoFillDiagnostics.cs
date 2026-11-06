@@ -101,6 +101,18 @@ public static class MotorSerialAutoFillDiagnostics
         Check(printedPartial.Contains("KNOWN-T1")&&!printedPartial.Contains("KNOWN-T2"),
             "Printable handover shows known serial without requiring missing serial");
 
+        var halfModelMissing=NewSlip();
+        var differentModelRows=partialSource
+            .Select(x=>new EquipmentListReader.Row
+            {
+                Category=x.Category,Contract=x.Contract,Project=x.Project,
+                Company=x.Company,Material=x.SourceRow==9?"":x.Material,
+                Serial=x.Serial,SourceRow=x.SourceRow,Quantity=x.Quantity
+            }).ToList();
+        var partialWithModelGap=MotorSerialAutoFill.Fill(
+            halfModelMissing,differentModelRows);
+        Check(partialWithModelGap.Assigned==1&&partialWithModelGap.Missing==1,
+            "One project can import a known serial even when another row omits model");
         var aliasSlip=NewSlip(project:"Tên công trình khác ở phiếu");
         var aliasNotApproved=MotorSerialAutoFill.Fill(aliasSlip,source);
         Check(aliasNotApproved.Assigned==0&&aliasNotApproved.Missing==2,
