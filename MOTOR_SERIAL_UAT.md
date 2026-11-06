@@ -16,6 +16,17 @@ Thực hiện trên **bản sao** dữ liệu, tuyệt đối không chạy th�
 - [ ] Nếu công trình trên phiếu khác tên công trình nguồn, hệ thống yêu cầu thêm một lần xác nhận trước khi cho phép dùng lựa chọn thủ công.
 - [ ] Chọn **Hủy** không ghi Excel, không ghi sổ xuất, không thay đổi trạng thái phiếu.
 
+## Khi xác nhận Đã xuất / Đã bàn giao
+
+- [ ] Dùng file `MÁY KÉO.xlsx` **bản sao**, trong đó một máy có serial I đã có, một máy cùng công trình có I trống; T2 cùng hợp đồng có serial riêng.
+- [ ] Lưu phiếu **Chờ xuất** không ghi thêm serial I và ngày K theo luồng đồng bộ khi xuất.
+- [ ] Nhập serial mới trên phiếu và xác nhận **Đã xuất**: serial được ghi vào đúng **I** trống và ngày thực tế trên phiếu vào đúng **K** cùng dòng máy, không ghi nhầm T2.
+- [ ] Một lần xác nhận phải tạo **một bản sao lưu Excel** cho cả serial I và ngày K; không tồn tại trường hợp ghi I thành công còn K lỗi.
+- [ ] Nếu K chứa công thức, ngày thủ công khác, file đã bị sửa hoặc Excel đang khóa: **không** ghi đè; phiếu phải cảnh báo còn chờ đồng bộ.
+- [ ] Đổi tên công trình/thiếu công trình hoặc có nhiều dòng I trống không thể xác định duy nhất: giữ nguyên Excel, hiển thị HĐ/công trình để đối chiếu.
+- [ ] Chạy đồng bộ lại: không ghi trùng, không tạo bản sao lưu mới nếu không có thay đổi.
+- [ ] Hủy phiếu Đã xuất: chỉ xóa ngày K do HISA đã ghi nếu giá trị chưa bị người dùng thay đổi; **serial vật lý I vẫn được giữ**.
+
 ## Ghi ngược Excel
 - [ ] Chỉ sau khi xác nhận, ô **I** đang trống và đúng dự án nhận serial mới.
 - [ ] Serial đã có ở ô I khác, ngày xuất **cột K**, các công thức và ghi chú ở cột khác không thay đổi.
