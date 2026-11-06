@@ -175,13 +175,16 @@ public static class MotorHandoverExcel
                 continue;
             }
             var filled=MotorSerials.ActiveRows(slip)
-                .Count(x=>!limited || Rules.Contract(x.Contract)==scope);
+                .Count(x=>(!limited || Rules.Contract(x.Contract)==scope) &&
+                    !string.IsNullOrWhiteSpace(x.Project) &&
+                    !string.IsNullOrWhiteSpace(x.Company));
             if(wanted<=filled)continue;
             missingSerialSlots+=wanted-filled;
             warnings.Add("Phiếu "+slip.SlipCode+" / HĐ "+contracts+
                 " đã xuất nhưng thiếu "+(wanted-filled)+
-                " serial máy kéo. Không tự đoán ngày bàn giao theo số HĐ; "+
-                "kiểm tra serial trên phiếu và cột I MÁY KÉO.xlsx.");
+                " serial hoặc thiếu công trình/đơn vị để đối chiếu. "+
+                "Không tự đoán ngày bàn giao theo số HĐ; kiểm tra phiếu và "+
+                "cột B/C/D/I MÁY KÉO.xlsx.");
         }
         foreach(var slip in allSlips.Where(x=>x.Status=="delivered"))
         foreach(var serial in MotorSerials.ActiveRows(slip))
