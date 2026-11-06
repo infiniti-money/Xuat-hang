@@ -85,12 +85,14 @@ public static class MotorWorkbookCellPatch
         return letters+row.ToString(CultureInfo.InvariantCulture);
     }
 
-    private static XDocument PatchSheet(XDocument document,IReadOnlyList<Edit> edits)
+    private static XDocument PatchSheet(XDocument document,IReadOnlyList<Edit> edits,
+        ZipArchive source)
     {
         var root=document.Root??throw new InvalidDataException("Sheet XML rỗng.");
         var data=root.Element(Spreadsheet+"sheetData")??
             throw new InvalidDataException("Sheet không có dữ liệu.");
         var merged=root.Element(Spreadsheet+"mergeCells");
+        IReadOnlyList<string>? sharedStrings=null;
         foreach(var edit in edits)
         {
             if(edit.Row<2 || edit.Column is not (9 or 11) ||
@@ -139,11 +141,44 @@ public static class MotorWorkbookCellPatch
                     " chứa công thức; không được ghi đè.");
             // A delivery may stage I and K together, but another writer must
             // never have its physical serial replaced between preview and commit.
-            if(edit.Column==9 && edit.Value!=null &&
-               (!string.IsNullOrWhiteSpace(cell.Element(Spreadsheet+"v")?.Value) ||
-                !string.IsNullOrWhiteSpace(cell.Element(Spreadsheet+"is")?.Value)))
-                throw new InvalidDataException("Ô serial "+reference+
-                    " đã có dữ liệu khi ghi; tải lại Excel để đối chiếu. Không ghi đè.");
+            if(edit.Column==9 && edit.Value!=null)
+            {
+                var inline=cell.Element(Spreadsheet+"is")?.Value;
+                var value=cell.Element(Spreadsheet+"v")?.Value;
+                var hasContent=!string.IsNullOrWhiteSpace(inline);
+                if(!string.IsNullOrWhiteSpace(value))
+                {
+                    // A blank Excel string may be written as a shared-string
+                    // index (e.g. <v>0</v>) even though GetString() is empty.
+                    // Resolve that index instead of treating it as serial "0".
+                    if((string?)cell.Attribute("t")=="s")
+                    {
+                        if(sharedStrings==null)
+                        {
+                            var entry=source.GetEntry("xl/sharedStrings.xml")??
+                                throw new InvalidDataException(
+                                    "Excel thiếu bảng chuỗi dùng chung. Không sửa serial.");
+                            using var stream=entry.Open();
+                            var strings=XDocument.Load(stream);
+                            sharedStrings=strings.Root?
+                                .Elements(Spreadsheet+"si")
+                                .Select(si=>string.Concat(
+                                    si.Descendants(Spreadsheet+"t")
+                                      .Select(t=>t.Value))).ToList() ??
+                                throw new InvalidDataException(
+                                    "Bảng chuỗi Excel không hợp lệ.");
+                        }
+                        hasContent|=!int.TryParse(value,NumberStyles.None,
+                            CultureInfo.InvariantCulture,out var index) ||
+                            index<0 || index>=sharedStrings.Count ||
+                            !string.IsNullOrWhiteSpace(sharedStrings[index]);
+                    }
+                    else hasContent=true;
+                }
+                if(hasContent)
+                    throw new InvalidDataException("Ô serial "+reference+
+                        " đã có dữ liệu khi ghi; tải lại Excel để đối chiếu. Không ghi đè.");
+            }
             cell.Elements(Spreadsheet+"v").Remove();
             cell.Elements(Spreadsheet+"is").Remove();
             cell.Attribute("t")?.Remove();
@@ -238,7 +273,7 @@ public static class MotorWorkbookCellPatch
                     throw new InvalidDataException(
                         "Excel có chữ ký số; HISA không thay đổi workbook đã ký.");
                 var sheetPath=FirstWorksheetPath(archive);
-                var sheet=PatchSheet(LoadXml(archive,sheetPath),edits);
+                var sheet=PatchSheet(LoadXml(archive,sheetPath),edits,archive);
                 using(var output=new FileStream(tmp,FileMode.CreateNew,FileAccess.Write,
                     FileShare.None))
                 using(var destination=new ZipArchive(output,ZipArchiveMode.Create))
