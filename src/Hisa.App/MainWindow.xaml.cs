@@ -29,10 +29,9 @@ public partial class MainWindow : Window
     private string _packageQuery = "";
     private DailyReport? _daily;
     private string _dailyDay = DateTime.Today.ToString("yyyy-MM-dd");
-    private static readonly SolidColorBrush Muted = Brush("#70869B");
-    private static readonly SolidColorBrush Ink = Brush("#18354D");
-    private static readonly SolidColorBrush CardSurface = Brush("#FFFFFF");
-    private static readonly SolidColorBrush CardStroke = Brush("#DFE7EF");
+    // Replaced, rather than recolored: WPF can freeze shared brushes after rendering.
+    private static Brush Muted = Brush("#70869B");
+    private static Brush Ink = Brush("#18354D");
 
     public MainWindow(WarehouseService service)
     {
@@ -201,10 +200,30 @@ public partial class MainWindow : Window
         b.Click+=(_,_)=>action();return b;
     }
     private Button A(string title,Func<Task> action,bool primary=false,bool danger=false)=>B(title,()=>_ = Run(action),primary,danger);
-    private static TextBlock T(string text,double size=13,bool bold=false,Brush? color=null)=>new(){Text=text,FontSize=size,FontWeight=bold?FontWeights.SemiBold:FontWeights.Normal,Foreground=color??Ink,TextWrapping=TextWrapping.Wrap};
+    private static TextBlock T(string text,double size=13,bool bold=false,Brush? color=null)
+    {
+        var element=new TextBlock
+        {
+            Text=text,FontSize=size,FontWeight=bold?FontWeights.SemiBold:FontWeights.Normal,
+            TextWrapping=TextWrapping.Wrap
+        };
+        if(color==null || ReferenceEquals(color,Ink))
+            element.SetResourceReference(TextBlock.ForegroundProperty,"Ink");
+        else if(ReferenceEquals(color,Muted))
+            element.SetResourceReference(TextBlock.ForegroundProperty,"Muted");
+        else element.Foreground=color;
+        return element;
+    }
     private static StackPanel Stack(params UIElement[] children){var p=new StackPanel();foreach(var c in children)p.Children.Add(c);return p;}
     private static WrapPanel Row(params UIElement[] children){var p=new WrapPanel {VerticalAlignment=VerticalAlignment.Center};foreach(var c in children)p.Children.Add(c);return p;}
-    private static Border Card(UIElement child,Thickness? padding=null)=>new(){Child=child,Background=CardSurface,BorderBrush=CardStroke,BorderThickness=new Thickness(1),CornerRadius=new CornerRadius(10),Padding=padding??new Thickness(18),Margin=new Thickness(0,0,0,14)};
+    private static Border Card(UIElement child,Thickness? padding=null)
+    {
+        var border=new Border{Child=child,BorderThickness=new Thickness(1),CornerRadius=new CornerRadius(10),
+            Padding=padding??new Thickness(18),Margin=new Thickness(0,0,0,14)};
+        border.SetResourceReference(Border.BackgroundProperty,"PanelBackground");
+        border.SetResourceReference(Border.BorderBrushProperty,"Line");
+        return border;
+    }
     private static FrameworkElement Field(string label,FrameworkElement control,double width=0){var p=Stack(T(label,11,true,Muted),control);if(width>0)p.Width=width;return p;}
     private static TextBox Input(string value="",bool multi=false,double width=0)
     {
@@ -216,7 +235,9 @@ public partial class MainWindow : Window
     private static Grid Layout(FrameworkElement top,FrameworkElement body)
     {var g=new Grid();g.RowDefinitions.Add(new RowDefinition{Height=GridLength.Auto});g.RowDefinitions.Add(new RowDefinition{Height=new GridLength(1,GridUnitType.Star)});g.Children.Add(top);Grid.SetRow(body,1);g.Children.Add(body);return g;}
     private static TabControl Tabs(params (string Title,FrameworkElement Body)[] tabs)
-    {var t=new TabControl {BorderBrush=CardStroke,Background=CardSurface};foreach(var x in tabs)t.Items.Add(new TabItem{Header=x.Title,Content=x.Body});return t;}
+    {var t=new TabControl();t.SetResourceReference(TabControl.BorderBrushProperty,"Line");
+     t.SetResourceReference(TabControl.BackgroundProperty,"PanelBackground");
+     foreach(var x in tabs)t.Items.Add(new TabItem{Header=x.Title,Content=x.Body});return t;}
     private static DataGrid Table(IEnumerable items,params (string Label,string Path,double Width)[] columns)
     {
         var grid=new DataGrid {ItemsSource=items,Margin=new Thickness(0,4,0,0)};
