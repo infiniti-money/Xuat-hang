@@ -234,8 +234,8 @@ public static class UiWorkflowDiagnostics
                     "ĐÃ BÀN GIAO · CÓ NGÀY K"))==3,
                 "Motor schedule shows three filters reflecting the column K delivery day");
             Check(Children(window).OfType<Button>().Any(x=>
-                x.Content?.ToString()?.Contains("Đồng bộ ngày bàn giao cột K")==true),
-                "Motor screen exposes explicit contract-scoped K retry for old delivered slips");
+                x.Content?.ToString()?.Contains("Đồng bộ serial I + ngày bàn giao K")==true),
+                "Motor screen exposes explicit contract-scoped serial I and delivery K retry");
             Check(Children(window).OfType<Button>().Any(x=>
                 x.Content?.ToString()=="Kiểm tra file Excel (chỉ đọc)"),
                 "Motor schedule includes a manual, read-only Excel health check");
