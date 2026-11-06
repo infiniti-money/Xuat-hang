@@ -236,7 +236,7 @@ public static class MotorHandoverExcel
         // No draft, guessed project, second choice, or occupied I cell can
         // authorize an automatic serial write. Serial and date edits are
         // committed together as ONE validated OOXML patch and ONE backup.
-        var candidates=new List<MotorSerialExcelSync.Assignment>();
+        var serialCandidates=new List<MotorSerialExcelSync.Assignment>();
         foreach(var slip in allSlips.Where(x=>x.Status=="delivered" &&
             x.Lines.Any(line=>MotorSerials.IsMotor(line) &&
                 (!limited || Rules.Contract(line.Contract)==scope))))
@@ -246,7 +246,7 @@ public static class MotorHandoverExcel
                 var preview=MotorSerialExcelSync.Preview(settings,slip);
                 foreach(var warning in preview.Warnings)
                     warnings.Add("Phiếu "+slip.SlipCode+": "+warning);
-                candidates.AddRange(preview.Proposed.Where(x=>
+                serialCandidates.AddRange(preview.Proposed.Where(x=>
                     !limited || Rules.Contract(x.Contract)==scope));
             }
             catch(Exception e) when(e is IOException or InvalidDataException or
@@ -258,7 +258,7 @@ public static class MotorHandoverExcel
         }
         var staged=new Dictionary<int,MotorSerialExcelSync.Assignment>();
         var sourceByRow=rows.ToDictionary(x=>x.SourceRow);
-        foreach(var group in candidates.GroupBy(x=>x.SourceRow))
+        foreach(var group in serialCandidates.GroupBy(x=>x.SourceRow))
         {
             if(group.Count()!=1)
             {
