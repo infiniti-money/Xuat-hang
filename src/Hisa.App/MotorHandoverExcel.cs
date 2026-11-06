@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.IO;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using ClosedXML.Excel;
@@ -28,7 +29,8 @@ public static class MotorHandoverExcel
         public string Date { get; set; }="";
         public string PreviousDate { get; set; }="";
     }
-    public sealed record Outcome(int Written,int Cleared,int Unmatched,IReadOnlyList<string> Warnings);
+    public sealed record Outcome(int Written,int Cleared,int Unmatched,IReadOnlyList<string> Warnings,
+        int SerialWritten=0);
 
     // A physical serial plus exact contract/project/company is stronger than a
     // free-text model description; the machine may be named differently in
@@ -196,6 +198,12 @@ public static class MotorHandoverExcel
                 conflict.Add(id);
             else wished[id]=slip.HandoverDate;
         }
+        // Capture the exact workbook generation BEFORE reading/planning.
+        // The patcher checks the same SHA-256 while holding an exclusive lock.
+        // A changed source must never receive I/K edits from a stale plan.
+        string sourceHash;
+        using(var stream=File.OpenRead(path))
+            sourceHash=Convert.ToHexString(SHA256.HashData(stream));
         using var book=new XLWorkbook(path);
         var sheet=book.Worksheets.First();
         if(Rules.Code(sheet.Cell(2,4).GetString())!="HD")
@@ -222,6 +230,59 @@ public static class MotorHandoverExcel
         var rows=EquipmentListReader.Read(path,"Máy kéo");
         if(wished.Count==0 && prior.Count==0)
             return new Outcome(0,0,missingSerialSlots,warnings);
+
+        // For a CONFIRMED delivered slip, plan new column-I serials using the
+        // same one-to-one contract/project rules as the manual serial dialog.
+        // No draft, guessed project, second choice, or occupied I cell can
+        // authorize an automatic serial write. Serial and date edits are
+        // committed together as ONE validated OOXML patch and ONE backup.
+        var candidates=new List<MotorSerialExcelSync.Assignment>();
+        foreach(var slip in allSlips.Where(x=>x.Status=="delivered" &&
+            x.Lines.Any(line=>MotorSerials.IsMotor(line) &&
+                (!limited || Rules.Contract(line.Contract)==scope))))
+        {
+            try
+            {
+                var preview=MotorSerialExcelSync.Preview(settings,slip);
+                foreach(var warning in preview.Warnings)
+                    warnings.Add("Phiếu "+slip.SlipCode+": "+warning);
+                candidates.AddRange(preview.Proposed.Where(x=>
+                    !limited || Rules.Contract(x.Contract)==scope));
+            }
+            catch(Exception e) when(e is IOException or InvalidDataException or
+                InvalidOperationException or ArgumentException or UnauthorizedAccessException)
+            {
+                warnings.Add("Phiếu "+slip.SlipCode+
+                    ": chưa thể ghép serial mới vào cột I: "+e.Message);
+            }
+        }
+        var staged=new Dictionary<int,MotorSerialExcelSync.Assignment>();
+        var sourceByRow=rows.ToDictionary(x=>x.SourceRow);
+        foreach(var group in candidates.GroupBy(x=>x.SourceRow))
+        {
+            if(group.Count()!=1)
+            {
+                warnings.Add("Dòng máy kéo "+group.Key+
+                    " được nhiều phiếu chọn để ghi serial. Giữ nguyên cột I/K.");
+                continue;
+            }
+            var assignment=group.Single();
+            if(!sourceByRow.TryGetValue(assignment.SourceRow,out var target) ||
+               Rules.Contract(target.Contract)!=Rules.Contract(assignment.Contract) ||
+               Rules.Code(target.Project)!=Rules.Code(assignment.Project) ||
+               Rules.Code(target.Company)!=Rules.Code(assignment.Company) ||
+               !string.IsNullOrWhiteSpace(target.Serial))
+            {
+                warnings.Add("Dòng máy kéo "+assignment.SourceRow+
+                    " không còn khớp đúng HĐ/công trình hoặc serial I đã có. "+
+                    "Không tự ghi.");
+                continue;
+            }
+            staged.Add(assignment.SourceRow,assignment);
+            // Temporary planning only; the original Excel remains unchanged
+            // until the final atomic I+K edit passes validation.
+            target.Serial=assignment.Serial;
+        }
         var populated=rows.Where(x=>!string.IsNullOrWhiteSpace(x.Serial)).ToList();
         var indexed=populated.GroupBy(Key)
             .ToDictionary(x=>x.Key,x=>x.ToList(),StringComparer.Ordinal);
@@ -237,6 +298,7 @@ public static class MotorHandoverExcel
         var next=new Dictionary<string,Receipt>(StringComparer.Ordinal);
         var priorByKey=prior.ToDictionary(x=>x.Identity,StringComparer.Ordinal);
         int written=0,cleared=0,unmatched=missingSerialSlots;
+        var validDeliveryRows=new HashSet<int>();
         // Plan every mutation before touching any workbook cell. Only unique
         // HĐ + project + company + model + serial identities can be marked.
         var actions=new List<(int Row,string? NewDay,string Identity,string PreviousDay)>();
@@ -302,7 +364,12 @@ public static class MotorHandoverExcel
             }
             // An already-matching value typed by the operator stays operator-owned.
             // Claim ownership only when HISA actually changes the cell.
-            if(owned==null && existing==day)continue;
+            if(owned==null && existing==day)
+            {
+                validDeliveryRows.Add(matched.SourceRow);
+                continue;
+            }
+            validDeliveryRows.Add(matched.SourceRow);
             // No date means in production/not yet handed over. On reversal
             // restore an EMPTY K, not the old work-text status.
             actions.Add((matched.SourceRow,day,identity,""));
@@ -330,6 +397,13 @@ public static class MotorHandoverExcel
             actions.Add((matched[0].SourceRow,"",old.Identity,""));
         }
         var edits=new List<MotorWorkbookCellPatch.Edit>();
+        // Do not write even a correct serial into I unless its physical row
+        // has a verified confirmed delivery date to write (or already has
+        // exactly that date). An unresolved K means the I/K pair stays pending.
+        var newSerialEdits=staged.Where(x=>validDeliveryRows.Contains(x.Key))
+            .Select(x=>new MotorWorkbookCellPatch.Edit(
+                x.Key,9,x.Value.Serial)).ToList();
+        edits.AddRange(newSerialEdits);
         if(newlyAdded && actions.Count>0)
             edits.Add(new MotorWorkbookCellPatch.Edit(2,dateColumn,ColumnTitle));
         foreach(var action in actions)
@@ -352,11 +426,12 @@ public static class MotorHandoverExcel
                 throw new InvalidDataException(
                     "Cột K chỉ nhận ngày bàn giao đã xác nhận, không ghi trạng thái chữ.");
         }
-        // Do not resave the whole original workbook via ClosedXML.
-        // Only patch K cells in OOXML, preserving all unrelated package parts.
+        // Stage I and K together in one validated worksheet patch, with
+        // a backup and full original-workbook SHA-256 lease. Never use two
+        // independent saves where the serial could be written but K fails.
         if(edits.Count>0)
             MotorWorkbookCellPatch.Apply(path,excelBackupDirectory,edits,
-                "MAY-KEO-truoc-ngay-ban-giao");
+                "MAY-KEO-truoc-serial-va-ngay-ban-giao",sourceHash);
         // The receipt file only changes after Excel was safely committed.
         if(prior.Count!=next.Count || prior.Any(x=>!next.TryGetValue(x.Identity,out var y)||
             y.Date!=x.Date||y.PreviousDate!=x.PreviousDate))
@@ -365,6 +440,7 @@ public static class MotorHandoverExcel
                     !next.ContainsKey(x.Identity))
                 .Concat(next.Values)
                 .OrderBy(x=>x.Column).ThenBy(x=>x.Identity).ToList());
-        return new Outcome(written,cleared,unmatched,warnings);
+        return new Outcome(written,cleared,unmatched,warnings,
+            newSerialEdits.Count);
     }
 }
