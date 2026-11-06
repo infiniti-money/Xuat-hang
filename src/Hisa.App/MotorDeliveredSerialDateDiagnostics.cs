@@ -159,6 +159,19 @@ public static class MotorDeliveredSerialDateDiagnostics
             Check(staleRejected&&File.ReadAllBytes(path).SequenceEqual(before),
                 "Changed workbook fingerprint blocks stale I/K confirmation");
 
+            var alreadyFilled=File.ReadAllBytes(path);
+            bool serialOverwriteRejected=false;
+            try
+            {
+                MotorWorkbookCellPatch.Apply(path,backups,
+                    [new MotorWorkbookCellPatch.Edit(5,9,"SHOULD-NOT-OVERWRITE")],
+                    "must-not-overwrite");
+            }
+            catch(IOException){serialOverwriteRejected=true;}
+            Check(serialOverwriteRejected &&
+                  File.ReadAllBytes(path).SequenceEqual(alreadyFilled),
+                "Even an otherwise valid patch cannot overwrite occupied serial I");
+
             // A protected formula in K must roll back the new serial I too.
             var formulaPath=Path.Combine(root,"MÁY KÉO-formula.xlsx");
             using(var book=new XLWorkbook())
