@@ -351,6 +351,14 @@ public static class MotorHandoverExcel
                 }
             }
             var cell=sheet.Cell(matched.SourceRow,dateColumn);
+            if(cell.HasFormula && staged.ContainsKey(matched.SourceRow))
+            {
+                unmatched++;
+                warnings.Add("HĐ "+contract+" · serial "+serial+
+                    ": cột K có công thức. Không ghi serial I khi chưa "+
+                    "xác nhận được ngày bàn giao K trên đúng máy.");
+                continue;
+            }
             var existing=DateText(cell);
             priorByKey.TryGetValue(identity,out var owned);
             // Only delivered slips create a date. Existing human-entered
