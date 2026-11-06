@@ -47,7 +47,8 @@ public static class BackupRestoreDiagnostics
 
         // An injected error after writing one file must restore every previous destination.
         var stateBefore=Directory.EnumerateFiles(data,"*.json",SearchOption.TopDirectoryOnly)
-            .ToDictionary(Path.GetFileName,x=>File.ReadAllBytes(x),StringComparer.OrdinalIgnoreCase);
+            .ToDictionary(path=>Path.GetFileName(path) ?? throw new InvalidDataException("Không xác định được tên tệp sao lưu."),
+                path=>File.ReadAllBytes(path),StringComparer.OrdinalIgnoreCase);
         bool injected=false;
         try {BackupRestore.Restore(zip,data,backups,settings,true,false,1);}
         catch(IOException){injected=true;}
