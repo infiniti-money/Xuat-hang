@@ -1,3 +1,18 @@
+## HISA v1.9.51 — Serial máy kéo theo công trình và giao diện Windows 11
+
+- **Đối chiếu máy kéo từ Excel:** khi lập phiếu xuất hoặc bàn giao, phần mềm tìm mã hợp đồng ở cột D của `MÁY KÉO.xlsx`, đối chiếu công trình ở cột B, rồi lấy serial có sẵn ở cột I để điền vào đúng máy trên phiếu và bản xem trước/in.
+- **Nhập serial không bắt buộc:** nếu thiếu serial, chọn Có để bổ sung, Không để tiếp tục in hoặc xác nhận Đã xuất với serial còn trống theo sự đồng ý rõ ràng, hoặc Hủy để không thực hiện. Serial chưa có không được tự đoán hay lấy từ công trình khác.
+- **Một hợp đồng nhiều công trình:** hiện hộp chọn công trình trong danh sách nguồn. Khi công trình trên phiếu khác tên nguồn, chỉ sử dụng lựa chọn khác tên sau xác nhận riêng của người dùng. Không tự gộp T1/T2.
+- **Đồng bộ an toàn về Excel:** đề xuất chính xác các dòng cần ghi ở cột I; chỉ ghi ô trống của công trình đã đối chiếu sau khi duyệt; giữ nguyên cột K ngày bàn giao, công thức, ghi chú và các phần khác của workbook. Sao lưu bản gốc trước khi ghi. Phiếu Chờ xuất không tự ghi ngày xuất.
+- **Giao diện Windows 11:** bố cục thanh lệnh tự xuống dòng ở mức DPI 125–150%, cải thiện khả năng co giãn; nút giao diện Sáng/Tối và lưu lựa chọn qua các lần mở phần mềm.
+- **Ổn định Gemini và dữ liệu:** chặn gọi Gemini TTS khi API Key thiếu; sửa các cảnh báo nullability, trạng thái không còn sử dụng và cấu hình DPI PerMonitorV2.
+- **Cổng chất lượng:** biên dịch Windows x64 với cảnh báo được coi là lỗi, kiểm thử tự động nghiệp vụ serial nhiều công trình, in phiếu và tồn tại dữ liệu; đóng gói bộ cài tiếng Việt, bản ZIP và tệp SHA-256.
+- **Nâng cấp:** cài đè nhằm giữ dữ liệu kho, mẫu phiếu và cấu hình Gemini đã lưu; bộ cài không có chức năng tự xuất hàng hay tự bật micro.
+
+**Lưu ý nghiệm thu:** Kiểm thử tự động trên Excel giả lập không chứng minh đã ghi an toàn trên file `MÁY KÉO.xlsx` sản xuất. Cần thử trên **bản sao** workbook thật, kiểm tra T1/T2, serial, công thức và in A4/micro thật trước khi ghi dữ liệu sản xuất. Cập nhật này không sửa hoặc chuyển đổi tự động file Excel của người dùng.
+
+---
+
 ## HISA v1.9.50 — Khôi phục đồng bộ ngày bàn giao máy kéo theo HĐ 37452026
 
 - Sửa trường hợp phiếu **Đã xuất** nhưng cột K vẫn trống: khi tên công trình/công ty trong phiếu (từ ảnh Zalo hoặc Tổng hợp) khác cách ghi trong MÁY KÉO.xlsx, chỉ cần **mã hợp đồng và serial vật lý duy nhất** trong Excel để xác định dòng máy. Nếu serial bị trùng hoặc không có, KHÔNG tự ghi ngày theo số HĐ.
