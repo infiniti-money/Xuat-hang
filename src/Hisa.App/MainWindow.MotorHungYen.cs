@@ -303,7 +303,7 @@ public partial class MainWindow
                         "và nhật ký sửa chữa của Excel trước khi ghi dữ liệu thật.");
                 }),
                 B("Bỏ lọc HĐ",()=>{selectedContractKey="";contractGrid.SelectedItem=null;FilterMachines();})),
-            Row(A("↻ Đồng bộ ngày bàn giao cột K · HĐ đang chọn",async()=>
+            Row(A("↻ Đồng bộ serial I + ngày bàn giao K · HĐ đang chọn",async()=>
             {
                 // An explicitly typed HĐ has priority over a previously
                 // selected grid row; never sync the wrong selection silently.
@@ -329,27 +329,29 @@ public partial class MainWindow
                             .Take(6).Select(x=>x.Detail)));
                     return;
                 }
-                if(!Ask("ĐỒNG BỘ LẠI NGÀY BÀN GIAO · HĐ "+contract+
-                    "\nChỉ kiểm tra các máy kéo của HĐ này đã có phiếu Đã xuất. "+
-                    "Lấy ngày xuất từ phiếu và chỉ ghi cột K khi khớp duy nhất "+
-                    "số HĐ + serial (cột I).\n"+
-                    "Không ghi ngày cho HĐ khác; không thay thế ngày do người dùng "+
-                    "đã nhập. HISA sẽ tạo bản sao lưu trước khi ghi. Tiếp tục?"))
+                if(!Ask("ĐỒNG BỘ SERIAL I VÀ NGÀY BÀN GIAO K · HĐ "+contract+
+                    "\nChỉ lấy máy kéo thuộc HĐ đã có phiếu Đã xuất. "+
+                    "HISA điền serial mới vào ô I trống nếu khớp duy nhất "+
+                    "HĐ, công trình và máy; đồng thời ghi ngày bàn giao "+
+                    "trên phiếu vào K của cùng dòng.\n"+
+                    "Không ghi máy/HĐ khác, không ghi đè serial hay ngày "+
+                    "nhập tay. Tạo một bản sao lưu Excel trước khi ghi. Tiếp tục?"))
                     return;
                 try
                 {
                     var result=await _service.RetryMotorHandoverAsync(contract);
                     ShowMotorHungYen();
-                    Notify("ĐỒNG BỘ NGÀY BÀN GIAO · HĐ "+contract+
-                        "\nĐã ghi: "+result.Written+" máy · "+
-                        "Chưa đối chiếu: "+result.Unmatched+" máy.\n"+
+                    Notify("ĐỒNG BỘ SERIAL / NGÀY BÀN GIAO · HĐ "+contract+
+                        "\nSerial mới cột I: "+result.SerialWritten+
+                        " máy · Ngày bàn giao cột K: "+result.Written+
+                        " máy · Chưa đối chiếu: "+result.Unmatched+" máy.\n"+
                         (result.Warnings.Count>0?
                             string.Join("\n",result.Warnings.Take(8)):
-                            "Không còn sai lệch cần ghi. Kiểm tra lại cột K trong Excel."));
+                            "Không còn sai lệch cần ghi. Kiểm tra lại cột I/K trong Excel."));
                 }
                 catch(Exception ex)
                 {
-                    Notify("Đồng bộ bị dừng, không tự sửa ngày cột K:\n"+
+                    Notify("Đồng bộ bị dừng, không tự sửa serial I/ngày K:\n"+
                         ex.Message+"\nKiểm tra file nguồn, serial và thử lại.");
                 }
             },true)),
