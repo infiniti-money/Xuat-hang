@@ -19,6 +19,20 @@ public static class UiWorkflowDiagnostics
         try
         {
             Check(window.Title==SoftwareInfo.DisplayName,"Native window uses requested software name");
+            // Switch twice on the real WPF window without saving preferences.
+            // Detect frozen-brush errors and validate the visible toggle label.
+            window.SetAppearanceForDiagnostics(true);
+            Check(window.Resources["Ink"] is SolidColorBrush darkInk &&
+                  darkInk.Color==Color.FromRgb(233,244,250) &&
+                  window.FindName("TopAppearanceButton") is Button darkButton &&
+                  darkButton.Content?.ToString()=="☀ Sáng",
+                "Windows theme switches to dark without modifying frozen WPF brushes");
+            window.SetAppearanceForDiagnostics(false);
+            Check(window.Resources["Ink"] is SolidColorBrush lightInk &&
+                  lightInk.Color==Color.FromRgb(24,53,77) &&
+                  window.FindName("TopAppearanceButton") is Button lightButton &&
+                  lightButton.Content?.ToString()=="☾ Tối",
+                "Windows theme restores light mode without changing stored preferences");
             Call("ShowTemplates");
             Check(Children(window).OfType<Button>().Any(b=>b.Content?.ToString()=="+ Tạo mẫu phiếu mới"),"Template screen has explicit create-new-template button");
             Check(Children(window).OfType<Button>().Any(b=>b.Content?.ToString()=="Sửa mẫu / căn lề"),"Template screen has explicit edit-template button");
