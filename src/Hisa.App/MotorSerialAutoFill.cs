@@ -80,7 +80,7 @@ public static class MotorSerialAutoFill
             // the same number of physical units. Similar contract numbers
             // from other projects or companies are NEVER mixed.
             var sources=exact.Count==units.Count()?exact:
-                exact.Count==0 && sameIdentityLines==1 &&
+                sameIdentityLines==1 &&
                 sameContract.Count==units.Count()?sameContract:[];
             if(sources.Count!=units.Count()||sources.Count==0)
             {
