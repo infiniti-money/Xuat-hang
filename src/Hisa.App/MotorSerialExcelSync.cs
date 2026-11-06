@@ -23,11 +23,12 @@ public static class MotorSerialExcelSync
     private static readonly object Gate=new();
 
     private static (List<Assignment>,int,List<string>) BuildPlan(
-        Slip slip,XLWorkbook book,string source)
+        Slip slip,XLWorkbook book,string source,
+        IReadOnlyDictionary<string,string>? approvedProjectChoices)
     {
         var warnings=new List<string>();
         var changes=new List<Assignment>();
-        var already=0;
+        int already=0;
         MotorSerials.Validate(slip,requireAll:false);
         var sheet=book.Worksheets.FirstOrDefault()??
             throw new InvalidDataException("MÁY KÉO.xlsx không có sheet nguồn.");
@@ -37,58 +38,64 @@ public static class MotorSerialExcelSync
         if(header.Length>0 && !header.Contains("SERI",StringComparison.Ordinal) &&
             header!="SN" && header!="SERIALNO")
             throw new InvalidDataException("Cột I không có tiêu đề Serial/Seri. Không sửa file.");
-        // The same reader as the application uses for automatic serial lookup.
+
         var rows=EquipmentListReader.Read(source,"Máy kéo");
         var filled=MotorSerials.BuildRows(slip)
             .Where(x=>!string.IsNullOrWhiteSpace(x.SerialNumber)).ToList();
         var dup=rows.Where(x=>!string.IsNullOrWhiteSpace(x.Serial))
-            .GroupBy(x=>Rules.Code(x.Serial)).Where(g=>g.Count()>1)
-            .Select(g=>g.Key).ToHashSet(StringComparer.Ordinal);
+            .GroupBy(x=>Rules.Code(x.Serial),StringComparer.Ordinal)
+            .Where(g=>g.Count()>1).Select(g=>g.Key)
+            .ToHashSet(StringComparer.Ordinal);
         var global=rows.Where(x=>!string.IsNullOrWhiteSpace(x.Serial))
             .GroupBy(x=>Rules.Code(x.Serial),StringComparer.Ordinal)
             .ToDictionary(x=>x.Key,x=>x.ToList(),StringComparer.Ordinal);
-        // Contract number from production column D is the sole lookup key.
-        // We do not require project, company or machine-model text to match
-        // between the slip and MÁY KÉO.xlsx. The preview shows actual source
-        // rows, and writing is permitted only for a complete 1:1 set of
-        // empty column-I cells for this contract (never a guessed subset).
-        foreach(var group in filled.GroupBy(x=>Rules.Contract(x.Contract),StringComparer.Ordinal))
+
+        // Source column D finds the contract. Source column B separates projects;
+        // optionally column C disambiguates different companies under a project.
+        // Grouping per project prevents a T1 serial from being written into T2.
+        foreach(var group in filled.GroupBy(x=>(
+            Contract:Rules.Contract(x.Contract),
+            Project:Rules.Code(x.Project),Company:Rules.Code(x.Company))))
         {
             var first=group.First();
-            var sourceGroup=rows.Where(x=>Rules.Contract(x.Contract)==group.Key)
-                .OrderBy(x=>x.SourceRow).ToList();
-            if(sourceGroup.Count==0)
+            var selectionKey=MotorSerialProjectScope.SlipKey(
+                first.Contract,first.Project,first.Company);
+            string? selectedProject=null;
+            if(approvedProjectChoices!=null)
+                approvedProjectChoices.TryGetValue(selectionKey,out selectedProject);
+            var scope=MotorSerialProjectScope.Resolve(
+                rows,first.Contract,first.Project,first.Company,selectedProject);
+            if(scope.Warning!=null)
             {
-                warnings.Add("HĐ "+first.Contract+
-                    ": không tìm thấy số hợp đồng trong cột D MÁY KÉO.xlsx. "+
-                    "Hãy kiểm tra lại số HĐ và file đang liên kết.");
+                warnings.Add(scope.Warning);
                 continue;
             }
-            var wanted=group.OrderBy(x=>x.LineId,StringComparer.Ordinal)
-                .ThenBy(x=>x.UnitIndex).ToList();
+            var sourceGroup=scope.Rows.OrderBy(x=>x.SourceRow).ToList();
             var absent=new List<MotorSerialEntry>();
-            var conflict=false;
-            foreach(var unit in wanted)
+            bool conflict=false;
+            foreach(var unit in group)
             {
                 var key=Rules.Code(unit.SerialNumber);
-                if(key.Length==0||key.Length>200||
-                    unit.SerialNumber.Contains('\r')||unit.SerialNumber.Contains('\n'))
+                if(key.Length==0||unit.SerialNumber.Length>200||
+                   unit.SerialNumber.Contains('\r')||unit.SerialNumber.Contains('\n'))
                 {
-                    warnings.Add("HĐ "+first.Contract+": serial nhập tay không hợp lệ.");
+                    warnings.Add("HĐ "+first.Contract+" · "+first.Project+
+                        ": serial nhập tay không hợp lệ.");
                     conflict=true;break;
                 }
                 if(dup.Contains(key))
                 {
                     warnings.Add("Serial "+unit.SerialNumber+
-                        " bị trùng nhiều dòng trong MÁY KÉO.xlsx. Không tự ghi.");
+                        " bị trùng nhiều dòng trong MÁY KÉO.xlsx.");
                     conflict=true;break;
                 }
                 if(global.TryGetValue(key,out var existing))
                 {
-                    if(!sourceGroup.Contains(existing.Single()))
+                    if(existing.Count!=1 || !sourceGroup.Any(x=>
+                        x.SourceRow==existing[0].SourceRow))
                     {
-                        warnings.Add("Serial "+unit.SerialNumber+
-                            " đã thuộc số hợp đồng khác trong MÁY KÉO.xlsx.");
+                        warnings.Add("Serial "+unit.SerialNumber+" thuộc công trình "+
+                            existing[0].Project+" hoặc HĐ khác. Không ghi đè/chuyển serial.");
                         conflict=true;break;
                     }
                     already++;
@@ -96,20 +103,21 @@ public static class MotorSerialExcelSync
                 else absent.Add(unit);
             }
             if(conflict||absent.Count==0)continue;
-            var blanks=sourceGroup.Where(x=>string.IsNullOrWhiteSpace(x.Serial)).ToList();
+            var blanks=sourceGroup.Where(x=>
+                string.IsNullOrWhiteSpace(x.Serial)).ToList();
             if(blanks.Count!=absent.Count ||
-                blanks.Any(x=>x.Quantity.HasValue && x.Quantity!=1))
+               blanks.Any(x=>x.Quantity.HasValue&&x.Quantity!=1))
             {
-                warnings.Add("HĐ "+first.Contract+": cột I có "+blanks.Count+
-                    " dòng serial trống nhưng phiếu có "+absent.Count+
-                    " serial mới cần ghi. Chỉ tự ghép khi mỗi dòng là một "+
-                    "máy và số dòng trống bằng số serial. Hãy kiểm tra "+
-                    "danh sách dòng máy kéo theo HĐ để tránh phân bổ nhầm.");
+                warnings.Add("HĐ "+first.Contract+" · "+first.Project+
+                    ": có "+blanks.Count+" ô cột I trống nhưng có "+
+                    absent.Count+" serial mới. Không tự chọn dòng Excel khi "+
+                    "không thể ghép chính xác một máy với một serial.");
                 continue;
             }
-            for(int i=0;i<blanks.Count;i++)
+            var proposed=new List<Assignment>();
+            foreach(var (row,unit) in blanks.Zip(absent.OrderBy(x=>x.LineId,
+                StringComparer.Ordinal).ThenBy(x=>x.UnitIndex)))
             {
-                var row=blanks[i];
                 var cell=sheet.Cell(row.SourceRow,SerialColumn);
                 if(cell.HasFormula||!string.IsNullOrWhiteSpace(cell.GetString()))
                 {
@@ -117,15 +125,22 @@ public static class MotorSerialExcelSync
                         " chứa công thức hoặc dữ liệu khác. Không ghi đè.");
                     conflict=true;break;
                 }
-                changes.Add(new Assignment(row.SourceRow,row.Contract,row.Project,
-                    row.Company,row.Material,absent[i].SerialNumber.Trim()));
+                if(changes.Any(x=>x.SourceRow==row.SourceRow))
+                {
+                    warnings.Add("Dòng "+row.SourceRow+
+                        " đã được dùng cho công trình khác trên phiếu. Không ghi trùng.");
+                    conflict=true;break;
+                }
+                proposed.Add(new Assignment(row.SourceRow,row.Contract,row.Project,
+                    row.Company,row.Material,unit.SerialNumber.Trim()));
             }
-            if(conflict)changes.RemoveAll(x=>blanks.Any(y=>y.SourceRow==x.SourceRow));
+            if(!conflict)changes.AddRange(proposed);
         }
         return (changes,already,warnings);
     }
 
-    public static Outcome Preview(AppSettings settings,Slip slip)
+    public static Outcome Preview(AppSettings settings,Slip slip,
+        IReadOnlyDictionary<string,string>? approvedProjectChoices=null)
     {
         var path=settings.TractionMachineListPath;
         if(string.IsNullOrWhiteSpace(path)||!File.Exists(path))
@@ -133,13 +148,15 @@ public static class MotorSerialExcelSync
         lock(Gate)
         {
             using var book=new XLWorkbook(path);
-            var (actions,already,warnings)=BuildPlan(slip,book,path);
+            var (actions,already,warnings)=BuildPlan(
+                slip,book,path,approvedProjectChoices);
             return new Outcome(0,already,actions,warnings);
         }
     }
 
     public static Outcome Apply(AppSettings settings,Slip slip,string backupFolder,
-        IReadOnlyList<Assignment>? approvedAssignments=null)
+        IReadOnlyList<Assignment>? approvedAssignments=null,
+        IReadOnlyDictionary<string,string>? approvedProjectChoices=null)
     {
         var path=settings.TractionMachineListPath;
         if(string.IsNullOrWhiteSpace(path)||!File.Exists(path))
@@ -151,16 +168,17 @@ public static class MotorSerialExcelSync
             var stamp=File.GetLastWriteTimeUtc(path);
             var length=new FileInfo(path).Length;
             using var book=new XLWorkbook(path);
-            var (actions,already,warnings)=BuildPlan(slip,book,path);
+            var (actions,already,warnings)=BuildPlan(
+                slip,book,path,approvedProjectChoices);
             if(approvedAssignments!=null)
             {
                 // The physical Excel rows were displayed in the approval
                 // dialog. If they changed after preview, a new confirmation
                 // is mandatory rather than silently choosing other rows.
                 var planned=actions.OrderBy(x=>x.SourceRow)
-                    .Select(x=>(x.SourceRow,x.Contract,x.Serial)).ToArray();
+                    .Select(x=>(x.SourceRow,x.Contract,x.Project,x.Company,x.Serial)).ToArray();
                 var approved=approvedAssignments.OrderBy(x=>x.SourceRow)
-                    .Select(x=>(x.SourceRow,x.Contract,x.Serial)).ToArray();
+                    .Select(x=>(x.SourceRow,x.Contract,x.Project,x.Company,x.Serial)).ToArray();
                 if(!planned.SequenceEqual(approved))
                     throw new IOException("Danh sách dòng serial trong MÁY KÉO.xlsx "+
                         "đã khác bản xem trước. Chưa ghi dữ liệu; hãy tải lại "+

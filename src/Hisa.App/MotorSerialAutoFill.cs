@@ -11,7 +11,8 @@ public static class MotorSerialAutoFill
     public sealed record Result(int Assigned,int Missing,IReadOnlyList<string> Warnings);
 
     public static Result Fill(Slip slip,IEnumerable<EquipmentListReader.Row> productionRows,
-        IEnumerable<Slip>? slipHistory=null)
+        IEnumerable<Slip>? slipHistory=null,
+        IReadOnlyDictionary<string,string>? approvedProjectChoices=null)
     {
         var warnings=new List<string>();
         // Legacy material slips may contain fractional or unknown quantities,
@@ -30,8 +31,8 @@ public static class MotorSerialAutoFill
         var expected=MotorSerials.BuildRows(slip);
         if(expected.Count==0){slip.MotorSerials=[];return new Result(0,0,warnings);}
 
-        var all=productionRows.Where(x=>x.Category=="Máy kéo")
-            .Where(x=>!string.IsNullOrWhiteSpace(x.Serial)).ToList();
+        var motors=productionRows.Where(x=>x.Category=="Máy kéo").ToList();
+        var all=motors.Where(x=>!string.IsNullOrWhiteSpace(x.Serial)).ToList();
         // A duplicate physical serial in the entire source cannot be
         // trusted even when contract and project happen to match.
         var duplicated=all.GroupBy(x=>Rules.Code(x.Serial),StringComparer.Ordinal)
@@ -50,16 +51,27 @@ public static class MotorSerialAutoFill
         {
             var first=units.First();
             var scope=Rules.Identity(first.Contract,first.Project,first.Company);
-            if(string.IsNullOrWhiteSpace(first.Contract)||
-               string.IsNullOrWhiteSpace(first.Project)||
-               string.IsNullOrWhiteSpace(first.Company))
+            if(string.IsNullOrWhiteSpace(first.Contract))
             {
-                warnings.Add("Máy kéo HĐ "+first.Contract+
-                    ": thiếu công trình/đơn vị để lấy serial chính xác.");
+                warnings.Add("Máy kéo chưa có số hợp đồng, không thể tra MÁY KÉO.xlsx.");
                 continue;
             }
-            var sameContract=all.Where(x=>
-                Rules.Identity(x.Contract,x.Project,x.Company)==scope).ToList();
+            // Search column D by contract, then narrow to the project in B.
+            // If the same contract has several projects, do not borrow a
+            // serial from a different project just because D matches.
+            var selectionKey=MotorSerialProjectScope.SlipKey(
+                first.Contract,first.Project,first.Company);
+            string? selectedProject=null;
+            if(approvedProjectChoices!=null)
+                approvedProjectChoices.TryGetValue(selectionKey,out selectedProject);
+            var selected=MotorSerialProjectScope.Resolve(
+                motors,first.Contract,first.Project,first.Company,selectedProject);
+            if(selected.Warning!=null)
+            {
+                warnings.Add(selected.Warning);
+                continue;
+            }
+            var sameContract=selected.Rows;
             var exact=sameContract.Where(x=>
                 Rules.Code(x.Material)==Rules.Code(first.Material)).ToList();
             var sameIdentityLines=lineGroups.Count(g=>
@@ -68,7 +80,7 @@ public static class MotorSerialAutoFill
             // the same number of physical units. Similar contract numbers
             // from other projects or companies are NEVER mixed.
             var sources=exact.Count==units.Count()?exact:
-                exact.Count==0 && sameIdentityLines==1 &&
+                sameIdentityLines==1 &&
                 sameContract.Count==units.Count()?sameContract:[];
             if(sources.Count!=units.Count()||sources.Count==0)
             {
@@ -76,7 +88,14 @@ public static class MotorSerialAutoFill
                     ": thiếu hoặc không khớp đúng số máy kéo/serial trong MÁY KÉO.xlsx.");
                 continue;
             }
-            var sourceCodes=sources.Select(x=>Rules.Code(x.Serial)).ToList();
+            if(sources.Any(x=>x.Quantity.HasValue&&x.Quantity!=1))
+            {
+                warnings.Add("HĐ "+first.Contract+" · "+first.Project+
+                    ": Excel có dòng đại diện nhiều máy. Không tự gán serial vào từng máy.");
+                continue;
+            }
+            var sourceCodes=sources.Where(x=>!string.IsNullOrWhiteSpace(x.Serial))
+                .Select(x=>Rules.Code(x.Serial)).ToList();
             if(sourceCodes.Distinct(StringComparer.Ordinal).Count()!=sourceCodes.Count||
                sourceCodes.Any(x=>x.Length==0||duplicated.Contains(x)||
                    alreadyDelivered.Contains(x)))
@@ -96,18 +115,22 @@ public static class MotorSerialAutoFill
                 continue;
             }
             var remaining=sources.Where(x=>
+                !string.IsNullOrWhiteSpace(x.Serial) &&
                 !manual.Contains(Rules.Code(x.Serial)) &&
                 !occupied.Contains(Rules.Code(x.Serial)))
                 .OrderBy(x=>x.SourceRow).ThenBy(x=>x.Serial,StringComparer.Ordinal)
                 .ToList();
             var empty=unitRows.Where(x=>string.IsNullOrWhiteSpace(x.SerialNumber)).ToList();
-            if(remaining.Count!=empty.Count)
+            if(remaining.Count>empty.Count)
             {
                 warnings.Add("HĐ "+first.Contract+
-                    ": không thể gán serial duy nhất cho từng máy trong phiếu.");
+                    ": nhiều serial nguồn hơn máy còn trống trên phiếu; không thể gán an toàn.");
                 continue;
             }
-            for(var i=0;i<empty.Count;i++)
+            // Partial source is valid: import known serials and leave other
+            // units optional, rather than discarding a correct existing serial.
+            if(remaining.Count==0)continue;
+            for(var i=0;i<remaining.Count;i++)
             {
                 empty[i].SerialNumber=remaining[i].Serial.Trim();
                 occupied.Add(Rules.Code(remaining[i].Serial));

@@ -100,9 +100,9 @@ public static class MotorSerialExcelSyncDiagnostics
             wrong.MotorSerials=MotorSerials.BuildRows(wrong);
             wrong.MotorSerials[0].SerialNumber="SERIAL-T2";
             var conflict=MotorSerialExcelSync.Preview(settings,wrong);
-            Check(conflict.Proposed.Count==0 && conflict.AlreadyPresent==1 &&
-                  conflict.Warnings.Count==0,
-                "Same contract serial already in column I is recognized regardless of tower/model");
+            Check(conflict.Proposed.Count==0 && conflict.AlreadyPresent==0 &&
+                  conflict.Warnings.Any(x=>x.Contains("công trình")),
+                "Existing T2 serial cannot be claimed by a T1 slip sharing the contract");
             using(var workbook=new XLWorkbook(source))
             {
                 var sheet=workbook.Worksheets.First();
@@ -155,7 +155,7 @@ public static class MotorSerialExcelSyncDiagnostics
             var safe=MotorSerialExcelSync.Preview(alternateSettings,anotherSlip);
             Check(safe.Proposed.Count==2&&safe.Warnings.Count==0&&
                   safe.Proposed.Select(x=>x.SourceRow).SequenceEqual([3,4]),
-                "Serials are placed by contract in source column D, not by project, company or model");
+                "Serials are placed by contract D and verified source project B, with model descriptions allowed to differ");
             var saved=MotorSerialExcelSync.Apply(alternateSettings,anotherSlip,backups,safe.Proposed);
             using(var book=new XLWorkbook(alternate))
             {
@@ -185,7 +185,7 @@ public static class MotorSerialExcelSyncDiagnostics
             Check(ambiguous.Proposed.Count==1 &&
                   ambiguous.Proposed[0].SourceRow==6 &&
                   ambiguous.Warnings.Count==0,
-                "Model mismatch and multiple source models do not block exact contract-only serial entry when one blank source row remains");
+                "Model mismatch may still write only the one blank cell of the exact T1 project");
             var wrongProject=new Slip{Contracts=["25132026"],
                 Lines=[new MaterialLine{Id="wrong-project",Contract="25132026",
                     Project="Đồi thông T3",Company="Công ty A",
@@ -193,9 +193,20 @@ public static class MotorSerialExcelSyncDiagnostics
             wrongProject.MotorSerials=MotorSerials.BuildRows(wrongProject);
             wrongProject.MotorSerials[0].SerialNumber="WRONG-PROJECT";
             var mismatch=MotorSerialExcelSync.Preview(alternateSettings,wrongProject);
-            Check(mismatch.Proposed.Count==1 &&
-                  mismatch.Proposed[0].SourceRow==6,
-                "Source lookup uses contract only, even when project and company text on slip differ");
+            Check(mismatch.Proposed.Count==0 &&
+                  mismatch.Warnings.Any(x=>x.Contains("công trình")),
+                "Wrong-project slip must never write a T1 serial despite matching contract D");
+            var selectedProject=new Dictionary<string,string>
+            {
+                [MotorSerialProjectScope.SlipKey("25132026","Đồi thông T3",
+                    "Công ty A")]="Đồi thông T1"
+            };
+            var explicitlyMapped=MotorSerialExcelSync.Preview(
+                alternateSettings,wrongProject,selectedProject);
+            Check(explicitlyMapped.Proposed.Count==1 &&
+                  explicitlyMapped.Proposed[0].SourceRow==6 &&
+                  explicitlyMapped.Proposed[0].Project=="Đồi thông T1",
+                "Operator may explicitly select source T1 even if slip labels it differently");
             using(var book=new XLWorkbook(alternate))
             {
                 var sheet=book.Worksheets.First();
@@ -206,18 +217,35 @@ public static class MotorSerialExcelSyncDiagnostics
                 sheet.Cell(7,7).Value=1;
                 book.Save();
             }
+            var acrossProjects=MotorSerialExcelSync.Preview(alternateSettings,ambiguousSlip);
+            Check(acrossProjects.Proposed.Count==1 &&
+                  acrossProjects.Proposed[0].SourceRow==6 &&
+                  acrossProjects.Proposed.All(x=>x.Project=="Đồi thông T1"),
+                "T2 blank serial must never consume the T1 serial even under one contract");
+            // A new blank row inside T1 itself makes allocation ambiguous,
+            // and invalidates the previously approved source-row preview.
+            using(var book=new XLWorkbook(alternate))
+            {
+                var sheet=book.Worksheets.First();
+                sheet.Cell(8,2).Value="Đồi thông T1";
+                sheet.Cell(8,3).Value="Công ty A";
+                sheet.Cell(8,4).Value="25132026";
+                sheet.Cell(8,5).Value="YJ-160";
+                sheet.Cell(8,7).Value=1;
+                book.Save();
+            }
             var tooMany=MotorSerialExcelSync.Preview(alternateSettings,ambiguousSlip);
             Check(tooMany.Proposed.Count==0 &&
-                  tooMany.Warnings.Any(x=>x.Contains("2 dòng serial trống") &&
+                  tooMany.Warnings.Any(x=>x.Contains("2 ô cột I trống") &&
                     x.Contains("1 serial mới")),
-                "Multiple blank rows with fewer serial values must not be guessed into a source row");
+                "Ambiguous blank rows within the SAME project cannot be guessed");
             bool changedPreviewBlocked=false;
             try { MotorSerialExcelSync.Apply(alternateSettings,ambiguousSlip,backups,
                 ambiguous.Proposed); }
             catch(IOException ex)
             { changedPreviewBlocked=ex.Message.Contains("đã khác bản xem trước"); }
             Check(changedPreviewBlocked,
-                "Operator's approved Excel row cannot be replaced by another row without new confirmation");
+                "Changed destination rows invalidate operator-approved Excel preview");
             var absentSlip=new Slip{Contracts=["00009999"],
                 Lines=[new MaterialLine{Id="missing",Contract="00009999",
                     Project="Dự án khác",Company="Công ty A",

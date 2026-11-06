@@ -79,6 +79,54 @@ public static class MotorSerialAutoFillDiagnostics
               userEntered.MotorSerials[0].SerialNumber=="HY-SERIAL-102"&&
               userEntered.MotorSerials[1].SerialNumber=="HY-SERIAL-101",
             "Preserve manually entered serial and fill only missing unit from Excel");
+        var partialSource=new List<EquipmentListReader.Row>
+        {
+            new(){Category="Máy kéo",Contract="56062026",Project="Hưng Yên T1",
+                Company="Công ty A",Material="Máy kéo 11 kW",
+                Serial="KNOWN-T1",SourceRow=8,Quantity=1},
+            new(){Category="Máy kéo",Contract="56062026",Project="Hưng Yên T1",
+                Company="Công ty A",Material="Máy kéo 11 kW",
+                Serial="",SourceRow=9,Quantity=1},
+            new(){Category="Máy kéo",Contract="56062026",Project="Hưng Yên T2",
+                Company="Công ty A",Material="Máy kéo 11 kW",
+                Serial="KNOWN-T2",SourceRow=10,Quantity=1}
+        };
+        var partialSlip=NewSlip();
+        var partial=MotorSerialAutoFill.Fill(partialSlip,partialSource);
+        Check(partial.Assigned==1&&partial.Missing==1&&
+              partialSlip.MotorSerials.Count(x=>x.SerialNumber=="KNOWN-T1")==1&&
+              partialSlip.MotorSerials.All(x=>x.SerialNumber!="KNOWN-T2"),
+            "Known T1 serial auto-imports even if another unit is still blank");
+        var printedPartial=PrintedText(partialSlip,"contract_delivery");
+        Check(printedPartial.Contains("KNOWN-T1")&&!printedPartial.Contains("KNOWN-T2"),
+            "Printable handover shows known serial without requiring missing serial");
+
+        var halfModelMissing=NewSlip();
+        var differentModelRows=partialSource
+            .Select(x=>new EquipmentListReader.Row
+            {
+                Category=x.Category,Contract=x.Contract,Project=x.Project,
+                Company=x.Company,Material=x.SourceRow==9?"":x.Material,
+                Serial=x.Serial,SourceRow=x.SourceRow,Quantity=x.Quantity
+            }).ToList();
+        var partialWithModelGap=MotorSerialAutoFill.Fill(
+            halfModelMissing,differentModelRows);
+        Check(partialWithModelGap.Assigned==1&&partialWithModelGap.Missing==1,
+            "One project can import a known serial even when another row omits model");
+        var aliasSlip=NewSlip(project:"Tên công trình khác ở phiếu");
+        var aliasNotApproved=MotorSerialAutoFill.Fill(aliasSlip,source);
+        Check(aliasNotApproved.Assigned==0&&aliasNotApproved.Missing==2,
+            "Different project label never automatically borrows serial under same HĐ");
+        var explicitChoices=new Dictionary<string,string>
+        {
+            [MotorSerialProjectScope.SlipKey("56062026",
+                "Tên công trình khác ở phiếu","Công ty A")]="Hưng Yên T1"
+        };
+        var aliasApproved=MotorSerialAutoFill.Fill(
+            aliasSlip,source,null,explicitChoices);
+        Check(aliasApproved.Assigned==2&&aliasApproved.Missing==0&&
+              aliasSlip.MotorSerials.All(x=>x.SerialNumber!="HY-OTHER-T2"),
+            "Explicitly chosen source project can import its serials without T2 contamination");
         var fallback=NewSlip(quantity:1);
         var modelDifferent=new List<EquipmentListReader.Row>
         {
