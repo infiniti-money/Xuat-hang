@@ -180,6 +180,7 @@ public static class SelfTests
             result.Checks.AddRange(MotorHungYenDiagnostics.Run(root));
             result.Checks.AddRange(MotorHandoverExcelDiagnostics.Run(root));
             result.Checks.AddRange(MotorHandoverRecoveryDiagnostics.Run());
+            result.Checks.AddRange(MotorDeliveredSerialDateDiagnostics.Run());
             service.Dispose();service.Dispose();Check(true,"Safe repeated shutdown",result);
             using(var reopened=new WarehouseService(root))
             {
