@@ -56,14 +56,10 @@ public partial class MainWindow
         foreach(var (name,color) in palette)
             Resources[name]=Brush(color);
 
-        Ink.Color=(Color)ColorConverter.ConvertFromString(
-            _darkAppearance?"#E9F4FA":"#18354D");
-        Muted.Color=(Color)ColorConverter.ConvertFromString(
-            _darkAppearance?"#B1C7D7":"#70869B");
-        CardSurface.Color=(Color)ColorConverter.ConvertFromString(
-            _darkAppearance?"#1B3041":"#FFFFFF");
-        CardStroke.Color=(Color)ColorConverter.ConvertFromString(
-            _darkAppearance?"#40566A":"#DFE7EF");
+        // WPF freezes some brushes when they become part of styles/templates.
+        // Replace resources atomically so toggling is safe across new windows.
+        Ink=Brush(_darkAppearance?"#E9F4FA":"#18354D");
+        Muted=Brush(_darkAppearance?"#B1C7D7":"#70869B");
         Resources["Ink"]=Ink;
         Resources["Muted"]=Muted;
         TopAppearanceButton.Content=_darkAppearance?"☀ Sáng":"☾ Tối";
