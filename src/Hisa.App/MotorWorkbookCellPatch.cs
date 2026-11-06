@@ -140,8 +140,8 @@ public static class MotorWorkbookCellPatch
             // A delivery may stage I and K together, but another writer must
             // never have its physical serial replaced between preview and commit.
             if(edit.Column==9 && edit.Value!=null &&
-               (cell.Element(Spreadsheet+"v")!=null ||
-                cell.Element(Spreadsheet+"is")!=null))
+               (!string.IsNullOrWhiteSpace(cell.Element(Spreadsheet+"v")?.Value) ||
+                !string.IsNullOrWhiteSpace(cell.Element(Spreadsheet+"is")?.Value)))
                 throw new InvalidDataException("Ô serial "+reference+
                     " đã có dữ liệu khi ghi; tải lại Excel để đối chiếu. Không ghi đè.");
             cell.Elements(Spreadsheet+"v").Remove();
