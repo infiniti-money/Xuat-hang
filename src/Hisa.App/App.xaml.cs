@@ -14,6 +14,9 @@ public partial class App : Application
     private CancellationTokenSource? _updaterCancellation;
     protected override async void OnStartup(StartupEventArgs e)
     {
+        // WPF hosts Windows Forms dialogs/tray controls; configure PerMonitorV2
+        // before creating the main window, instead of a legacy DPI manifest.
+        System.Windows.Forms.Application.SetHighDpiMode(System.Windows.Forms.HighDpiMode.PerMonitorV2);
         base.OnStartup(e);
         CultureInfo.CurrentCulture=CultureInfo.DefaultThreadCurrentCulture=new CultureInfo("vi-VN");
         CultureInfo.CurrentUICulture=CultureInfo.DefaultThreadCurrentUICulture=new CultureInfo("vi-VN");
