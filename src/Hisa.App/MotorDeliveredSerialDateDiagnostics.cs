@@ -138,6 +138,14 @@ public static class MotorDeliveredSerialDateDiagnostics
             Check(missing.SerialWritten==0&&missing.Unmatched>0,
                 "Optional missing serial leaves unresolved K, not a guessed date");
 
+            var missingProject=NewSlip("","no-project","delivered",
+                "2026-11-08","SERIAL-WITH-NO-PROJECT");
+            var scoped=MotorHandoverExcel.Sync(settings,
+                [planned,missingProject],data,backups);
+            Check(scoped.Unmatched>0 &&
+                  scoped.Warnings.Any(x=>x.Contains("công trình")),
+                "Even a supplied serial remains pending when source project is unknown");
+
             // Simulate a workbook being externally edited after a preview.
             var before=File.ReadAllBytes(path);
             bool staleRejected=false;
