@@ -137,6 +137,13 @@ public static class MotorWorkbookCellPatch
             if(cell.Element(Spreadsheet+"f")!=null)
                 throw new InvalidDataException("Cột "+reference+
                     " chứa công thức; không được ghi đè.");
+            // A delivery may stage I and K together, but another writer must
+            // never have its physical serial replaced between preview and commit.
+            if(edit.Column==9 && edit.Value!=null &&
+               (cell.Element(Spreadsheet+"v")!=null ||
+                cell.Element(Spreadsheet+"is")!=null))
+                throw new InvalidDataException("Ô serial "+reference+
+                    " đã có dữ liệu khi ghi; tải lại Excel để đối chiếu. Không ghi đè.");
             cell.Elements(Spreadsheet+"v").Remove();
             cell.Elements(Spreadsheet+"is").Remove();
             cell.Attribute("t")?.Remove();
@@ -202,7 +209,8 @@ public static class MotorWorkbookCellPatch
     }
 
     public static void Apply(string excelPath,string backupFolder,
-        IReadOnlyList<Edit> edits,string backupPrefix)
+        IReadOnlyList<Edit> edits,string backupPrefix,
+        string? expectedSha256=null)
     {
         if(edits.Count==0)return;
         if(edits.Select(x=>(x.Row,x.Column)).Distinct().Count()!=edits.Count)
@@ -218,6 +226,11 @@ public static class MotorWorkbookCellPatch
                 FileShare.None))
             {
                 fingerprint=Convert.ToHexString(SHA256.HashData(locked));
+                if(expectedSha256!=null &&
+                   !string.Equals(fingerprint,expectedSha256,
+                       StringComparison.OrdinalIgnoreCase))
+                    throw new IOException("MÁY KÉO.xlsx vừa thay đổi sau khi đối chiếu. "+
+                        "Không ghi serial/ngày; hãy tải lại file.");
                 locked.Position=0;
                 using var archive=new ZipArchive(locked,ZipArchiveMode.Read,leaveOpen:true);
                 if(archive.Entries.Any(x=>x.FullName.StartsWith("_xmlsignatures/",
