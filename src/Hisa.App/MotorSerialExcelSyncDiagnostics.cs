@@ -196,6 +196,17 @@ public static class MotorSerialExcelSyncDiagnostics
             Check(mismatch.Proposed.Count==0 &&
                   mismatch.Warnings.Any(x=>x.Contains("công trình")),
                 "Wrong-project slip must never write a T1 serial despite matching contract D");
+            var selectedProject=new Dictionary<string,string>
+            {
+                [MotorSerialProjectScope.SlipKey("25132026","Đồi thông T3",
+                    "Công ty A")]="Đồi thông T1"
+            };
+            var explicitlyMapped=MotorSerialExcelSync.Preview(
+                alternateSettings,wrongProject,selectedProject);
+            Check(explicitlyMapped.Proposed.Count==1 &&
+                  explicitlyMapped.Proposed[0].SourceRow==6 &&
+                  explicitlyMapped.Proposed[0].Project=="Đồi thông T1",
+                "Operator may explicitly select source T1 even if slip labels it differently");
             using(var book=new XLWorkbook(alternate))
             {
                 var sheet=book.Worksheets.First();
