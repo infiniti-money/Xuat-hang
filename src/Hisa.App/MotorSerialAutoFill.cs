@@ -50,16 +50,22 @@ public static class MotorSerialAutoFill
         {
             var first=units.First();
             var scope=Rules.Identity(first.Contract,first.Project,first.Company);
-            if(string.IsNullOrWhiteSpace(first.Contract)||
-               string.IsNullOrWhiteSpace(first.Project)||
-               string.IsNullOrWhiteSpace(first.Company))
+            if(string.IsNullOrWhiteSpace(first.Contract))
             {
-                warnings.Add("Máy kéo HĐ "+first.Contract+
-                    ": thiếu công trình/đơn vị để lấy serial chính xác.");
+                warnings.Add("Máy kéo chưa có số hợp đồng, không thể tra MÁY KÉO.xlsx.");
                 continue;
             }
-            var sameContract=all.Where(x=>
-                Rules.Identity(x.Contract,x.Project,x.Company)==scope).ToList();
+            // Search column D by contract, then narrow to the project in B.
+            // If the same contract has several projects, do not borrow a
+            // serial from a different project just because D matches.
+            var selected=MotorSerialProjectScope.Resolve(
+                all,first.Contract,first.Project,first.Company);
+            if(selected.Warning!=null)
+            {
+                warnings.Add(selected.Warning);
+                continue;
+            }
+            var sameContract=selected.Rows;
             var exact=sameContract.Where(x=>
                 Rules.Code(x.Material)==Rules.Code(first.Material)).ToList();
             var sameIdentityLines=lineGroups.Count(g=>
