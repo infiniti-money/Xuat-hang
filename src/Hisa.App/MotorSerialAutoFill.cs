@@ -130,7 +130,7 @@ public static class MotorSerialAutoFill
             // Partial source is valid: import known serials and leave other
             // units optional, rather than discarding a correct existing serial.
             if(remaining.Count==0)continue;
-            for(var i=0;i<empty.Count;i++)
+            for(var i=0;i<remaining.Count;i++)
             {
                 empty[i].SerialNumber=remaining[i].Serial.Trim();
                 occupied.Add(Rules.Code(remaining[i].Serial));
