@@ -24,7 +24,8 @@ Nếu build hoặc self-test thất bại: không gộp và không tạo Release
 - [ ] **Cài đặt → Hệ thống → Màn hình → Tỷ lệ**: kiểm tra lần lượt 100%, 125% và 150% ở màn hình chính.
 - [ ] Di chuyển cửa sổ giữa các màn hình có tỷ lệ khác nhau: không bị mờ chữ, mất nút, bảng bị cắt hoặc dialog nằm ngoài màn hình.
 - [ ] Thu nhỏ, phóng to và thay đổi kích thước cửa sổ; kiểm tra trang Tổng quan, Cont, Phiếu xuất, Mây Mây, Cấu hình và Xem trước in.
-- [ ] Kiểm tra mức chữ/độ tương phản trong Windows chế độ Sáng và Tối. **Chế độ tối đồng bộ cho toàn bộ giao diện HISA là hạng mục phát triển riêng; chưa mặc định được chứng nhận trong nhánh này.**
+- [ ] Nhấn **☾ Tối** / **☀ Sáng**, đóng và mở lại HISA: lựa chọn được giữ, không đổi dữ liệu kho hoặc trạng thái micro.
+- [ ] Kiểm tra độ tương phản chữ, nền, bảng, ô nhập, hội thoại và vùng thao tác ở cả hai chế độ. **Mọi trang chuyên biệt chưa được chứng nhận tương thích chế độ tối cho đến khi UAT này đạt.**
 - [ ] Phím Tab tới được các nút, không mất khung đánh dấu và không bị cắt văn bản dài.
 
 ## 3. Cổng nghiệp vụ xuất hàng (chỉ dùng file mẫu/bản sao)
