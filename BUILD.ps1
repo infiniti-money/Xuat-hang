@@ -4,7 +4,7 @@ $project = Join-Path $PSScriptRoot 'src\Hisa.App\Hisa.App.csproj'
 $output = Join-Path $PSScriptRoot 'publish'
 $localSdk = Join-Path $env:LOCALAPPDATA 'HisaBuild\dotnet\dotnet.exe'
 $sdk = if (Test-Path -LiteralPath $localSdk) { $localSdk } else { (Get-Command dotnet -ErrorAction Stop).Source }
-& $sdk publish $project -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:DebugType=None -o $output --nologo
+& $sdk publish $project -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:DebugType=None -o $output --nologo -warnaserror
 if ($LASTEXITCODE -ne 0) { throw 'Không đóng gói được ứng dụng. Kiểm tra thông báo biên dịch phía trên.' }
 $exe = Join-Path $output 'HISA Kho Vat Tu.exe'
 Write-Output "Đã tạo: $exe"
