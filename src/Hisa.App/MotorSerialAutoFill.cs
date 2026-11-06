@@ -30,8 +30,8 @@ public static class MotorSerialAutoFill
         var expected=MotorSerials.BuildRows(slip);
         if(expected.Count==0){slip.MotorSerials=[];return new Result(0,0,warnings);}
 
-        var all=productionRows.Where(x=>x.Category=="Máy kéo")
-            .Where(x=>!string.IsNullOrWhiteSpace(x.Serial)).ToList();
+        var motors=productionRows.Where(x=>x.Category=="Máy kéo").ToList();
+        var all=motors.Where(x=>!string.IsNullOrWhiteSpace(x.Serial)).ToList();
         // A duplicate physical serial in the entire source cannot be
         // trusted even when contract and project happen to match.
         var duplicated=all.GroupBy(x=>Rules.Code(x.Serial),StringComparer.Ordinal)
@@ -59,7 +59,7 @@ public static class MotorSerialAutoFill
             // If the same contract has several projects, do not borrow a
             // serial from a different project just because D matches.
             var selected=MotorSerialProjectScope.Resolve(
-                all,first.Contract,first.Project,first.Company);
+                motors,first.Contract,first.Project,first.Company);
             if(selected.Warning!=null)
             {
                 warnings.Add(selected.Warning);
@@ -82,7 +82,14 @@ public static class MotorSerialAutoFill
                     ": thiếu hoặc không khớp đúng số máy kéo/serial trong MÁY KÉO.xlsx.");
                 continue;
             }
-            var sourceCodes=sources.Select(x=>Rules.Code(x.Serial)).ToList();
+            if(sources.Any(x=>x.Quantity.HasValue&&x.Quantity!=1))
+            {
+                warnings.Add("HĐ "+first.Contract+" · "+first.Project+
+                    ": Excel có dòng đại diện nhiều máy. Không tự gán serial vào từng máy.");
+                continue;
+            }
+            var sourceCodes=sources.Where(x=>!string.IsNullOrWhiteSpace(x.Serial))
+                .Select(x=>Rules.Code(x.Serial)).ToList();
             if(sourceCodes.Distinct(StringComparer.Ordinal).Count()!=sourceCodes.Count||
                sourceCodes.Any(x=>x.Length==0||duplicated.Contains(x)||
                    alreadyDelivered.Contains(x)))
@@ -102,17 +109,21 @@ public static class MotorSerialAutoFill
                 continue;
             }
             var remaining=sources.Where(x=>
+                !string.IsNullOrWhiteSpace(x.Serial) &&
                 !manual.Contains(Rules.Code(x.Serial)) &&
                 !occupied.Contains(Rules.Code(x.Serial)))
                 .OrderBy(x=>x.SourceRow).ThenBy(x=>x.Serial,StringComparer.Ordinal)
                 .ToList();
             var empty=unitRows.Where(x=>string.IsNullOrWhiteSpace(x.SerialNumber)).ToList();
-            if(remaining.Count!=empty.Count)
+            if(remaining.Count>empty.Count)
             {
                 warnings.Add("HĐ "+first.Contract+
-                    ": không thể gán serial duy nhất cho từng máy trong phiếu.");
+                    ": nhiều serial nguồn hơn máy còn trống trên phiếu; không thể gán an toàn.");
                 continue;
             }
+            // Partial source is valid: import known serials and leave other
+            // units optional, rather than discarding a correct existing serial.
+            if(remaining.Count==0)continue;
             for(var i=0;i<empty.Count;i++)
             {
                 empty[i].SerialNumber=remaining[i].Serial.Trim();
