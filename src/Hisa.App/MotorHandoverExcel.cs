@@ -237,9 +237,13 @@ public static class MotorHandoverExcel
         // authorize an automatic serial write. Serial and date edits are
         // committed together as ONE validated OOXML patch and ONE backup.
         var serialCandidates=new List<MotorSerialExcelSync.Assignment>();
+        var knownSerials=rows.Where(x=>!string.IsNullOrWhiteSpace(x.Serial))
+            .Select(x=>Rules.Code(x.Serial))
+            .ToHashSet(StringComparer.Ordinal);
         foreach(var slip in allSlips.Where(x=>x.Status=="delivered" &&
-            x.Lines.Any(line=>MotorSerials.IsMotor(line) &&
-                (!limited || Rules.Contract(line.Contract)==scope))))
+            MotorSerials.ActiveRows(x).Any(serial=>
+                (!limited || Rules.Contract(serial.Contract)==scope) &&
+                !knownSerials.Contains(Rules.Code(serial.SerialNumber)))))
         {
             try
             {
