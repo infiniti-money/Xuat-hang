@@ -11,8 +11,9 @@ permissions:
   contents: write
 
 concurrency:
-  group: hisa-release-main
-  cancel-in-progress: false
+  # Main releases are serialized; outdated PR runs may be safely cancelled.
+  group: hisa-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   windows-release:
@@ -44,7 +45,7 @@ jobs:
       - name: Restore and build self-contained Windows app
         shell: pwsh
         run: |
-          dotnet publish 'src/Hisa.App/Hisa.App.csproj' -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:DebugType=None -o publish --nologo
+          dotnet publish 'src/Hisa.App/Hisa.App.csproj' -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -p:DebugType=None -o publish --nologo -warnaserror
           if ($LASTEXITCODE -ne 0) { throw 'dotnet publish failed' }
           if (!(Test-Path -LiteralPath 'publish/HISA Kho Vat Tu.exe')) { throw 'Windows executable missing' }
 

@@ -34,7 +34,6 @@ public sealed partial class WarehouseService : IDisposable
     private bool _initialized;
     private bool _dataAvailable;
     private List<Package>? _freshContDiSources = [];
-    private string _sourceFingerprint = "";
     private string _masterFingerprint = "";
     private string _ktFingerprint = "";
     private string _ledgerFingerprint = "";
@@ -509,7 +508,7 @@ public sealed partial class WarehouseService : IDisposable
                 _dataAvailable=true;
                 lock(_stateLock)_warnings=warnings.Distinct().ToList();
                 PersistCache();
-                _sourceFingerprint="";_masterFingerprint=FileStamp(Settings.MasterPath);_ktFingerprint=FileStamp(Settings.KtPath);
+                _masterFingerprint=FileStamp(Settings.MasterPath);_ktFingerprint=FileStamp(Settings.KtPath);
             });
             LastLoadMs=watch.Elapsed.TotalMilliseconds;
             Say($"Sẵn sàng · {Snapshot.Packages.Count:N0} kiện · {Snapshot.Packages.Sum(x=>x.ItemCount):N0} dòng · {LastLoadMs/1000:N2} giây");
@@ -1076,7 +1075,7 @@ public sealed partial class WarehouseService : IDisposable
         // CONT ĐI source. Explicit paths only; no copying/moving user files.
         EquipmentListReader.ValidateIndependentSources(copy);
         copy.DataSources=copy.DataSources.Select(Path.GetFullPath).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-        await MutateAsync(()=>{Persist("settings.json",copy);Settings=copy;_sourceFingerprint="";lock(_stateLock)_freshContDiSources=[];return true;});await RefreshAsync(false);
+        await MutateAsync(()=>{Persist("settings.json",copy);Settings=copy;lock(_stateLock)_freshContDiSources=[];return true;});await RefreshAsync(false);
     }
     public Task ExportReportAsync(string path,ContractReport report){EnsureReportDestination(path);return Task.Run(()=>_excel.ExportReport(path,report));}
     public Task ExportDailyAsync(string path,DailyReport report){EnsureReportDestination(path);return Task.Run(()=>_excel.ExportDaily(path,report));}
