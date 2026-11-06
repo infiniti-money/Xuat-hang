@@ -29,12 +29,15 @@ public partial class MainWindow : Window
     private string _packageQuery = "";
     private DailyReport? _daily;
     private string _dailyDay = DateTime.Today.ToString("yyyy-MM-dd");
-    private static readonly Brush Muted = Brush("#70869B");
-    private static readonly Brush Ink = Brush("#18354D");
+    private static readonly SolidColorBrush Muted = Brush("#70869B");
+    private static readonly SolidColorBrush Ink = Brush("#18354D");
+    private static readonly SolidColorBrush CardSurface = Brush("#FFFFFF");
+    private static readonly SolidColorBrush CardStroke = Brush("#DFE7EF");
 
     public MainWindow(WarehouseService service)
     {
         InitializeComponent();
+        InitializeAppearance();
         _service = service;
         Title = SoftwareInfo.DisplayName;
         VersionText.Text="Phiên bản "+SoftwareInfo.Version;
@@ -201,7 +204,7 @@ public partial class MainWindow : Window
     private static TextBlock T(string text,double size=13,bool bold=false,Brush? color=null)=>new(){Text=text,FontSize=size,FontWeight=bold?FontWeights.SemiBold:FontWeights.Normal,Foreground=color??Ink,TextWrapping=TextWrapping.Wrap};
     private static StackPanel Stack(params UIElement[] children){var p=new StackPanel();foreach(var c in children)p.Children.Add(c);return p;}
     private static WrapPanel Row(params UIElement[] children){var p=new WrapPanel {VerticalAlignment=VerticalAlignment.Center};foreach(var c in children)p.Children.Add(c);return p;}
-    private static Border Card(UIElement child,Thickness? padding=null)=>new(){Child=child,Background=Brushes.White,BorderBrush=Brush("#DFE7EF"),BorderThickness=new Thickness(1),CornerRadius=new CornerRadius(10),Padding=padding??new Thickness(18),Margin=new Thickness(0,0,0,14)};
+    private static Border Card(UIElement child,Thickness? padding=null)=>new(){Child=child,Background=CardSurface,BorderBrush=CardStroke,BorderThickness=new Thickness(1),CornerRadius=new CornerRadius(10),Padding=padding??new Thickness(18),Margin=new Thickness(0,0,0,14)};
     private static FrameworkElement Field(string label,FrameworkElement control,double width=0){var p=Stack(T(label,11,true,Muted),control);if(width>0)p.Width=width;return p;}
     private static TextBox Input(string value="",bool multi=false,double width=0)
     {
@@ -213,7 +216,7 @@ public partial class MainWindow : Window
     private static Grid Layout(FrameworkElement top,FrameworkElement body)
     {var g=new Grid();g.RowDefinitions.Add(new RowDefinition{Height=GridLength.Auto});g.RowDefinitions.Add(new RowDefinition{Height=new GridLength(1,GridUnitType.Star)});g.Children.Add(top);Grid.SetRow(body,1);g.Children.Add(body);return g;}
     private static TabControl Tabs(params (string Title,FrameworkElement Body)[] tabs)
-    {var t=new TabControl {BorderBrush=Brush("#DFE7EF"),Background=Brushes.White};foreach(var x in tabs)t.Items.Add(new TabItem{Header=x.Title,Content=x.Body});return t;}
+    {var t=new TabControl {BorderBrush=CardStroke,Background=CardSurface};foreach(var x in tabs)t.Items.Add(new TabItem{Header=x.Title,Content=x.Body});return t;}
     private static DataGrid Table(IEnumerable items,params (string Label,string Path,double Width)[] columns)
     {
         var grid=new DataGrid {ItemsSource=items,Margin=new Thickness(0,4,0,0)};
