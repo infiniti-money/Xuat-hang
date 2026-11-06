@@ -23,7 +23,8 @@ public static class MotorSerialExcelSync
     private static readonly object Gate=new();
 
     private static (List<Assignment>,int,List<string>) BuildPlan(
-        Slip slip,XLWorkbook book,string source)
+        Slip slip,XLWorkbook book,string source,
+        IReadOnlyDictionary<string,string>? approvedProjectChoices)
     {
         var warnings=new List<string>();
         var changes=new List<Assignment>();
@@ -57,8 +58,13 @@ public static class MotorSerialExcelSync
             Project:Rules.Code(x.Project),Company:Rules.Code(x.Company))))
         {
             var first=group.First();
+            var selectionKey=MotorSerialProjectScope.SlipKey(
+                first.Contract,first.Project,first.Company);
+            string? selectedProject=null;
+            if(approvedProjectChoices!=null)
+                approvedProjectChoices.TryGetValue(selectionKey,out selectedProject);
             var scope=MotorSerialProjectScope.Resolve(
-                rows,first.Contract,first.Project,first.Company);
+                rows,first.Contract,first.Project,first.Company,selectedProject);
             if(scope.Warning!=null)
             {
                 warnings.Add(scope.Warning);
@@ -133,7 +139,8 @@ public static class MotorSerialExcelSync
         return (changes,already,warnings);
     }
 
-    public static Outcome Preview(AppSettings settings,Slip slip)
+    public static Outcome Preview(AppSettings settings,Slip slip,
+        IReadOnlyDictionary<string,string>? approvedProjectChoices=null)
     {
         var path=settings.TractionMachineListPath;
         if(string.IsNullOrWhiteSpace(path)||!File.Exists(path))
@@ -141,13 +148,15 @@ public static class MotorSerialExcelSync
         lock(Gate)
         {
             using var book=new XLWorkbook(path);
-            var (actions,already,warnings)=BuildPlan(slip,book,path);
+            var (actions,already,warnings)=BuildPlan(
+                slip,book,path,approvedProjectChoices);
             return new Outcome(0,already,actions,warnings);
         }
     }
 
     public static Outcome Apply(AppSettings settings,Slip slip,string backupFolder,
-        IReadOnlyList<Assignment>? approvedAssignments=null)
+        IReadOnlyList<Assignment>? approvedAssignments=null,
+        IReadOnlyDictionary<string,string>? approvedProjectChoices=null)
     {
         var path=settings.TractionMachineListPath;
         if(string.IsNullOrWhiteSpace(path)||!File.Exists(path))
@@ -159,16 +168,17 @@ public static class MotorSerialExcelSync
             var stamp=File.GetLastWriteTimeUtc(path);
             var length=new FileInfo(path).Length;
             using var book=new XLWorkbook(path);
-            var (actions,already,warnings)=BuildPlan(slip,book,path);
+            var (actions,already,warnings)=BuildPlan(
+                slip,book,path,approvedProjectChoices);
             if(approvedAssignments!=null)
             {
                 // The physical Excel rows were displayed in the approval
                 // dialog. If they changed after preview, a new confirmation
                 // is mandatory rather than silently choosing other rows.
                 var planned=actions.OrderBy(x=>x.SourceRow)
-                    .Select(x=>(x.SourceRow,x.Contract,x.Serial)).ToArray();
+                    .Select(x=>(x.SourceRow,x.Contract,x.Project,x.Company,x.Serial)).ToArray();
                 var approved=approvedAssignments.OrderBy(x=>x.SourceRow)
-                    .Select(x=>(x.SourceRow,x.Contract,x.Serial)).ToArray();
+                    .Select(x=>(x.SourceRow,x.Contract,x.Project,x.Company,x.Serial)).ToArray();
                 if(!planned.SequenceEqual(approved))
                     throw new IOException("Danh sách dòng serial trong MÁY KÉO.xlsx "+
                         "đã khác bản xem trước. Chưa ghi dữ liệu; hãy tải lại "+
