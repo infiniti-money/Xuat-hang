@@ -15,7 +15,6 @@ public partial class MainWindow
     private readonly GeminiVoice _geminiVoice=new();
     private readonly MayVoiceGreeting _mayVoiceGreeting=new();
     private readonly GeminiMicrophoneRecorder _geminiMicrophone=new();
-    private bool _geminiMicrophoneConsent;
     private bool _geminiChatTranscribing;
     private bool _geminiChatAutoSpeak=MayAssistantPreferences.Read().AutoSpeak;
     private bool _geminiHandsFreeActive;
@@ -728,6 +727,12 @@ public partial class MainWindow
                     try
                     {
                         var keyForVoice=new GeminiCredentialStore().ReadKey();
+                        if(string.IsNullOrWhiteSpace(keyForVoice))
+                        {
+                            StopHandsFreeSession();
+                            activity.Text="Phiếu nháp đã hiển thị. Chưa có Gemini API Key để phát giọng Mây; micro đã tắt.";
+                            return;
+                        }
                         UpdateMayVoiceIndicator("● Mây đang trả lời · micro tạm tắt");
                         await _geminiVoice.SpeakGeminiAsync(keyForVoice,answer,
                             message=>Dispatcher.BeginInvoke(new Action(()=>activity.Text=message)),
