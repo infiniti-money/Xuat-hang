@@ -126,6 +126,9 @@ public static class MotorSerialTwoWayDiagnostics
                       w.Contains("công trình") || w.Contains("dòng máy")),
                 "T2 serial typed into T1 cannot be assigned across projects");
 
+            next.ConfirmedMotorSourceProjects[
+                MotorSerialProjectScope.SlipKey("56062026","Hưng Yên T1",
+                    "Công ty A")]="Hưng Yên T1";
             var noop=MotorSerialExcelSync.Preview(settings,next);
             Check(noop.Proposed.Count==0 && noop.AlreadyPresent==2,
                 "Two-way re-read does not propose duplicate writes for synced serials");
