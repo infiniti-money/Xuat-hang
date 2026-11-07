@@ -752,11 +752,37 @@ public partial class MainWindow : Window
             if(target=="delivered"&&!ConfirmSlipWarnings(slip))return;
             string reason="";
             if(target is "delayed" or "cancelled") {var answer=Prompt(target=="delayed"?"Lý do hoãn phiếu":"Lý do hủy phiếu","Nhập lý do để lưu vào lịch sử phiếu.",true);if(answer==null)return;reason=answer;if(reason.Trim().Length==0)throw new InvalidOperationException("Hãy ghi lý do hoãn hoặc hủy phiếu.");}
-            if(target=="delivered"&&!Ask($"Xác nhận phiếu {slip.SlipCode} đã xuất hàng?\n\n{slip.ContractLabel}\n\nỨng dụng sẽ cập nhật Thành phẩm xuất kho.xlsx, bổ sung serial mới vào ô trống cột I và ngày bàn giao thực tế vào cột K trong MÁY KÉO.xlsx (có sao lưu). Máy kéo chưa xác định duy nhất sẽ chờ đối chiếu."))return;
+            string? confirmedDeliveryDay=null;
+            if(target=="delivered")
+            {
+                var inputDay=Prompt("Ngày bàn giao / xuất hàng thực tế",
+                    "Nhập ngày thực tế (yyyy-MM-dd). HISA chỉ ghi ngày này vào "+
+                    "cột K của máy kéo khi phiếu đã xác nhận ĐÃ XUẤT. "+
+                    "Có thể sửa nếu xuất hàng vào ngày khác.",
+                    defaultValue:DateTime.Today.ToString("yyyy-MM-dd",
+                        System.Globalization.CultureInfo.InvariantCulture));
+                if(inputDay==null)return;
+                if(!DateTime.TryParseExact(inputDay.Trim(),"yyyy-MM-dd",
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.None,out var deliveryDate))
+                {
+                    Notify("Ngày bàn giao không hợp lệ. Nhập yyyy-MM-dd, ví dụ 2026-11-07.");
+                    return;
+                }
+                confirmedDeliveryDay=deliveryDate.ToString("yyyy-MM-dd",
+                    System.Globalization.CultureInfo.InvariantCulture);
+                if(!Ask($"Xác nhận phiếu {slip.SlipCode} đã xuất hàng?\n\n"+
+                    $"{slip.ContractLabel}\n\n"+
+                    $"NGÀY BÀN GIAO THỰC TẾ: {confirmedDeliveryDay}\n\n"+
+                    "Ứng dụng sẽ cập nhật Thành phẩm xuất kho.xlsx, bổ sung serial mới vào ô trống cột I "+
+                    "và ngày bàn giao vừa xác nhận vào cột K trong MÁY KÉO.xlsx (có sao lưu). "+
+                    "Máy kéo chưa xác định duy nhất sẽ chờ đối chiếu."))return;
+            }
             if(target=="cancelled"&&slip.Status=="delivered"&&!Ask("Phiếu đã xuất sẽ được đánh dấu hủy và gỡ dòng do phiếu này ghi trong sổ xuất. Tiếp tục?"))return;
             if(target=="delivered")
             {
                 var outgoing=Copy(slip);outgoing.Status="delivered";
+                outgoing.HandoverDate=confirmedDeliveryDay!;
                 if(!ConfirmMotorSerialsForDelivery(outgoing))return;
                 var saved=await _service.SaveSlipAsync(outgoing);
                 if(saved.ProductExportPending)
@@ -1008,9 +1034,10 @@ public partial class MainWindow : Window
 
     private static FrameworkElement DockWithButton(FrameworkElement input,Button button)
     {var p=new DockPanel();DockPanel.SetDock(button,Dock.Right);p.Children.Add(button);p.Children.Add(input);return p;}
-    private string? Prompt(string title,string message,bool multiline=false)
+    private string? Prompt(string title,string message,bool multiline=false,
+        string defaultValue="")
     {
-        var input=Input("",multiline);if(multiline)input.Height=130;
+        var input=Input(defaultValue,multiline);if(multiline)input.Height=130;
         var dialog=new Window{Title=title,Owner=this,Width=560,Height=multiline?310:220,ResizeMode=ResizeMode.NoResize,WindowStartupLocation=WindowStartupLocation.CenterOwner,Background=Brush("#F3F6FA")};
         dialog.Content=new Border{Padding=new Thickness(24),Child=Stack(T(message,13,false,Muted),input,Row(B("Xác nhận",()=>dialog.DialogResult=true,true),B("Quay lại",()=>dialog.DialogResult=false)))};dialog.Loaded+=(_,_)=>input.Focus();
         return dialog.ShowDialog()==true?input.Text:null;
