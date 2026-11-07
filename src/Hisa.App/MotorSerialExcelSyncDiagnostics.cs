@@ -307,6 +307,24 @@ public static class MotorSerialExcelSyncDiagnostics
                   contractOnly.Proposed[0].SourceRow==3 &&
                   contractOnly.Proposed[0].Serial=="SERIAL-CONTRACT-ONLY",
                 "One-project workbook proposes serial I by contract D without project confirmation");
+            var splitSlip=new Slip
+            {
+                Contracts=["77772026"],
+                Lines=[
+                    new MaterialLine{Id="t1",Contract="77772026",Project="T1",
+                        Company="A",Material="Máy kéo",Quantity=1,Include=true},
+                    new MaterialLine{Id="t2",Contract="77772026",Project="T2",
+                        Company="A",Material="Máy kéo",Quantity=1,Include=true}
+                ]
+            };
+            splitSlip.MotorSerials=MotorSerials.BuildRows(splitSlip);
+            splitSlip.MotorSerials[0].SerialNumber="DO-NOT-GUESS";
+            var splitPreview=MotorSerialExcelSync.Preview(
+                contractOnlySettings,splitSlip);
+            Check(splitPreview.Proposed.Count==0 &&
+                  splitPreview.Warnings.Any(x=>x.Contains("nhiều công trình")),
+                "Slip with T1/T2 cannot write to a single-project source row by guessing");
+
             var contractOnlyDone=MotorSerialExcelSync.Apply(
                 contractOnlySettings,contractOnlySlip,backups,contractOnly.Proposed);
             using(var check=new XLWorkbook(contractOnlyPath))
