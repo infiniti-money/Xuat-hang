@@ -687,7 +687,23 @@ public partial class MainWindow : Window
             read();if(!ConfirmSlipWarnings(slip))return;
             var previous=_service.Slips.FirstOrDefault(x=>x.Id==slip.Id);
             if(previous?.Status=="delivered"&&slip.Status!="delivered"&&!Ask("Phiếu đang đã xuất. Chuyển trạng thái sẽ gỡ các dòng xuất do phiếu này ghi trong sổ Excel. Tiếp tục?"))return;
-            if(slip.Status=="delivered"&&!Ask($"Ghi nhận phiếu này ĐÃ XUẤT vào Thành phẩm xuất kho.xlsx? HISA sẽ bổ sung serial mới vào ô trống cột I và ghi ngày bàn giao thực tế vào cột K của đúng máy kéo trong MÁY KÉO.xlsx (có sao lưu). Dòng không khớp sẽ chờ đối chiếu, không ghi đoán.\n\n{slip.ContractLabel}"))return;
+            if(slip.Status=="delivered")
+            {
+                if(!DateTime.TryParseExact(slip.HandoverDate,"yyyy-MM-dd",
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.None,out _))
+                {
+                    Notify("Hãy chọn NGÀY BÀN GIAO THỰC TẾ trước khi xác nhận Đã xuất.");
+                    return;
+                }
+                if(!Ask($"Ghi nhận phiếu này ĐÃ XUẤT vào Thành phẩm xuất kho.xlsx?\n\n"+
+                    $"NGÀY BÀN GIAO / XUẤT THỰC TẾ: {slip.HandoverDate}\n\n"+
+                    "HISA sẽ bổ sung serial mới vào ô trống cột I và ghi chính ngày "+
+                    "đã xác nhận vào cột K của đúng máy kéo trong MÁY KÉO.xlsx "+
+                    "(có sao lưu). Nếu ngày chưa đúng, quay lại ô ngày trên phiếu "+
+                    "để chỉnh sửa. Dòng không khớp sẽ chờ đối chiếu, không ghi đoán.\n\n"+
+                    slip.ContractLabel))return;
+            }
             if(slip.Status=="delivered"&&!ConfirmMotorSerialsForDelivery(slip))return;
             var saved=await _service.SaveSlipAsync(slip);
             Notify("Đã lưu phiếu "+saved.SlipCode+
