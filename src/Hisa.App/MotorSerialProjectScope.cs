@@ -1,9 +1,10 @@
 namespace Hisa.App;
 
 /// <summary>
-/// Source identity for motor serials. Contract is the lookup key in column D,
-/// but a contract may cover several projects in column B. Never route serials
-/// between different projects (or companies) merely because D matches.
+/// Contract in column D is the motor serial lookup key. With exactly one
+/// source project, ignore the project label on the slip; when a contract has
+/// multiple projects in column B, a destination project must be resolved.
+/// Never borrow serials from a different contract or an unconfirmed project.
 /// </summary>
 public static class MotorSerialProjectScope
 {
@@ -36,29 +37,33 @@ public static class MotorSerialProjectScope
 
         var projects=Projects(matching,contract);
         var multiple=projects.Count>1;
-        if(explicitlySelectedSourceProject!=null)
+        // One contract with exactly one identifiable project needs only the
+        // contract in column D. A different, missing or OCR-altered project
+        // label on the slip is not an additional lookup requirement.
+        if(projects.Count==1)
         {
-            // Only the manual writeback path supplies this override, after a
-            // modal confirmation. Auto-fill always uses the slip's own project.
-            if(!projects.Any(x=>Rules.Code(x)==
-                Rules.Code(explicitlySelectedSourceProject)))
-                return new([], "Công trình được chọn không còn tồn tại trong Excel. "+
-                    "Tải lại file máy kéo rồi xác nhận lại.",multiple);
-            project=explicitlySelectedSourceProject;
+            var onlyProject=projects[0];
+            if(matching.Any(x=>string.IsNullOrWhiteSpace(x.Project)))
+                return new([], "HĐ "+contract+" có dòng chưa ghi công trình ở cột B. "+
+                    "Điền công trình vào dòng còn trống trước khi gán serial.",false);
+            matching=matching.Where(x=>
+                Rules.Code(x.Project)==Rules.Code(onlyProject)).ToList();
         }
-        if(multiple && string.IsNullOrWhiteSpace(project))
-            return new([], "HĐ "+contract+" có nhiều công trình: "+
-                string.Join(", ",projects)+". Chọn công trình trước khi nhập serial.",true);
-
-        if(projects.Count>0)
+        else if(multiple)
         {
-            var selected=projects.FirstOrDefault(x=>
-                Rules.Code(x)==Rules.Code(project));
-            if(selected==null)
-                return new([], "HĐ "+contract+" có công trình trong Excel là "+
-                    string.Join(", ",projects)+", nhưng phiếu đang ghi '"+project+
-                    "'. Không tự gán serial sang công trình khác.",multiple);
-            matching=matching.Where(x=>Rules.Code(x.Project)==Rules.Code(selected)).ToList();
+            // Multiple source projects are genuinely different destinations.
+            // Use the slip project for read-only lookup; an explicitly chosen
+            // source project takes priority when the user confirms an I write.
+            var destination=explicitlySelectedSourceProject??project;
+            if(string.IsNullOrWhiteSpace(destination))
+                return new([], "HĐ "+contract+" có nhiều công trình: "+
+                    string.Join(", ",projects)+". Chọn công trình trước khi nhập serial.",true);
+            if(!projects.Any(x=>Rules.Code(x)==Rules.Code(destination)))
+                return new([], "HĐ "+contract+" có nhiều công trình "+
+                    string.Join(", ",projects)+". Cần xác nhận công trình đích "+
+                    "trước khi đồng bộ cột I.",true);
+            matching=matching.Where(x=>
+                Rules.Code(x.Project)==Rules.Code(destination)).ToList();
         }
         else if(matching.Count>1)
         {
