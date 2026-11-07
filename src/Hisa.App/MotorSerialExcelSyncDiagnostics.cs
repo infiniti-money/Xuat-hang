@@ -267,6 +267,53 @@ public static class MotorSerialExcelSyncDiagnostics
             { changedPreviewBlocked=ex.Message.Contains("đã khác bản xem trước"); }
             Check(changedPreviewBlocked,
                 "Changed destination rows invalidate operator-approved Excel preview");
+            // User requirement: if the source contract exists in only ONE
+            // project, column D is sufficient even if the printed project
+            // text or company differs. No modal confirmation is necessary.
+            var contractOnlyPath=Path.Combine(root,"MÁY KÉO-một công trình.xlsx");
+            using(var book=new XLWorkbook())
+            {
+                var ws=book.AddWorksheet("Máy kéo");
+                ws.Cell(2,4).Value="HĐ";
+                ws.Cell(2,9).Value="Số Seri";
+                ws.Cell(3,2).Value="Tên công trình trong Excel";
+                ws.Cell(3,3).Value="Đơn vị ghi trong Excel";
+                ws.Cell(3,4).Value="77772026";
+                ws.Cell(3,5).Value="Model khác tên trên phiếu";
+                ws.Cell(3,7).Value=1;
+                ws.Cell(3,9).Value="";
+                book.SaveAs(contractOnlyPath);
+            }
+            var contractOnlySlip=new Slip
+            {
+                Contracts=["77772026"],
+                Lines=[new MaterialLine
+                {
+                    Id="one-project",Contract="77772026",
+                    Project="Tên OCR khác trên phiếu",
+                    Company="Đơn vị khác tên",Material="Máy kéo",
+                    Quantity=1,Include=true
+                }]
+            };
+            contractOnlySlip.MotorSerials=MotorSerials.BuildRows(contractOnlySlip);
+            contractOnlySlip.MotorSerials[0].SerialNumber="SERIAL-CONTRACT-ONLY";
+            var contractOnlySettings=new AppSettings
+            {
+                TractionMachineListPath=contractOnlyPath
+            };
+            var contractOnly=MotorSerialExcelSync.Preview(
+                contractOnlySettings,contractOnlySlip);
+            Check(contractOnly.Proposed.Count==1 &&
+                  contractOnly.Proposed[0].SourceRow==3 &&
+                  contractOnly.Proposed[0].Serial=="SERIAL-CONTRACT-ONLY",
+                "One-project workbook proposes serial I by contract D without project confirmation");
+            var contractOnlyDone=MotorSerialExcelSync.Apply(
+                contractOnlySettings,contractOnlySlip,backups,contractOnly.Proposed);
+            using(var check=new XLWorkbook(contractOnlyPath))
+                Check(contractOnlyDone.Written==1 &&
+                      check.Worksheet(1).Cell(3,9).GetString()=="SERIAL-CONTRACT-ONLY",
+                    "One-project contract-only serial safely writes column I");
+
             var absentSlip=new Slip{Contracts=["00009999"],
                 Lines=[new MaterialLine{Id="missing",Contract="00009999",
                     Project="Dự án khác",Company="Công ty A",
