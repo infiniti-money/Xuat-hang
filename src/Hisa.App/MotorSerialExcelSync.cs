@@ -1,4 +1,5 @@
 using System.IO;
+using System.Security.Cryptography;
 using System.Text;
 using ClosedXML.Excel;
 
@@ -6,8 +7,9 @@ namespace Hisa.App;
 
 /// <summary>
 /// Commit user-typed motor serials back to the original production workbook,
-/// column I only. Match contract numbers from column D, without requiring
-/// matching model, project or company text. Only an exact count of distinct
+/// column I only. Match contract numbers from column D, then select the
+/// EXACT source project in B (and company C if needed). A differently spelled
+/// project must be explicitly confirmed by the operator. Only an exact count of distinct
 /// empty serial cells and new serial values may be mapped; show the actual
 /// destination Excel rows for explicit user approval. Never overwrite a
 /// source serial, formula, status cell or ship goods implicitly.
@@ -167,6 +169,9 @@ public static class MotorSerialExcelSync
             // cannot authorize overwriting changes made in Excel meanwhile.
             var stamp=File.GetLastWriteTimeUtc(path);
             var length=new FileInfo(path).Length;
+            string fingerprint;
+            using(var current=File.OpenRead(path))
+                fingerprint=Convert.ToHexString(SHA256.HashData(current));
             using var book=new XLWorkbook(path);
             var (actions,already,warnings)=BuildPlan(
                 slip,book,path,approvedProjectChoices);
@@ -194,7 +199,7 @@ public static class MotorSerialExcelSync
             MotorWorkbookCellPatch.Apply(path,backupFolder,
                 actions.Select(a=>new MotorWorkbookCellPatch.Edit(
                     a.SourceRow,SerialColumn,a.Serial)).ToList(),
-                "MAY-KEO-truoc-ghi-serial");
+                "MAY-KEO-truoc-ghi-serial",fingerprint);
             return new Outcome(actions.Count,already,actions,warnings);
         }
     }
