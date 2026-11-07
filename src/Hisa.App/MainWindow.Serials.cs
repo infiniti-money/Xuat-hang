@@ -99,8 +99,9 @@ public partial class MainWindow
                         " (cột I) · "+x.Project+" · "+x.Model+
                         " → serial "+x.Serial));
                 if(Ask("ĐÃ NHẬP "+proposed.Proposed.Count+" SERIAL CHƯA CÓ TRONG EXCEL.\n\n"+
-                       "HISA tra HỢP ĐỒNG ở cột D và phân biệt CÔNG TRÌNH ở cột B.\n"+
-                       "Chỉ ghi serial mới vào ô trống cột I đúng công trình đã đối chiếu.\n"+
+                       "HISA tra SỐ HỢP ĐỒNG ở cột D. Một công trình: tự xác định đích.\n"+
+                       "Nhiều công trình: bạn phải xác nhận công trình ở cột B.\n"+
+                       "Chỉ ghi serial vào ô I trống đúng các dòng đã đối chiếu.\n"+
                        "Không lấy serial từ công trình khác dù cùng HĐ. Các dòng sẽ ghi:\n"+
                        mappedRows+(proposed.Proposed.Count>12?"\n…":"")+
                        "\n\nChỉ điền ô serial đang trống, không sửa ngày xuất, trạng thái hoặc công thức. "+
