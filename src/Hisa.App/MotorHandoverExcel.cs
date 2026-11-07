@@ -174,25 +174,24 @@ public static class MotorHandoverExcel
                     "Kiểm tra ngày trên phiếu trước khi đồng bộ cột K.");
                 continue;
             }
+            // A physical machine serial paired with its contract is enough
+            // to identify a single source row, even if a project label on
+            // the slip is missing/changed. Ambiguous contracts still cannot
+            // WRITE a new I serial without the operator's project approval.
             var filled=MotorSerials.ActiveRows(slip)
-                .Count(x=>(!limited || Rules.Contract(x.Contract)==scope) &&
-                    !string.IsNullOrWhiteSpace(x.Project) &&
-                    !string.IsNullOrWhiteSpace(x.Company));
+                .Count(x=>!limited || Rules.Contract(x.Contract)==scope);
             if(wanted<=filled)continue;
             missingSerialSlots+=wanted-filled;
             warnings.Add("Phiếu "+slip.SlipCode+" / HĐ "+contracts+
-                " đã xuất nhưng thiếu "+(wanted-filled)+
-                " serial hoặc thiếu công trình/đơn vị để đối chiếu. "+
-                "Không tự đoán ngày bàn giao theo số HĐ; kiểm tra phiếu và "+
-                "cột B/C/D/I MÁY KÉO.xlsx.");
+                " đã xuất nhưng còn thiếu "+(wanted-filled)+
+                " serial. Không tự đoán ngày bàn giao theo số HĐ; "+
+                "đối chiếu số serial ở cột I MÁY KÉO.xlsx.");
         }
         foreach(var slip in allSlips.Where(x=>x.Status=="delivered"))
         foreach(var serial in MotorSerials.ActiveRows(slip))
         {
             if(limited && Rules.Contract(serial.Contract)!=scope)continue;
-            if(string.IsNullOrWhiteSpace(serial.SerialNumber) ||
-               string.IsNullOrWhiteSpace(serial.Project) ||
-               string.IsNullOrWhiteSpace(serial.Company))continue;
+            if(string.IsNullOrWhiteSpace(serial.SerialNumber))continue;
             if(!DateTime.TryParseExact(slip.HandoverDate,"yyyy-MM-dd",
                 CultureInfo.InvariantCulture,DateTimeStyles.None,out _))continue;
             var id=Key(serial);
