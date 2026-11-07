@@ -7,9 +7,10 @@ namespace Hisa.App;
 
 /// <summary>
 /// Commit user-typed motor serials back to the original production workbook,
-/// column I only. Match contract numbers from column D, then select the
-/// EXACT source project in B (and company C if needed). A differently spelled
-/// project must be explicitly confirmed by the operator. Only an exact count of distinct
+/// column I only. Contract D alone is enough when its source rows
+/// belong to one project. If D identifies multiple source projects in B,
+/// the operator must confirm the destination project before any I write.
+/// Only an exact count of distinct
 /// empty serial cells and new serial values may be mapped; show the actual
 /// destination Excel rows for explicit user approval. Never overwrite a
 /// source serial, formula, status cell or ship goods implicitly.
