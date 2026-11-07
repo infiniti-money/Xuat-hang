@@ -8,7 +8,7 @@ namespace Hisa.App;
 /// Read-only production lists: Tủ điện, Máy kéo, Đầu cửa car.
 /// A production record is NOT a confirmed warehouse arrival, nor material
 /// available for issuing a delivery slip. The reader is read-only; only the
-/// explicitly approved MotorHandoverExcel workflow writes machine column K.
+/// confirmed MotorHandoverExcel writes machine column K; approved motor serial writes use column I.
 /// </summary>
 public static class EquipmentListReader
 {
@@ -134,16 +134,27 @@ public static class EquipmentListReader
                 }
                 var key=category+"|"+full;
                 List<Row>? cached=null;
-                lock(CacheGate)
+                // Motor serial is TWO-WAY data. The operator may edit I
+                // directly in Excel and resave the workbook with a preserved
+                // timestamp/length (backup restore, network drives, OneDrive).
+                // Always re-read this source for an explicit HISA operation;
+                // cached motor rows must never hide an external edit.
+                if(category!="Máy kéo")
                 {
-                    if(Cache.TryGetValue(key,out var hit) &&
-                       hit.Length==file.Length && hit.Stamp==file.LastWriteTimeUtc.Ticks)
-                        cached=hit.Rows;
+                    lock(CacheGate)
+                    {
+                        if(Cache.TryGetValue(key,out var hit) &&
+                           hit.Length==file.Length &&
+                           hit.Stamp==file.LastWriteTimeUtc.Ticks)
+                            cached=hit.Rows;
+                    }
                 }
                 if(cached==null)
                 {
                     cached=Read(full,category);
-                    lock(CacheGate)Cache[key]=new CacheEntry(file.Length,file.LastWriteTimeUtc.Ticks,cached);
+                    if(category!="Máy kéo")
+                        lock(CacheGate)Cache[key]=new CacheEntry(
+                            file.Length,file.LastWriteTimeUtc.Ticks,cached);
                 }
                 // A user's selection/view must not mutate shared cached objects.
                 rows.AddRange(cached.Select(Copy));
