@@ -156,11 +156,11 @@ public partial class MainWindow
         {
             var choice=MessageBox.Show(this,
                 "Có "+unresolvedProjects.Count+" hợp đồng/công trình có serial "+
-                "mới nhưng cột D của MÁY KÉO.xlsx đang chứa nhiều công trình.\\n\\n"+
+                "mới nhưng cột D của MÁY KÉO.xlsx đang chứa nhiều công trình.\n\n"+
                 "Có: chọn và xác nhận công trình đích trước khi HISA "+
-                "ghi serial mới vào cột I khi xuất hàng.\\n"+
+                "ghi serial mới vào cột I khi xuất hàng.\n"+
                 "Không: vẫn xác nhận Đã xuất, nhưng serial mới ở cột I "+
-                "và ngày K tương ứng sẽ chờ đối chiếu.\\n"+
+                "và ngày K tương ứng sẽ chờ đối chiếu.\n"+
                 "Hủy: quay lại phiếu, không xác nhận Đã xuất.",
                 "HISA · Xác nhận công trình trước khi ghi serial I",
                 MessageBoxButton.YesNoCancel,MessageBoxImage.Warning,
