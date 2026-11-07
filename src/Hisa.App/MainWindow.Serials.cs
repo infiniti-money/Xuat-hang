@@ -85,6 +85,9 @@ public partial class MainWindow
         var dialog=new MotorSerialWindow(slip,_service.Slips,requireAll){Owner=this};
         if(dialog.ShowDialog()!=true)return false;
         slip.MotorSerials=dialog.ResultSerials;
+        slip.ConfirmedMotorSourceProjects ??= [];
+        foreach(var selected in confirmedProjects)
+            slip.ConfirmedMotorSourceProjects[selected.Key]=selected.Value;
         try
         {
             var proposed=MotorSerialExcelSync.Preview(
@@ -130,6 +133,48 @@ public partial class MainWindow
         // NOT force data entry; an explicit choice is required to ship blank.
         FillMotorSerialsFromSource(slip);
         MotorSerials.Validate(slip,_service.Slips,requireAll:false);
+        var sourceRows=EquipmentListReader.Load(_service.Settings).Rows
+            .Where(x=>x.Category=="Máy kéo").ToList();
+        var sourceSerials=sourceRows
+            .Where(x=>!string.IsNullOrWhiteSpace(x.Serial))
+            .Select(x=>Rules.Code(x.Serial))
+            .ToHashSet(StringComparer.Ordinal);
+        var unresolvedProjects=MotorSerials.BuildRows(slip)
+            .Where(x=>!string.IsNullOrWhiteSpace(x.SerialNumber) &&
+                !sourceSerials.Contains(Rules.Code(x.SerialNumber)))
+            .GroupBy(x=>MotorSerialProjectScope.SlipKey(
+                x.Contract,x.Project,x.Company))
+            .Select(g=>g.First())
+            .Where(x=>MotorSerialProjectScope.Projects(
+                    sourceRows,x.Contract).Count>1 &&
+                (!(slip.ConfirmedMotorSourceProjects ?? []).TryGetValue(
+                    MotorSerialProjectScope.SlipKey(
+                        x.Contract,x.Project,x.Company),out var approved) ||
+                 string.IsNullOrWhiteSpace(approved)))
+            .ToList();
+        if(unresolvedProjects.Count>0)
+        {
+            var choice=MessageBox.Show(this,
+                "Có "+unresolvedProjects.Count+" hợp đồng/công trình có serial "+
+                "mới nhưng cột D của MÁY KÉO.xlsx đang chứa nhiều công trình.\\n\\n"+
+                "Có: chọn và xác nhận công trình đích trước khi HISA "+
+                "ghi serial mới vào cột I khi xuất hàng.\\n"+
+                "Không: vẫn xác nhận Đã xuất, nhưng serial mới ở cột I "+
+                "và ngày K tương ứng sẽ chờ đối chiếu.\\n"+
+                "Hủy: quay lại phiếu, không xác nhận Đã xuất.",
+                "HISA · Xác nhận công trình trước khi ghi serial I",
+                MessageBoxButton.YesNoCancel,MessageBoxImage.Warning,
+                MessageBoxResult.Yes);
+            if(choice==MessageBoxResult.Cancel)return false;
+            if(choice==MessageBoxResult.Yes)
+            {
+                if(!ConfirmMotorProjectSelection(slip,out var selectedProjects))
+                    return false;
+                slip.ConfirmedMotorSourceProjects ??= [];
+                foreach(var selected in selectedProjects)
+                    slip.ConfirmedMotorSourceProjects[selected.Key]=selected.Value;
+            }
+        }
         var missing=MotorSerials.BuildRows(slip).Count(x=>
             string.IsNullOrWhiteSpace(x.SerialNumber));
         if(missing==0)
