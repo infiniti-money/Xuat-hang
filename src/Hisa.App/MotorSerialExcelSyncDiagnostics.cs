@@ -63,11 +63,21 @@ public static class MotorSerialExcelSyncDiagnostics
             slip.MotorSerials[0].SerialNumber="SERIAL-T1-1";
             slip.MotorSerials[1].SerialNumber="SERIAL-T1-2";
             var before=File.ReadAllBytes(source);
-            var pending=MotorSerialExcelSync.Preview(settings,slip);
+            var sourceProjects=new Dictionary<string,string>
+            {
+                [MotorSerialProjectScope.SlipKey("56062026","Hưng Yên T1",
+                    "Công ty A")]="Hưng Yên T1"
+            };
+            var withoutConfirmation=MotorSerialExcelSync.Preview(settings,slip);
+            Check(withoutConfirmation.Proposed.Count==0 &&
+                  withoutConfirmation.Warnings.Any(x=>x.Contains("xác nhận công trình")),
+                "Multiple projects require source-project confirmation before any new I write");
+            var pending=MotorSerialExcelSync.Preview(settings,slip,sourceProjects);
             Check(pending.Proposed.Count==2&&pending.Written==0 &&
                   File.ReadAllBytes(source).SequenceEqual(before),
                   "Preview proposes exact two empty source rows without changing Excel");
-            var done=MotorSerialExcelSync.Apply(settings,slip,backups);
+            var done=MotorSerialExcelSync.Apply(settings,slip,backups,
+                pending.Proposed,sourceProjects);
             Check(done.Written==2&&Directory.GetFiles(backups,"*.xlsx").Length==1,
                 "Confirmed manual serials persist in original Excel and create backup");
             using(var zip=System.IO.Compression.ZipFile.OpenRead(source))
@@ -90,7 +100,8 @@ public static class MotorSerialExcelSyncDiagnostics
                       sheet.Cell(4,12).HasFormula,
                       "Writing serial never changes status column K, notes or formulas");
             }
-            var again=MotorSerialExcelSync.Apply(settings,slip,backups);
+            var again=MotorSerialExcelSync.Apply(settings,slip,backups,
+                approvedProjectChoices:sourceProjects);
             Check(again.Written==0&&again.AlreadyPresent==2,
                 "Rerun is idempotent and does not write or back up twice");
             var wrong=new Slip{Contracts=["56062026"],
@@ -109,7 +120,7 @@ public static class MotorSerialExcelSyncDiagnostics
                 sheet.Cell(4,9).FormulaA1="A1";
                 workbook.Save();
             }
-            var formula=MotorSerialExcelSync.Preview(settings,slip);
+            var formula=MotorSerialExcelSync.Preview(settings,slip,sourceProjects);
             Check(formula.Proposed.Count==0&&formula.Warnings.Count>0,
                 "Formula in target serial cell is protected from overwrite");
             // Real-world files often call the motor model differently from
@@ -152,11 +163,18 @@ public static class MotorSerialExcelSyncDiagnostics
             anotherSlip.MotorSerials=MotorSerials.BuildRows(anotherSlip);
             anotherSlip.MotorSerials[0].SerialNumber="SERIAL-25132026";
             anotherSlip.MotorSerials[1].SerialNumber="SERIAL-46242026";
-            var safe=MotorSerialExcelSync.Preview(alternateSettings,anotherSlip);
+            var alternateSelections=new Dictionary<string,string>
+            {
+                [MotorSerialProjectScope.SlipKey("25132026","Đồi thông T1",
+                    "Công ty A")]="Đồi thông T1"
+            };
+            var safe=MotorSerialExcelSync.Preview(
+                alternateSettings,anotherSlip,alternateSelections);
             Check(safe.Proposed.Count==2&&safe.Warnings.Count==0&&
                   safe.Proposed.Select(x=>x.SourceRow).SequenceEqual([3,4]),
                 "Serials are placed by contract D and verified source project B, with model descriptions allowed to differ");
-            var saved=MotorSerialExcelSync.Apply(alternateSettings,anotherSlip,backups,safe.Proposed);
+            var saved=MotorSerialExcelSync.Apply(alternateSettings,anotherSlip,
+                backups,safe.Proposed,alternateSelections);
             using(var book=new XLWorkbook(alternate))
             {
                 var sheet=book.Worksheets.First();
@@ -181,7 +199,8 @@ public static class MotorSerialExcelSyncDiagnostics
                     Material="Máy kéo cấu hình chưa rõ",Quantity=1,Include=true}]};
             ambiguousSlip.MotorSerials=MotorSerials.BuildRows(ambiguousSlip);
             ambiguousSlip.MotorSerials[0].SerialNumber="NEW-SERIAL-NOT-WRITTEN";
-            var ambiguous=MotorSerialExcelSync.Preview(alternateSettings,ambiguousSlip);
+            var ambiguous=MotorSerialExcelSync.Preview(
+                alternateSettings,ambiguousSlip,alternateSelections);
             Check(ambiguous.Proposed.Count==1 &&
                   ambiguous.Proposed[0].SourceRow==6 &&
                   ambiguous.Warnings.Count==0,
@@ -217,7 +236,8 @@ public static class MotorSerialExcelSyncDiagnostics
                 sheet.Cell(7,7).Value=1;
                 book.Save();
             }
-            var acrossProjects=MotorSerialExcelSync.Preview(alternateSettings,ambiguousSlip);
+            var acrossProjects=MotorSerialExcelSync.Preview(
+                alternateSettings,ambiguousSlip,alternateSelections);
             Check(acrossProjects.Proposed.Count==1 &&
                   acrossProjects.Proposed[0].SourceRow==6 &&
                   acrossProjects.Proposed.All(x=>x.Project=="Đồi thông T1"),
@@ -234,14 +254,15 @@ public static class MotorSerialExcelSyncDiagnostics
                 sheet.Cell(8,7).Value=1;
                 book.Save();
             }
-            var tooMany=MotorSerialExcelSync.Preview(alternateSettings,ambiguousSlip);
+            var tooMany=MotorSerialExcelSync.Preview(
+                alternateSettings,ambiguousSlip,alternateSelections);
             Check(tooMany.Proposed.Count==0 &&
                   tooMany.Warnings.Any(x=>x.Contains("2 ô cột I trống") &&
                     x.Contains("1 serial mới")),
                 "Ambiguous blank rows within the SAME project cannot be guessed");
             bool changedPreviewBlocked=false;
             try { MotorSerialExcelSync.Apply(alternateSettings,ambiguousSlip,backups,
-                ambiguous.Proposed); }
+                ambiguous.Proposed,alternateSelections); }
             catch(IOException ex)
             { changedPreviewBlocked=ex.Message.Contains("đã khác bản xem trước"); }
             Check(changedPreviewBlocked,
