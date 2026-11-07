@@ -72,6 +72,16 @@ public static class MotorSerialExcelSync
                 warnings.Add(scope.Warning);
                 continue;
             }
+            // A contract with multiple source projects must never write I
+            // based only on a guessed or OCR-read slip label. It needs a
+            // previously confirmed project selection in the current session
+            // or a persisted confirmation on this slip.
+            if(scope.MultipleProjects && string.IsNullOrWhiteSpace(selectedProject))
+            {
+                warnings.Add("HĐ "+first.Contract+" có nhiều công trình trong "+
+                    "MÁY KÉO.xlsx. Hãy xác nhận công trình đích trước khi ghi cột I.");
+                continue;
+            }
             var sourceGroup=scope.Rows.OrderBy(x=>x.SourceRow).ToList();
             var absent=new List<MotorSerialEntry>();
             bool conflict=false;
