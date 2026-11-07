@@ -1,3 +1,16 @@
+## HISA v1.9.52 — Đồng bộ serial máy kéo và ngày bàn giao Excel hai chiều
+
+- **Lấy serial theo hợp đồng:** khi lập phiếu xuất/bàn giao, tra hợp đồng ở **cột D** của `MÁY KÉO.xlsx`, lấy serial có sẵn ở **cột I** lên đúng phiếu. Hợp đồng chỉ có một công trình trong nguồn có thể tra theo số hợp đồng mà không cần so khớp nguyên văn tên công trình.
+- **Nhiều công trình T1/T2:** nếu một hợp đồng có từ hai công trình trở lên, người dùng phải chọn và xác nhận công trình đích trước khi ghi serial mới vào cột I. Lưu xác nhận cùng phiếu cho lần đồng bộ sau; không tự lấy serial của công trình khác.
+- **Nhập serial hai chiều:** hỗ trợ nhập trực tiếp trong Excel hoặc trong HISA. Khi Excel đã có serial, phần mềm đọc lại dữ liệu mới nhất; nếu trên phiếu có serial mới, giữ nguyên số vừa nhập và chỉ đề xuất ghi vào ô I thực sự trống sau khi đối chiếu/duyệt. Có thể bỏ qua nhập serial thiếu và tiếp tục in phiếu.
+- **Ngày bàn giao ở cột K:** chỉ cập nhật khi phiếu đã được xác nhận **Đã xuất/Đã bàn giao**, theo ngày bàn giao thực tế được xác nhận trên phiếu. Không ghi ngày bàn giao cho phiếu **Chờ xuất**.
+- **Đồng bộ an toàn cột I/K:** khi phiếu Đã xuất có serial mới và xác định chính xác máy, ghi serial I và ngày K cùng một lượt cập nhật Excel có sao lưu. Kiểm tra bản Excel bằng SHA-256, chống ghi đè serial và công thức, không đoán dòng khi số máy không khớp; trường hợp không thể đối chiếu để ở trạng thái chờ và cho phép thử đồng bộ lại theo số hợp đồng.
+- **Ổn định phát hành:** giữ sửa lỗi cảnh báo biên dịch và kiểm tra Gemini API Key, hỗ trợ DPI Windows 11, giao diện sáng/tối và kiểm thử hồi quy Windows.
+
+**Lưu ý về dữ liệu thật:** CI chỉ kiểm thử trên workbook giả lập, chưa thay thế nghiệm thu trên bản sao file `MÁY KÉO.xlsx` của người dùng. Trước khi ghi Excel kho sản xuất, sao lưu, kiểm tra hợp đồng/công trình và đối chiếu serial I, ngày K trên bản sao. Đây là bản cài đặt Windows mới, không tự sửa Excel sản xuất khi cài.
+
+---
+
 ## HISA v1.9.51 — Serial máy kéo theo công trình và giao diện Windows 11
 
 - **Đối chiếu máy kéo từ Excel:** khi lập phiếu xuất hoặc bàn giao, phần mềm tìm mã hợp đồng ở cột D của `MÁY KÉO.xlsx`, đối chiếu công trình ở cột B, rồi lấy serial có sẵn ở cột I để điền vào đúng máy trên phiếu và bản xem trước/in.
