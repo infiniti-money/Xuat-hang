@@ -186,6 +186,10 @@ public class Slip
     public List<ContractRow> ContractOnly { get; set; } = [];
     public List<MaterialLine> Lines { get; set; } = [];
     public List<MotorSerialEntry> MotorSerials { get; set; } = [];
+    // Operator-confirmed column-B destinations for contracts with multiple
+    // source projects. Stored with the slip so a later delivery/retry cannot
+    // silently choose another project for a new column-I serial.
+    public Dictionary<string,string> ConfirmedMotorSourceProjects { get; set; } = [];
     // Set only after the user explicitly confirms export with missing motor serials.
     public bool AllowMissingMotorSerials { get; set; } = false;
     public List<Package> ContractPackages { get; set; } = [];

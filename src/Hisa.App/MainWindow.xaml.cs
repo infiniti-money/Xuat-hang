@@ -687,9 +687,28 @@ public partial class MainWindow : Window
             read();if(!ConfirmSlipWarnings(slip))return;
             var previous=_service.Slips.FirstOrDefault(x=>x.Id==slip.Id);
             if(previous?.Status=="delivered"&&slip.Status!="delivered"&&!Ask("Phiếu đang đã xuất. Chuyển trạng thái sẽ gỡ các dòng xuất do phiếu này ghi trong sổ Excel. Tiếp tục?"))return;
-            if(slip.Status=="delivered"&&!Ask($"Ghi nhận phiếu này ĐÃ XUẤT vào Thành phẩm xuất kho.xlsx và ghi Ngày bàn giao cho đúng seri trong MÁY KÉO.xlsx?\n\n{slip.ContractLabel}"))return;
+            if(slip.Status=="delivered")
+            {
+                if(!DateTime.TryParseExact(slip.HandoverDate,"yyyy-MM-dd",
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.None,out _))
+                {
+                    Notify("Hãy chọn NGÀY BÀN GIAO THỰC TẾ trước khi xác nhận Đã xuất.");
+                    return;
+                }
+                if(!Ask($"Ghi nhận phiếu này ĐÃ XUẤT vào Thành phẩm xuất kho.xlsx?\n\n"+
+                    $"NGÀY BÀN GIAO / XUẤT THỰC TẾ: {slip.HandoverDate}\n\n"+
+                    "HISA sẽ bổ sung serial mới vào ô trống cột I và ghi chính ngày "+
+                    "đã xác nhận vào cột K của đúng máy kéo trong MÁY KÉO.xlsx "+
+                    "(có sao lưu). Nếu ngày chưa đúng, quay lại ô ngày trên phiếu "+
+                    "để chỉnh sửa. Dòng không khớp sẽ chờ đối chiếu, không ghi đoán.\n\n"+
+                    slip.ContractLabel))return;
+            }
             if(slip.Status=="delivered"&&!ConfirmMotorSerialsForDelivery(slip))return;
-            var saved=await _service.SaveSlipAsync(slip);Notify("Đã lưu phiếu "+saved.SlipCode);_draft=null;_draftReport=null;Navigate("slips");
+            var saved=await _service.SaveSlipAsync(slip);
+            Notify("Đã lưu phiếu "+saved.SlipCode+
+                (saved.ProductExportPending?"\nCần kiểm tra đồng bộ máy kéo: cột I/K còn đang chờ đối chiếu.":""));
+            _draft=null;_draftReport=null;Navigate("slips");
         },true),B("Xem trước / in phiếu",()=>{if(scopeChanged?.Invoke()==true){Notify("Bạn đã đổi mã hợp đồng/bộ lọc. Tải lại vật tư để xem trước đúng phiếu.");return;}read();PrintSlipWithMotorSerials(slip);}),A("Sửa mẫu phiếu in",async()=>{var editor=new TemplateEditorWindow(FindTemplate(template.SelectedValue?.ToString()??slip.TemplateId)){Owner=this};if(editor.ShowDialog()==true){await _service.SaveTemplateAsync(editor.ResultTemplate);Notify("Đã lưu mẫu in. Bấm Xem trước để kiểm tra.");}}),B("+ Thêm vật tư",()=>{var item=EditLine(slip.Lines.FirstOrDefault());if(item!=null){slip.Lines.Add(item);lines.Items.Refresh();RefreshMaterialGroupChoices();}}),B("Chọn in tất cả",()=>{foreach(var l in slip.Lines)l.Include=true;lines.Items.Refresh();}),B("Bỏ chọn dòng đang chọn",()=>{foreach(var l in lines.SelectedItems.OfType<MaterialLine>())l.Include=false;lines.Items.Refresh();})));
         toolbar.Children.Add(Row(
             Field("Chọn nhóm vật tư trên phiếu",materialGroupPicker),
@@ -749,13 +768,43 @@ public partial class MainWindow : Window
             if(target=="delivered"&&!ConfirmSlipWarnings(slip))return;
             string reason="";
             if(target is "delayed" or "cancelled") {var answer=Prompt(target=="delayed"?"Lý do hoãn phiếu":"Lý do hủy phiếu","Nhập lý do để lưu vào lịch sử phiếu.",true);if(answer==null)return;reason=answer;if(reason.Trim().Length==0)throw new InvalidOperationException("Hãy ghi lý do hoãn hoặc hủy phiếu.");}
-            if(target=="delivered"&&!Ask($"Xác nhận phiếu {slip.SlipCode} đã xuất hàng?\n\n{slip.ContractLabel}\n\nỨng dụng sẽ cập nhật Thành phẩm xuất kho.xlsx và ghi Ngày bàn giao cho đúng seri trong MÁY KÉO.xlsx."))return;
+            string? confirmedDeliveryDay=null;
+            if(target=="delivered")
+            {
+                var inputDay=Prompt("Ngày bàn giao / xuất hàng thực tế",
+                    "Nhập ngày thực tế (yyyy-MM-dd). HISA chỉ ghi ngày này vào "+
+                    "cột K của máy kéo khi phiếu đã xác nhận ĐÃ XUẤT. "+
+                    "Có thể sửa nếu xuất hàng vào ngày khác.",
+                    defaultValue:DateTime.Today.ToString("yyyy-MM-dd",
+                        System.Globalization.CultureInfo.InvariantCulture));
+                if(inputDay==null)return;
+                if(!DateTime.TryParseExact(inputDay.Trim(),"yyyy-MM-dd",
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.None,out var deliveryDate))
+                {
+                    Notify("Ngày bàn giao không hợp lệ. Nhập yyyy-MM-dd, ví dụ 2026-11-07.");
+                    return;
+                }
+                confirmedDeliveryDay=deliveryDate.ToString("yyyy-MM-dd",
+                    System.Globalization.CultureInfo.InvariantCulture);
+                if(!Ask($"Xác nhận phiếu {slip.SlipCode} đã xuất hàng?\n\n"+
+                    $"{slip.ContractLabel}\n\n"+
+                    $"NGÀY BÀN GIAO THỰC TẾ: {confirmedDeliveryDay}\n\n"+
+                    "Ứng dụng sẽ cập nhật Thành phẩm xuất kho.xlsx, bổ sung serial mới vào ô trống cột I "+
+                    "và ngày bàn giao vừa xác nhận vào cột K trong MÁY KÉO.xlsx (có sao lưu). "+
+                    "Máy kéo chưa xác định duy nhất sẽ chờ đối chiếu."))return;
+            }
             if(target=="cancelled"&&slip.Status=="delivered"&&!Ask("Phiếu đã xuất sẽ được đánh dấu hủy và gỡ dòng do phiếu này ghi trong sổ xuất. Tiếp tục?"))return;
             if(target=="delivered")
             {
                 var outgoing=Copy(slip);outgoing.Status="delivered";
+                outgoing.HandoverDate=confirmedDeliveryDay!;
                 if(!ConfirmMotorSerialsForDelivery(outgoing))return;
-                await _service.SaveSlipAsync(outgoing);
+                var saved=await _service.SaveSlipAsync(outgoing);
+                if(saved.ProductExportPending)
+                    Notify("Đã ghi nhận Đã xuất, nhưng còn máy kéo chưa đồng bộ "+
+                        "đúng serial I/ngày bàn giao K. Kiểm tra Lịch làm máy kéo "+
+                        "và đồng bộ lại sau khi đối chiếu.");
             }
             else await _service.ChangeSlipStatusAsync(slip.Id,target,reason);
             load();
@@ -1001,9 +1050,10 @@ public partial class MainWindow : Window
 
     private static FrameworkElement DockWithButton(FrameworkElement input,Button button)
     {var p=new DockPanel();DockPanel.SetDock(button,Dock.Right);p.Children.Add(button);p.Children.Add(input);return p;}
-    private string? Prompt(string title,string message,bool multiline=false)
+    private string? Prompt(string title,string message,bool multiline=false,
+        string defaultValue="")
     {
-        var input=Input("",multiline);if(multiline)input.Height=130;
+        var input=Input(defaultValue,multiline);if(multiline)input.Height=130;
         var dialog=new Window{Title=title,Owner=this,Width=560,Height=multiline?310:220,ResizeMode=ResizeMode.NoResize,WindowStartupLocation=WindowStartupLocation.CenterOwner,Background=Brush("#F3F6FA")};
         dialog.Content=new Border{Padding=new Thickness(24),Child=Stack(T(message,13,false,Muted),input,Row(B("Xác nhận",()=>dialog.DialogResult=true,true),B("Quay lại",()=>dialog.DialogResult=false)))};dialog.Loaded+=(_,_)=>input.Focus();
         return dialog.ShowDialog()==true?input.Text:null;

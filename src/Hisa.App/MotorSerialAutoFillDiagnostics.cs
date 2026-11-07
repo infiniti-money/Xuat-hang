@@ -127,6 +127,18 @@ public static class MotorSerialAutoFillDiagnostics
         Check(aliasApproved.Assigned==2&&aliasApproved.Missing==0&&
               aliasSlip.MotorSerials.All(x=>x.SerialNumber!="HY-OTHER-T2"),
             "Explicitly chosen source project can import its serials without T2 contamination");
+        var contractOnlySlip=NewSlip(project:"Công trình trên phiếu khác Excel",quantity:1);
+        var contractOnlyRows=new List<EquipmentListReader.Row>
+        {
+            new(){Category="Máy kéo",Contract="56062026",Project="Hưng Yên T1",
+                Company="Một đơn vị khác trong Excel",Material="Máy kéo 11 kW",
+                Serial="CONTRACT-ONLY-I",SourceRow=15,Quantity=1}
+        };
+        var contractOnlyResult=MotorSerialAutoFill.Fill(
+            contractOnlySlip,contractOnlyRows);
+        Check(contractOnlyResult.Assigned==1 &&
+              contractOnlySlip.MotorSerials.Single().SerialNumber=="CONTRACT-ONLY-I",
+            "Single-project contract D imports existing I without requiring matching project text");
         var fallback=NewSlip(quantity:1);
         var modelDifferent=new List<EquipmentListReader.Row>
         {

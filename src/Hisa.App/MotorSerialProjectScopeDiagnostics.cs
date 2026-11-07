@@ -42,8 +42,13 @@ public static class MotorSerialProjectScopeDiagnostics
             "Wrong slip project cannot claim an existing source serial");
         var uniqueWrong=MotorSerialProjectScope.Resolve(rows,"77772026",
             "Một công trình khác","A");
-        Check(uniqueWrong.Rows.Count==0&&uniqueWrong.Warning!=null,
-            "Unique contract still must not silently change a known project");
+        Check(uniqueWrong.Rows.Count==1&&uniqueWrong.Warning==null&&
+              uniqueWrong.Rows[0].SourceRow==6,
+            "One-project source uses contract D alone even when slip project differs");
+        var uniqueBlank=MotorSerialProjectScope.Resolve(rows,
+            "77772026","","");
+        Check(uniqueBlank.Rows.Count==1&&uniqueBlank.Warning==null,
+            "One-project source can match by contract D without project/company on slip");
         var companies=new List<EquipmentListReader.Row>
         {
             new(){Category="Máy kéo",Contract="88882026",Project="Công trình T1",

@@ -1,4 +1,5 @@
 using System.IO;
+using System.Security.Cryptography;
 using System.Text;
 using ClosedXML.Excel;
 
@@ -6,8 +7,10 @@ namespace Hisa.App;
 
 /// <summary>
 /// Commit user-typed motor serials back to the original production workbook,
-/// column I only. Match contract numbers from column D, without requiring
-/// matching model, project or company text. Only an exact count of distinct
+/// column I only. Contract D alone is enough when its source rows
+/// belong to one project. If D identifies multiple source projects in B,
+/// the operator must confirm the destination project before any I write.
+/// Only an exact count of distinct
 /// empty serial cells and new serial values may be mapped; show the actual
 /// destination Excel rows for explicit user approval. Never overwrite a
 /// source serial, formula, status cell or ship goods implicitly.
@@ -50,6 +53,13 @@ public static class MotorSerialExcelSync
             .GroupBy(x=>Rules.Code(x.Serial),StringComparer.Ordinal)
             .ToDictionary(x=>x.Key,x=>x.ToList(),StringComparer.Ordinal);
 
+        var slipMultiProjectContracts=MotorSerials.BuildRows(slip)
+            .GroupBy(x=>Rules.Contract(x.Contract))
+            .Where(g=>g.Select(x=>Rules.Code(x.Project))
+                .Distinct(StringComparer.Ordinal).Count()>1)
+            .Select(g=>g.Key)
+            .ToHashSet(StringComparer.Ordinal);
+
         // Source column D finds the contract. Source column B separates projects;
         // optionally column C disambiguates different companies under a project.
         // Grouping per project prevents a T1 serial from being written into T2.
@@ -58,16 +68,37 @@ public static class MotorSerialExcelSync
             Project:Rules.Code(x.Project),Company:Rules.Code(x.Company))))
         {
             var first=group.First();
+            if(slipMultiProjectContracts.Contains(Rules.Contract(first.Contract)) &&
+               MotorSerialProjectScope.Projects(rows,first.Contract).Count<=1)
+            {
+                warnings.Add("HĐ "+first.Contract+" có nhiều công trình trên "+
+                    "phiếu nhưng chưa có dòng công trình riêng tương ứng "+
+                    "trong Excel. Cần đối chiếu trước khi ghi serial cột I.");
+                continue;
+            }
             var selectionKey=MotorSerialProjectScope.SlipKey(
                 first.Contract,first.Project,first.Company);
             string? selectedProject=null;
             if(approvedProjectChoices!=null)
                 approvedProjectChoices.TryGetValue(selectionKey,out selectedProject);
+            if(string.IsNullOrWhiteSpace(selectedProject))
+                (slip.ConfirmedMotorSourceProjects ?? []).TryGetValue(
+                    selectionKey,out selectedProject);
             var scope=MotorSerialProjectScope.Resolve(
                 rows,first.Contract,first.Project,first.Company,selectedProject);
             if(scope.Warning!=null)
             {
                 warnings.Add(scope.Warning);
+                continue;
+            }
+            // A contract with multiple source projects must never write I
+            // based only on a guessed or OCR-read slip label. It needs a
+            // previously confirmed project selection in the current session
+            // or a persisted confirmation on this slip.
+            if(scope.MultipleProjects && string.IsNullOrWhiteSpace(selectedProject))
+            {
+                warnings.Add("HĐ "+first.Contract+" có nhiều công trình trong "+
+                    "MÁY KÉO.xlsx. Hãy xác nhận công trình đích trước khi ghi cột I.");
                 continue;
             }
             var sourceGroup=scope.Rows.OrderBy(x=>x.SourceRow).ToList();
@@ -167,6 +198,9 @@ public static class MotorSerialExcelSync
             // cannot authorize overwriting changes made in Excel meanwhile.
             var stamp=File.GetLastWriteTimeUtc(path);
             var length=new FileInfo(path).Length;
+            string fingerprint;
+            using(var current=File.OpenRead(path))
+                fingerprint=Convert.ToHexString(SHA256.HashData(current));
             using var book=new XLWorkbook(path);
             var (actions,already,warnings)=BuildPlan(
                 slip,book,path,approvedProjectChoices);
@@ -194,7 +228,7 @@ public static class MotorSerialExcelSync
             MotorWorkbookCellPatch.Apply(path,backupFolder,
                 actions.Select(a=>new MotorWorkbookCellPatch.Edit(
                     a.SourceRow,SerialColumn,a.Serial)).ToList(),
-                "MAY-KEO-truoc-ghi-serial");
+                "MAY-KEO-truoc-ghi-serial",fingerprint);
             return new Outcome(actions.Count,already,actions,warnings);
         }
     }
