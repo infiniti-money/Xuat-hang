@@ -107,12 +107,31 @@ public static class MotorSerialAutoFill
             var unitRows=units.OrderBy(x=>x.UnitIndex).ToList();
             var manual=unitRows.Where(x=>!string.IsNullOrWhiteSpace(x.SerialNumber))
                 .Select(x=>Rules.Code(x.SerialNumber)).ToList();
-            if(manual.Distinct(StringComparer.Ordinal).Count()!=manual.Count||
-               manual.Any(x=>!sourceCodes.Contains(x)))
+            if(manual.Distinct(StringComparer.Ordinal).Count()!=manual.Count)
             {
                 warnings.Add("HĐ "+first.Contract+
-                    ": serial đã nhập tay khác nguồn. Giữ nguyên để kiểm tra.");
+                    ": serial nhập tay trùng trên nhiều máy. Giữ nguyên để kiểm tra.");
                 continue;
+            }
+            // Two-way sync: the operator may have entered a NEW serial in
+            // HISA which has not yet been written to column I, while another
+            // motor serial in the same Excel contract/project is already
+            // available. Preserve the new value AND read the existing one.
+            // A typed serial that belongs to any OTHER source row is a
+            // conflict, however; never reassign it to a different machine.
+            if(manual.Any(code=>all.Any(row=>
+                Rules.Code(row.Serial)==code && !sources.Contains(row))))
+            {
+                warnings.Add("HĐ "+first.Contract+" · "+first.Project+
+                    ": serial trên phiếu đang thuộc dòng máy hoặc công trình "+
+                    "khác trong Excel. Không tự gán để tránh trùng máy.");
+                continue;
+            }
+            if(manual.Any(x=>!sourceCodes.Contains(x)))
+            {
+                warnings.Add("HĐ "+first.Contract+" · "+first.Project+
+                    ": có serial chỉ mới nhập trên phiếu, chưa thấy ở cột I Excel. "+
+                    "Giữ nguyên và chỉ ghi vào Excel sau khi đối chiếu/duyệt.");
             }
             var remaining=sources.Where(x=>
                 !string.IsNullOrWhiteSpace(x.Serial) &&
