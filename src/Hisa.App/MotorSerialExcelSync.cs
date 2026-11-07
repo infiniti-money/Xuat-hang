@@ -65,6 +65,9 @@ public static class MotorSerialExcelSync
             string? selectedProject=null;
             if(approvedProjectChoices!=null)
                 approvedProjectChoices.TryGetValue(selectionKey,out selectedProject);
+            if(string.IsNullOrWhiteSpace(selectedProject))
+                (slip.ConfirmedMotorSourceProjects ?? []).TryGetValue(
+                    selectionKey,out selectedProject);
             var scope=MotorSerialProjectScope.Resolve(
                 rows,first.Contract,first.Project,first.Company,selectedProject);
             if(scope.Warning!=null)
