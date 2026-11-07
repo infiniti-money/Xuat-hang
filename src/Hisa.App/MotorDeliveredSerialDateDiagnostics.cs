@@ -89,6 +89,10 @@ public static class MotorDeliveredSerialDateDiagnostics
                 "Planned handover never changes serial I or date K");
 
             planned.Status="delivered";
+            // The operator explicitly selected T1 before confirming delivery.
+            planned.ConfirmedMotorSourceProjects[
+                MotorSerialProjectScope.SlipKey("56062026","Hưng Yên T1",
+                    "Công ty A")]="Hưng Yên T1";
             var outcome=MotorHandoverExcel.Sync(settings,[planned],data,backups);
             using(var book=new XLWorkbook(path))
             {
