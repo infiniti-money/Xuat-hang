@@ -53,6 +53,13 @@ public static class MotorSerialExcelSync
             .GroupBy(x=>Rules.Code(x.Serial),StringComparer.Ordinal)
             .ToDictionary(x=>x.Key,x=>x.ToList(),StringComparer.Ordinal);
 
+        var slipMultiProjectContracts=MotorSerials.BuildRows(slip)
+            .GroupBy(x=>Rules.Contract(x.Contract))
+            .Where(g=>g.Select(x=>Rules.Code(x.Project))
+                .Distinct(StringComparer.Ordinal).Count()>1)
+            .Select(g=>g.Key)
+            .ToHashSet(StringComparer.Ordinal);
+
         // Source column D finds the contract. Source column B separates projects;
         // optionally column C disambiguates different companies under a project.
         // Grouping per project prevents a T1 serial from being written into T2.
@@ -61,6 +68,14 @@ public static class MotorSerialExcelSync
             Project:Rules.Code(x.Project),Company:Rules.Code(x.Company))))
         {
             var first=group.First();
+            if(slipMultiProjectContracts.Contains(Rules.Contract(first.Contract)) &&
+               MotorSerialProjectScope.Projects(rows,first.Contract).Count<=1)
+            {
+                warnings.Add("HĐ "+first.Contract+" có nhiều công trình trên "+
+                    "phiếu nhưng chưa có dòng công trình riêng tương ứng "+
+                    "trong Excel. Cần đối chiếu trước khi ghi serial cột I.");
+                continue;
+            }
             var selectionKey=MotorSerialProjectScope.SlipKey(
                 first.Contract,first.Project,first.Company);
             string? selectedProject=null;
