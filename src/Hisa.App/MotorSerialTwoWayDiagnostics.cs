@@ -74,6 +74,9 @@ public static class MotorSerialTwoWayDiagnostics
                   merged.Warnings.Any(w=>w.Contains("chưa thấy ở cột I")),
                 "Unsynced HISA-only serial is visible and does not mark delivery");
 
+            first.ConfirmedMotorSourceProjects[
+                MotorSerialProjectScope.SlipKey("56062026","Hưng Yên T1",
+                    "Công ty A")]="Hưng Yên T1";
             var plan=MotorSerialExcelSync.Preview(settings,first);
             Check(plan.Proposed.Count==1 &&
                   plan.Proposed[0].SourceRow==3 &&
