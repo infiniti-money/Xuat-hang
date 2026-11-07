@@ -8,6 +8,13 @@ Thực hiện trên **bản sao** dữ liệu, tuyệt đối không chạy th�
 - Tạo dữ liệu mẫu một HĐ xuất hiện ở hai công trình T1/T2; T1 có một serial và một ô I trống, T2 có serial riêng.
 - Cất một bản sao của Excel gốc trước khi thao tác. Đóng Excel khi HISA cần ghi.
 
+## Quy tắc chọn công trình khi ghi serial mới cột I
+- [ ] HĐ chỉ có **một công trình** trong MÁY KÉO.xlsx: tra cột D và đề xuất ghi vào đúng ô I trống; không yêu cầu tên công trình/đơn vị trên phiếu phải trùng.
+- [ ] HĐ có **T1/T2 hoặc nhiều công trình** trong cột B: dù tên công trình trên phiếu đã giống Excel, **chưa có xác nhận** thì không được ghi serial mới vào I.
+- [ ] Chọn công trình trong hộp xác nhận rồi duyệt đúng dòng Excel: chỉ ghi I của công trình đã chọn. Lựa chọn được lưu với phiếu cho lần đồng bộ Đã xuất và thử lại.
+- [ ] Chọn bỏ qua xác nhận công trình khi Đã xuất: giữ phiếu và serial đã nhập nhưng việc ghi serial I/ngày K tương ứng tiếp tục ở trạng thái chờ đối chiếu.
+- [ ] Khi một HĐ có nhiều dòng máy cùng công trình mà không thể ghép duy nhất máy/serial, không tự chọn ô I; phải kiểm tra dữ liệu và xác nhận riêng.
+
 ## Lập phiếu và in
 - [ ] Lập phiếu từ đúng số HĐ và công trình T1; serial đã có ở T1 tự hiển thị trên phiếu, serial của T2 không xuất hiện.
 - [ ] Khi còn máy chưa có serial, HISA hỏi **Có / Không / Hủy**. Chọn **Không** vẫn xem trước/in được; serial thiếu giữ trống.
