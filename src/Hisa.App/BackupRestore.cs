@@ -1,5 +1,6 @@
 using System.IO;
 using System.IO.Compression;
+using System.Security.Cryptography;
 using System.Text.Json;
 using ClosedXML.Excel;
 
@@ -13,6 +14,10 @@ public static class BackupRestore
 {
     public sealed record Preview(bool Legacy, string CreatedAt, IReadOnlyList<string> Files)
     {
+        // V2 manifests are checked when previewing. Reuse the expected digests
+        // when staging to detect a ZIP changed between preview and restore.
+        internal IReadOnlyDictionary<string,string> Digests { get; init; } =
+            new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase);
         public int DataCount => Files.Count(x=>x.EndsWith(".json",StringComparison.OrdinalIgnoreCase) && x!="backup-manifest.json");
         public int ExcelCount => Files.Count(x=>x.StartsWith("Excel/",StringComparison.OrdinalIgnoreCase));
     }
@@ -60,16 +65,21 @@ public static class BackupRestore
         }
         var legacy=!seen.Contains("backup-manifest.json");
         string created;
+        IReadOnlyDictionary<string,string> digests =
+            new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase);
         if(!legacy)
         {
             var manifest=BackupArchive.Verify(zipPath);
             created=manifest.CreatedAt;
+            digests=manifest.Files.ToDictionary(x=>x.Name,x=>x.Sha256,
+                StringComparer.OrdinalIgnoreCase);
         }
         else
             created=File.GetLastWriteTime(zipPath).ToString("yyyy-MM-dd HH:mm");
         if(!seen.Contains("Excel/Tổng hợp.xlsx"))
             throw new InvalidDataException("Bản sao thiếu Excel/Tổng hợp.xlsx.");
-        return new Preview(legacy,created,seen.Where(Allowed).OrderBy(x=>x).ToList());
+        return new Preview(legacy,created,seen.Where(Allowed).OrderBy(x=>x).ToList())
+            {Digests=digests};
     }
 
     private static string Destination(string entryName,string dataDirectory,AppSettings settings)
@@ -87,6 +97,16 @@ public static class BackupRestore
         throw new InvalidDataException("Đường dẫn ZIP không được phép phục hồi.");
     }
 
+    internal static void VerifyStagedDigest(string entryName,string stage,
+        IReadOnlyDictionary<string,string> expectedDigests)
+    {
+        if(!expectedDigests.TryGetValue(entryName,out var expected))return; // Legacy V1 has no digest.
+        using var stream=File.OpenRead(stage);
+        var actual=Convert.ToHexString(SHA256.HashData(stream));
+        if(!actual.Equals(expected,StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("Tệp ZIP đã thay đổi sau khi xem trước: "+entryName);
+    }
+
     public static string Restore(string zipPath,string dataDirectory,string backupDirectory,
         AppSettings settings,bool includeData,bool includeExcel,int failAfterWrites=-1)
     {
@@ -96,6 +116,20 @@ public static class BackupRestore
         var selected=preview.Files.Where(x=>
             x.StartsWith("Excel/",StringComparison.OrdinalIgnoreCase)?includeExcel:includeData).ToList();
         if(selected.Count==0)throw new InvalidDataException("Không có tệp nào thuộc nhóm đã chọn.");
+
+        // Prevent a bad workspace configuration from restoring two different files
+        // onto the same target (e.g. master and production-export Excel paths).
+        // Validate every target before creating snapshots or modifying data.
+        var targets=new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var archivePath=Path.GetFullPath(zipPath);
+        foreach(var name in selected)
+        {
+            var target=Path.GetFullPath(Destination(name,dataDirectory,settings));
+            if(!targets.Add(target))
+                throw new InvalidDataException("Nhiều tệp ZIP cùng đích phục hồi: "+target);
+            if(target.Equals(archivePath,StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("Tệp ZIP trùng với đích phục hồi.");
+        }
 
         Directory.CreateDirectory(backupDirectory);
         var safety=Path.Combine(backupDirectory,"Restore-Safety-"+DateTime.Now.ToString("yyyyMMdd-HHmmss")+"-"+Guid.NewGuid().ToString("N")[..6]);
@@ -120,6 +154,7 @@ public static class BackupRestore
                         input.CopyTo(output);
                     if(new FileInfo(stage).Length!=entry.Length)
                         throw new InvalidDataException("Giải nén không đủ dữ liệu: "+name);
+                    VerifyStagedDigest(name,stage,preview.Digests);
                     if(name.EndsWith(".json",StringComparison.OrdinalIgnoreCase))
                     {
                         BackupSchemaValidator.Validate(name,stage);

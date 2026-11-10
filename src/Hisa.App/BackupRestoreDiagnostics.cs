@@ -69,6 +69,38 @@ public static class BackupRestoreDiagnostics
         }
         Check(locked,"Locked workbook blocks restore before any overwrite");
 
+        // A configuration mistake must not let two different workbook entries
+        // overwrite each other at the same physical destination.
+        var collidingSettings=new AppSettings
+        {
+            MasterPath=settings.MasterPath,
+            ProductExportPath=settings.MasterPath,
+            KtPath=settings.KtPath
+        };
+        var unchangedWorkbook=File.ReadAllBytes(settings.MasterPath);
+        bool collisionRejected=false;
+        try{BackupRestore.Restore(zip,data,backups,collidingSettings,false,true);}
+        catch(InvalidDataException){collisionRejected=true;}
+        Check(collisionRejected && File.ReadAllBytes(settings.MasterPath).SequenceEqual(unchangedWorkbook),
+            "Overlapping workbook destinations are rejected before writing");
+
+        // A V2 archive may be modified after the first preview. The staged
+        // content must still match the original manifest before replacement.
+        var digestProbe=Path.Combine(root,"staged-digest.json");
+        File.WriteAllText(digestProbe,"[]");
+        var expectedDigest=Convert.ToHexString(
+            System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(digestProbe)));
+        var expectedDigests=new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["slips.json"]=expectedDigest
+        };
+        BackupRestore.VerifyStagedDigest("slips.json",digestProbe,expectedDigests);
+        File.WriteAllText(digestProbe,"{}");
+        bool digestRejected=false;
+        try{BackupRestore.VerifyStagedDigest("slips.json",digestProbe,expectedDigests);}
+        catch(InvalidDataException){digestRejected=true;}
+        Check(digestRejected,"Changed staged V2 content is rejected against preview manifest");
+
         var bad=Path.Combine(root,"zip-slip.zip");
         using(var archive=ZipFile.Open(bad,ZipArchiveMode.Create))
         {
