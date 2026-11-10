@@ -1,3 +1,14 @@
+## HISA v1.9.53 — Tăng an toàn khôi phục dữ liệu kho
+
+- **Chặn trùng đường dẫn đích:** khi khôi phục ZIP, từ chối thao tác nếu hai tệp nguồn khác nhau cùng trỏ tới một workbook hoặc tệp dữ liệu đích. Kiểm tra trước khi tạo bản sao an toàn và ghi bất kỳ tệp nào.
+- **Bảo vệ toàn vẹn ZIP V2:** sau khi xác minh manifest SHA-256, HISA tiếp tục đối chiếu checksum của từng tệp đã giải nén trước khi thay thế dữ liệu. ZIP bị thay đổi sau bước xem trước sẽ bị từ chối.
+- **Giữ tương thích:** không thay đổi dữ liệu phiếu, lịch sử xuất/nhập, mẫu in, cột I/K của MÁY KÉO.xlsx, địa chỉ lưu Gemini API Key hay định dạng sao lưu; ZIP V1 cũ vẫn được nhận diện là bản sao legacy không có checksum.
+- **Kiểm thử:** bổ sung regression cho trường hợp workbook cùng đích và nội dung giải nén không khớp SHA-256; bộ cài Windows x64, Inno Setup tiếng Việt và gói ZIP/SHA-256 được kiểm tra trong GitHub Actions.
+
+**Lưu ý bắt buộc:** CI dùng dữ liệu Excel giả lập. Trước khi khôi phục lên dữ liệu kho sản xuất hoặc đồng bộ serial máy kéo cột I/ngày bàn giao K, hãy sao lưu và nghiệm thu trên bản sao workbook thực tế. Cài đặt phiên bản mới không tự sửa file Excel sản xuất.
+
+---
+
 ## HISA v1.9.52 — Đồng bộ serial máy kéo và ngày bàn giao Excel hai chiều
 
 - **Lấy serial theo hợp đồng:** khi lập phiếu xuất/bàn giao, tra hợp đồng ở **cột D** của `MÁY KÉO.xlsx`, lấy serial có sẵn ở **cột I** lên đúng phiếu. Hợp đồng chỉ có một công trình trong nguồn có thể tra theo số hợp đồng mà không cần so khớp nguyên văn tên công trình.
